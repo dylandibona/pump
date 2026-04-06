@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, X, Plus, Copy, FileText, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { RestTimerInline } from './Timer';
 import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet } from '@/lib/types';
 import { getExerciseHistory, getPRForExercise } from '@/lib/storage';
+import { playSetCompleteFeedback, playPRFeedback } from '@/lib/sounds';
 
 interface GymWorkoutProps {
   sessionId?: string;
@@ -36,6 +37,15 @@ export function GymWorkout({ sessionId, onComplete }: GymWorkoutProps) {
 
   const [newExerciseName, setNewExerciseName] = useState('');
   const [showAddExercise, setShowAddExercise] = useState(true);
+  const prevPRCountRef = useRef(newPRs.length);
+
+  // Play sound when a new PR is achieved
+  useEffect(() => {
+    if (newPRs.length > prevPRCountRef.current) {
+      playPRFeedback();
+    }
+    prevPRCountRef.current = newPRs.length;
+  }, [newPRs.length]);
 
   const handleAddExercise = useCallback((exercise: string | { name: string }) => {
     const name = typeof exercise === 'string' ? exercise : exercise.name;
@@ -240,6 +250,8 @@ function ExerciseCard({
       onAddSet({ weight, reps, isWarmup });
       setNewReps('');
       setIsWarmup(false);
+      // Play sound feedback for set completion
+      playSetCompleteFeedback();
     }
   };
 
