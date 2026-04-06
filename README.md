@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Pump - Workout Tracker
+
+A bold, mobile-first workout tracking PWA for logging gym sessions and cardio workouts.
+
+## Features
+
+### Gym Workouts
+- **Exercise Autocomplete** - Search from 100+ common exercises or add custom ones
+- **Set Tracking** - Log weight, reps, and mark warmup sets
+- **PR Detection** - Automatic personal record tracking with celebrations
+- **Exercise History** - View previous sessions for each exercise
+- **Quick Duplicate** - One-tap to repeat your last set
+- **Rest Timer** - Inline countdown timer between sets
+
+### Cardio Workouts
+- **Activity Types** - Run, Bike, Swim, Row, Elliptical, Walk
+- **Distance & Time** - Log miles and duration
+- **Pace Calculation** - Automatic pace display (min/mile)
+- **Stopwatch** - Built-in timer for live tracking
+
+### General
+- **Session Summary** - Celebrate completed workouts with stats
+- **Workout History** - Browse past sessions by month
+- **Statistics** - Track total workouts, PRs, and volume lifted
+- **PWA Ready** - Install on mobile for native-like experience
+- **Offline Support** - All data stored locally in localStorage
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router, Turbopack)
+- **Styling**: Tailwind CSS v4
+- **Components**: shadcn/ui (base-ui primitives)
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+- **Fonts**: Bebas Neue (display), Outfit (body), Space Mono (mono)
+- **Storage**: localStorage (client-side persistence)
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── globals.css      # Theme, animations, utilities
+│   ├── layout.tsx       # Root layout with fonts
+│   └── page.tsx         # Main app with view routing
+├── components/
+│   ├── ui/              # shadcn/ui components
+│   └── workout/         # Workout-specific components
+│       ├── Dashboard.tsx
+│       ├── SessionStart.tsx
+│       ├── GymWorkout.tsx
+│       ├── CardioWorkout.tsx
+│       ├── SessionSummary.tsx
+│       ├── WorkoutHistory.tsx
+│       ├── Timer.tsx
+│       └── ExerciseAutocomplete.tsx
+├── hooks/
+│   ├── useWorkout.ts    # Workout session management
+│   └── useTimer.ts      # Timer/stopwatch logic
+└── lib/
+    ├── types.ts         # TypeScript types
+    ├── storage.ts       # localStorage utilities
+    └── exercises.ts     # Exercise database
+```
 
-## Learn More
+## Design System
 
-To learn more about Next.js, take a look at the following resources:
+### Colors
+- **Primary**: Electric lime (`oklch(0.85 0.25 125)`)
+- **Accent**: Hot pink (`oklch(0.7 0.25 350)`)
+- **Background**: Deep black with subtle warmth
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Effects
+- Glass morphism cards with backdrop blur
+- Neon glow effects on primary elements
+- Smooth view transitions with Framer Motion
+- Progress bars and animated celebrations
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## PWA Installation
 
-## Deploy on Vercel
+1. Open the app in Chrome/Safari on mobile
+2. Tap "Add to Home Screen" from the browser menu
+3. Launch from your home screen for full-screen experience
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private - Personal use only
