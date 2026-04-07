@@ -1,105 +1,102 @@
-# Pump - Workout Tracker
+# PUMP — Workout Tracker
 
-A bold, mobile-first workout tracking PWA for logging gym sessions and cardio workouts.
+Mobile-first PWA workout tracker. Lives at **pump.dylandibona.com**.
+
+Part of the **PUMP OS** — a training system where a Claude Health Project acts as a remote trainer and this app acts as the gym executor. See `../trainer-os/` for the full system.
+
+---
 
 ## Features
 
-### Gym Workouts
-- **Exercise Autocomplete** - Search from 100+ common exercises or add custom ones
-- **Set Tracking** - Log weight, reps, and mark warmup sets
-- **PR Detection** - Automatic personal record tracking with celebrations
-- **Exercise History** - View previous sessions for each exercise
-- **Quick Duplicate** - One-tap to repeat your last set
-- **Rest Timer** - Inline countdown timer between sets
+### PUMP OS
+- **Plan loading** — paste trainer-generated JSON, sessions appear automatically
+- **NEXT UP** — app knows which session is next based on your plan rotation
+- **Pre-filled exercises** — exercises, target weights, and form cues loaded from plan
+- **Send to Trainer** — one tap generates a formatted BRIEF, copies to clipboard, opens claude.ai
 
-### Cardio Workouts
-- **Activity Types** - Run, Bike, Swim, Row, Elliptical, Walk
-- **Distance & Time** - Log miles and duration
-- **Pace Calculation** - Automatic pace display (min/mile)
-- **Stopwatch** - Built-in timer for live tracking
+### Gym Workouts
+- Exercise autocomplete (100+ exercises + custom)
+- Set tracking with weight, reps, warmup flag
+- Bodyweight exercises (situps, pullups, etc.)
+- Supersets — link any two exercises with ⚡
+- Inline cardio — log a run between sets
+- PR detection and celebration
+- Exercise history per movement
+- Quick duplicate last set
+- Rest timer inline per exercise
+
+### Cardio
+- Run, bike, swim, row, elliptical, walk
+- Distance, time, auto pace calculation
+- Standalone or mixed into a gym session
 
 ### General
-- **Session Summary** - Celebrate completed workouts with stats
-- **Workout History** - Browse past sessions by month
-- **Statistics** - Track total workouts, PRs, and volume lifted
-- **PWA Ready** - Install on mobile for native-like experience
-- **Offline Support** - All data stored locally in localStorage
+- Session summary with full stats
+- Workout history browser
+- Personal records dashboard
+- All data local — no account, no server
+- PWA — install to home screen
+
+---
 
 ## Tech Stack
 
-- **Framework**: Next.js 16 (App Router, Turbopack)
-- **Styling**: Tailwind CSS v4
-- **Components**: shadcn/ui (base-ui primitives)
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
-- **Fonts**: Bebas Neue (display), Outfit (body), Space Mono (mono)
-- **Storage**: localStorage (client-side persistence)
+- **Next.js 16** — App Router, Turbopack
+- **Tailwind CSS v4** — utility styling
+- **shadcn/ui** — base-ui components
+- **Framer Motion** — animations
+- **Lucide React** — icons
+- **localStorage** — all persistence
 
-## Getting Started
+---
+
+## Development
 
 ```bash
-# Install dependencies
 npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
+npm run dev        # localhost:3000
+npm run build      # production build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Deploy: push to `main` → Vercel auto-deploys to pump.dylandibona.com.
+
+---
 
 ## Project Structure
 
 ```
 src/
 ├── app/
-│   ├── globals.css      # Theme, animations, utilities
-│   ├── layout.tsx       # Root layout with fonts
-│   └── page.tsx         # Main app with view routing
-├── components/
-│   ├── ui/              # shadcn/ui components
-│   └── workout/         # Workout-specific components
-│       ├── Dashboard.tsx
-│       ├── SessionStart.tsx
-│       ├── GymWorkout.tsx
-│       ├── CardioWorkout.tsx
-│       ├── SessionSummary.tsx
-│       ├── WorkoutHistory.tsx
-│       ├── Timer.tsx
-│       └── ExerciseAutocomplete.tsx
+│   ├── globals.css          # Theme, animations, utilities
+│   ├── layout.tsx           # Root layout + fonts
+│   └── page.tsx             # View state machine, plan state
+├── components/workout/
+│   ├── Dashboard.tsx        # Home, stats, PlanLoader
+│   ├── PlanLoader.tsx       # PUMP OS — load/replace trainer plan
+│   ├── SessionStart.tsx     # Date picker + plan sessions
+│   ├── GymWorkout.tsx       # Core workout UI
+│   ├── CardioWorkout.tsx    # Cardio session
+│   ├── SessionSummary.tsx   # Post-workout + BRIEF generator
+│   ├── WorkoutHistory.tsx   # Past sessions
+│   ├── ExerciseAutocomplete.tsx
+│   └── Timer.tsx
 ├── hooks/
-│   ├── useWorkout.ts    # Workout session management
-│   └── useTimer.ts      # Timer/stopwatch logic
+│   ├── useWorkout.ts        # Session management hook
+│   └── useTimer.ts          # Timer/stopwatch
 └── lib/
-    ├── types.ts         # TypeScript types
-    ├── storage.ts       # localStorage utilities
-    └── exercises.ts     # Exercise database
+    ├── types.ts             # All types incl. TrainerPlan
+    ├── storage.ts           # localStorage + plan ops
+    ├── exercises.ts         # Exercise database
+    └── sounds.ts            # Audio feedback
 ```
 
-## Design System
+---
 
-### Colors
-- **Primary**: Electric lime (`oklch(0.85 0.25 125)`)
-- **Accent**: Hot pink (`oklch(0.7 0.25 350)`)
-- **Background**: Deep black with subtle warmth
+## Documentation
 
-### Effects
-- Glass morphism cards with backdrop blur
-- Neon glow effects on primary elements
-- Smooth view transitions with Framer Motion
-- Progress bars and animated celebrations
-
-## PWA Installation
-
-1. Open the app in Chrome/Safari on mobile
-2. Tap "Add to Home Screen" from the browser menu
-3. Launch from your home screen for full-screen experience
-
-## License
-
-Private - Personal use only
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Context for Claude Code — architecture, decisions, gotchas |
+| `TECH_SPECS.md` | Full technical reference — schema, components, styling |
+| `BACKLOG.md` | Prioritized feature backlog |
+| `../trainer-os/` | PUMP OS system docs — trainer setup, formats, user guide |

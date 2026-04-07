@@ -2,7 +2,7 @@
 
 ## Architecture Overview
 
-Pump is a client-side single-page application built with Next.js 16. All data persists locally using the browser's localStorage API, making it a fully offline-capable PWA.
+Pump is a client-side single-page application built with Next.js 16. All data persists locally using the browser's localStorage API, making it a fully offline-capable PWA. It is the gym executor half of the PUMP OS — see `../trainer-os/README.md`.
 
 ## Technology Stack
 
@@ -23,34 +23,34 @@ Pump is a client-side single-page application built with Next.js 16. All data pe
 | Lucide React | Latest | Icon library |
 
 ### Fonts (via next/font/google)
-- **Bebas Neue** - Display/headings (weight: 400)
-- **Outfit** - Body text (weights: 300-900)
-- **Space Mono** - Monospace/numbers (weights: 400, 700)
+- **Bebas Neue** — Display/headings (weight: 400)
+- **Outfit** — Body text (weights: 300-900)
+- **Space Mono** — Monospace/numbers (weights: 400, 700)
+
+---
 
 ## Data Architecture
 
-### Storage Strategy
-All data is stored in localStorage under the key `pump-workout-data`. The data is serialized as JSON.
+### Storage Keys
+| Key | Contents |
+|-----|----------|
+| `dylan-workout-tracker` | Sessions, PRs, templates, settings |
+| `dylan-workout-plan` | Active TrainerPlan JSON (PUMP OS) |
 
-### Data Schema
+### Core Data Schema
 
 ```typescript
-interface WorkoutData {
-  sessions: WorkoutSession[];
-  prs: PersonalRecord[];
-  templates: WorkoutTemplate[];
-}
-
+// Session — always has both arrays initialized (mixed sessions supported)
 interface WorkoutSession {
-  id: string;                    // UUID
-  type: 'gym' | 'cardio';
-  date: string;                  // ISO date (YYYY-MM-DD)
+  id: string;
+  type: 'gym' | 'cardio';       // Origin type; both arrays always present
+  date: string;                  // YYYY-MM-DD
   startTime: string;             // ISO timestamp
-  endTime?: string;              // ISO timestamp
+  endTime?: string;
   completed: boolean;
   notes?: string;
-  exercises?: GymExercise[];     // For gym sessions
-  cardio?: CardioEntry[];        // For cardio sessions
+  exercises: GymExercise[];      // Always initialized (not undefined)
+  cardio: CardioEntry[];         // Always initialized (not undefined)
 }
 
 interface GymExercise {
@@ -58,19 +58,21 @@ interface GymExercise {
   name: string;
   sets: GymSet[];
   notes?: string;
+  supersetGroupId?: string;      // Shared ID links superset exercises
 }
 
 interface GymSet {
-  weight: number;                // In pounds
+  weight: number;                // 0 = bodyweight
   reps: number;
-  isWarmup: boolean;
+  isWarmup?: boolean;
+  isBodyweight?: boolean;
 }
 
 interface CardioEntry {
   id: string;
-  activity: CardioActivity;      // 'run' | 'bike' | 'swim' | etc.
-  distance: number;              // In miles
-  duration: number;              // In seconds
+  activity: CardioActivity;
+  distance: number;              // Miles
+  duration: number;              // Seconds
   notes?: string;
 }
 
@@ -83,134 +85,114 @@ interface PersonalRecord {
 }
 ```
 
-### PR Calculation Logic
-A new PR is detected when:
-1. The set is NOT marked as warmup
-2. The weight × reps value exceeds the previous record for that exercise
-3. Comparison is case-insensitive on exercise name
+### PUMP OS Schema
+
+```typescript
+// Loaded from trainer, stored separately
+interface TrainerPlan {
+  planId: string;
+  name: string;
+  version: number;
+  createdDate: string;
+  blockType?: string;
+  weeklyStructure?: string[];    // Ordered session names for rotation
+  progressionScheme?: string;
+  sessions: PlanSession[];
+  trainerNotes?: string;
+}
+
+interface PlanSession {
+  id: string;
+  name: string;
+  exercises: PlanExercise[];
+}
+
+interface PlanExercise {
+  name: string;
+  sets: number;
+  targetReps: string;            // "10-12" or "10"
+  targetWeight?: number;         // undefined = no target
+  isBodyweight?: boolean;
+  notes?: string;                // Form cue shown in card header
+  supersetWith?: string | null;  // Exercise name
+}
+```
+
+### PR Calculation
+- Uses Brzycki estimated 1RM: `weight × (36 / (37 - reps))`
+- PR celebrated only when estimated 1RM exceeds existing record
+- First-time sets recorded silently as baseline (no celebration)
+- Warmup sets and bodyweight sets excluded from PR tracking
+
+---
 
 ## Component Architecture
 
 ### View State Machine
-The app uses a simple state machine for navigation:
-
 ```
 dashboard ←→ start → gym/cardio → summary → dashboard
-    ↓           ↑
+    ↓
   history ←→ session-detail
 ```
-
-### Key Components
-
-#### `useWorkout` Hook
-Central hook for workout session management:
-- Creates/loads sessions from storage
-- Manages exercise and set CRUD operations
-- Detects and tracks PRs
-- Calculates session statistics
-
-#### `useTimer` Hook
-Manages timer/stopwatch functionality:
-- Countdown mode with configurable duration
-- Count-up (stopwatch) mode
-- Sound and vibration alerts
-- Pause/resume/reset controls
 
 ### Component Responsibilities
 
 | Component | Responsibility |
 |-----------|---------------|
-| `Dashboard` | Home screen, stats overview, recent workouts |
-| `SessionStart` | Date selection, workout type choice |
-| `GymWorkout` | Exercise list, set management, rest timer |
-| `CardioWorkout` | Activity logging, stopwatch |
-| `SessionSummary` | Post-workout celebration, stats review |
-| `WorkoutHistory` | Browse past sessions by month |
-| `ExerciseAutocomplete` | Fuzzy search for exercises |
-| `Timer` | Standalone timer component |
+| `Dashboard` | Home screen, stats, recent sessions, PlanLoader |
+| `PlanLoader` | Parse + store trainer JSON, show active plan details |
+| `SessionStart` | Date picker, plan sessions with NEXT UP, free-form fallback |
+| `GymWorkout` | Exercises, sets, supersets, bodyweight, inline cardio, plan pre-fill |
+| `CardioWorkout` | Standalone cardio session |
+| `SessionSummary` | Post-workout stats, BRIEF generation, Send to Trainer |
+| `ExerciseAutocomplete` | Exercise search, opens upward to clear bottom bar |
+| `WorkoutHistory` | Browse past sessions |
+| `Timer` | Rest timer + stopwatch |
 
-## Styling Architecture
+### Key Hook: `useWorkout`
+- No type guards on session type — all operations work on any session
+- `exercises[]` and `cardio[]` always initialized on session start
+- Superset linking/unlinking via `linkSuperset` / `unlinkSuperset`
+- PR check skips first-time exercises (silent baseline)
 
-### CSS Custom Properties
-Theme colors use OKLCH color space for perceptually uniform colors:
+---
 
+## Styling
+
+### Design Tokens
 ```css
-:root {
-  --primary: oklch(0.85 0.25 125);      /* Electric lime */
-  --accent: oklch(0.7 0.25 350);        /* Hot pink */
-  --background: oklch(0.08 0.01 270);   /* Deep black */
-}
+--primary: oklch(0.85 0.25 125)   /* Electric lime */
+--accent:  oklch(0.7 0.25 350)    /* Hot pink */
+--background: oklch(0.08 0.01 270) /* Deep black */
+--radius: 0rem                     /* Square edges — intentional */
 ```
 
-### Utility Classes
-
+### Key Utility Classes
 | Class | Effect |
 |-------|--------|
-| `.glass` | Glass morphism card with blur |
-| `.glass-strong` | Stronger glass effect |
+| `.glass` | Glass morphism card |
+| `.glass-strong` | Stronger glass for sheets |
 | `.glow-neon` | Green neon box shadow |
 | `.glow-hot` | Pink neon box shadow |
-| `.text-glow-neon` | Green text shadow |
-| `.text-glow-hot` | Pink text shadow |
-| `.text-gradient` | Primary→accent gradient text |
+| `.text-glow-neon` | Green text glow |
+| `.text-glow-hot` | Pink text glow |
 | `.touch-target` | Min 52px touch area |
+| `.font-display` | Bebas Neue |
 
-### Animation Keyframes
-- `pulse-neon` - Pulsing glow effect
-- `celebrate` - Bounce/rotate celebration
-- `shimmer` - Background gradient sweep
-- `float` - Gentle vertical float
-- `countUp` - Number reveal animation
+---
 
-## PWA Configuration
+## Deployment
 
-### Manifest (`public/manifest.json`)
-```json
-{
-  "name": "Pump - Workout Tracker",
-  "short_name": "Pump",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#0f1419",
-  "theme_color": "#0f1419"
-}
-```
+- **Repo**: github.com/dylandibona/pump
+- **CI/CD**: Push to `main` → Vercel auto-deploys
+- **Live**: pump.dylandibona.com
+- No environment variables, no backend, no auth
 
-### Viewport Configuration
-- Width: device-width
-- Initial scale: 1
-- Maximum scale: 1 (prevents zoom on inputs)
-- User scalable: false
-
-## Performance Considerations
-
-### Bundle Optimization
-- Uses `next/font` for font loading (no FOUT)
-- Lucide icons are tree-shaken
-- Framer Motion animations use GPU-accelerated properties
-
-### Runtime Performance
-- localStorage operations are synchronous but fast
-- Lists use React keys for efficient reconciliation
-- AnimatePresence handles exit animations without layout thrash
-
-## Browser Support
-
-### Required APIs
-- localStorage
-- CSS backdrop-filter
-- CSS oklch() colors
-- Vibration API (optional, for timer alerts)
-
-### Tested Browsers
-- Chrome 90+ (desktop & mobile)
-- Safari 15+ (desktop & iOS)
-- Firefox 90+
-- Edge 90+
+---
 
 ## Known Limitations
 
-1. **Storage Limit**: localStorage has ~5MB limit per origin
-2. **No Sync**: Data is device-local only (no cloud backup)
-3. **No Authentication**: Single-user, no accounts
-4. **Units**: Weight in pounds only, distance in miles only
+1. **Storage limit** — localStorage ~5MB; sufficient for years of logging
+2. **Device-local** — no sync across devices
+3. **Single user** — no accounts
+4. **Units** — lbs and miles only (no kg/km toggle yet)
