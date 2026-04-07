@@ -45,8 +45,8 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       type,
       startTime: new Date().toISOString(),
       completed: false,
-      exercises: type === 'gym' ? [] : undefined,
-      cardio: type === 'cardio' ? [] : undefined,
+      exercises: [],
+      cardio: [],
     };
     setSession(newSession);
     saveSession(newSession);
@@ -55,7 +55,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Add a gym exercise
   const addExercise = useCallback((name: string) => {
-    if (!session || session.type !== 'gym') return;
+    if (!session) return;
 
     const newExercise: GymExercise = {
       id: generateId(),
@@ -75,7 +75,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Add a set to an exercise
   const addSet = useCallback((exerciseId: string, set: Omit<GymSet, 'id'>) => {
-    if (!session || session.type !== 'gym') return;
+    if (!session) return;
 
     const updatedExercises = session.exercises?.map(ex => {
       if (ex.id === exerciseId) {
@@ -92,21 +92,18 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       exercises: updatedExercises,
     };
 
-    // Check for PR
+    // Check for PR — only celebrate when beating an existing record (not first-time baseline)
     const exercise = updatedExercises?.find(ex => ex.id === exerciseId);
     if (exercise && !set.isWarmup) {
       const currentPR = getPRForExercise(exercise.name);
       if (currentPR) {
         const currentEstimated1RM = currentPR.weight * (36 / (37 - Math.min(currentPR.reps, 36)));
         const newEstimated1RM = set.weight * (36 / (37 - Math.min(set.reps, 36)));
-
         if (newEstimated1RM > currentEstimated1RM) {
           setNewPRs(prev => [...prev, exercise.name]);
         }
-      } else {
-        // First time doing this exercise
-        setNewPRs(prev => [...prev, exercise.name]);
       }
+      // First time doing this exercise: silently record baseline, no celebration
     }
 
     setSession(updatedSession);
@@ -115,7 +112,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Update a set
   const updateSet = useCallback((exerciseId: string, setIndex: number, updates: Partial<GymSet>) => {
-    if (!session || session.type !== 'gym') return;
+    if (!session) return;
 
     const updatedExercises = session.exercises?.map(ex => {
       if (ex.id === exerciseId) {
@@ -137,7 +134,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Remove a set
   const removeSet = useCallback((exerciseId: string, setIndex: number) => {
-    if (!session || session.type !== 'gym') return;
+    if (!session) return;
 
     const updatedExercises = session.exercises?.map(ex => {
       if (ex.id === exerciseId) {
@@ -158,7 +155,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Remove an exercise
   const removeExercise = useCallback((exerciseId: string) => {
-    if (!session || session.type !== 'gym') return;
+    if (!session) return;
 
     const updatedSession = {
       ...session,
@@ -171,7 +168,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Add exercise notes
   const updateExerciseNotes = useCallback((exerciseId: string, notes: string) => {
-    if (!session || session.type !== 'gym') return;
+    if (!session) return;
 
     const updatedExercises = session.exercises?.map(ex => {
       if (ex.id === exerciseId) {
@@ -189,6 +186,40 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     saveSession(updatedSession);
   }, [session]);
 
+  // Link two exercises as a superset
+  const linkSuperset = useCallback((exerciseIdA: string, exerciseIdB: string) => {
+    if (!session) return;
+    const a = session.exercises?.find(ex => ex.id === exerciseIdA);
+    const b = session.exercises?.find(ex => ex.id === exerciseIdB);
+    if (!a || !b) return;
+    const groupId = a.supersetGroupId || b.supersetGroupId || generateId();
+    const updatedExercises = session.exercises?.map(ex => {
+      if (ex.id === exerciseIdA || ex.id === exerciseIdB) return { ...ex, supersetGroupId: groupId };
+      return ex;
+    });
+    const updatedSession = { ...session, exercises: updatedExercises };
+    setSession(updatedSession);
+    saveSession(updatedSession);
+  }, [session]);
+
+  // Remove an exercise from its superset group
+  const unlinkSuperset = useCallback((exerciseId: string) => {
+    if (!session) return;
+    const ex = session.exercises?.find(e => e.id === exerciseId);
+    if (!ex?.supersetGroupId) return;
+    const groupId = ex.supersetGroupId;
+    const remaining = session.exercises?.filter(e => e.supersetGroupId === groupId && e.id !== exerciseId) || [];
+    const updatedExercises = session.exercises?.map(e => {
+      if (e.id === exerciseId) return { ...e, supersetGroupId: undefined };
+      // If only one left in group, clear their groupId too
+      if (e.supersetGroupId === groupId && remaining.length === 1 && remaining[0].id === e.id) return { ...e, supersetGroupId: undefined };
+      return e;
+    });
+    const updatedSession = { ...session, exercises: updatedExercises };
+    setSession(updatedSession);
+    saveSession(updatedSession);
+  }, [session]);
+
   // Quick duplicate last set
   const duplicateLastSet = useCallback((exerciseId: string) => {
     if (!session || session.type !== 'gym') return;
@@ -202,7 +233,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Add cardio entry
   const addCardioEntry = useCallback((activity: CardioActivity, distance: number, duration: number, notes?: string) => {
-    if (!session || session.type !== 'cardio') return;
+    if (!session) return;
 
     const newEntry: CardioEntry = {
       id: generateId(),
@@ -224,7 +255,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Update cardio entry
   const updateCardioEntry = useCallback((entryId: string, updates: Partial<CardioEntry>) => {
-    if (!session || session.type !== 'cardio') return;
+    if (!session) return;
 
     const updatedCardio = session.cardio?.map(entry => {
       if (entry.id === entryId) {
@@ -244,7 +275,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Remove cardio entry
   const removeCardioEntry = useCallback((entryId: string) => {
-    if (!session || session.type !== 'cardio') return;
+    if (!session) return;
 
     const updatedSession = {
       ...session,
@@ -356,5 +387,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     getHistory,
     getSessionStats,
     clearNewPRs,
+    linkSuperset,
+    unlinkSuperset,
   };
 }

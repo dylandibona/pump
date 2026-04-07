@@ -1,4 +1,4 @@
-import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet } from './types';
+import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet, TrainerPlan } from './types';
 
 const STORAGE_KEY = 'dylan-workout-tracker';
 
@@ -262,6 +262,58 @@ export function importData(jsonString: string): boolean {
     console.error('Error importing data:', error);
     return false;
   }
+}
+
+// PUMP OS — Plan operations
+const PLAN_KEY = 'dylan-workout-plan';
+
+export function savePlan(plan: TrainerPlan): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
+}
+
+export function getPlan(): TrainerPlan | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem(PLAN_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPlan(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(PLAN_KEY);
+}
+
+// Returns the next session based on what was last done and the plan's weekly structure
+export function getNextPlanSession(plan: TrainerPlan): string | null {
+  const data = getWorkoutData();
+  if (!plan.weeklyStructure?.length) return plan.sessions[0]?.id ?? null;
+
+  // Find last completed session that matches a plan session
+  const planSessionNames = plan.sessions.map(s => s.name.toLowerCase());
+  const recent = [...data.sessions]
+    .filter(s => s.completed)
+    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+  for (const log of recent) {
+    const match = planSessionNames.findIndex(name =>
+      log.notes?.toLowerCase().includes(name) ||
+      (log.exercises?.[0]?.name && plan.sessions.some(ps =>
+        ps.exercises[0]?.name.toLowerCase() === log.exercises![0].name.toLowerCase()
+      ))
+    );
+    if (match >= 0) {
+      const nextIndex = (match + 1) % plan.weeklyStructure.length;
+      const nextName = plan.weeklyStructure[nextIndex].toLowerCase();
+      const nextSession = plan.sessions.find(s => s.name.toLowerCase() === nextName);
+      return nextSession?.id ?? plan.sessions[0].id;
+    }
+  }
+
+  return plan.sessions[0]?.id ?? null;
 }
 
 // Generate unique ID

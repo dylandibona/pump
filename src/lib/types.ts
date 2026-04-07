@@ -13,8 +13,9 @@ export interface CardioEntry {
 
 export interface GymSet {
   reps: number;
-  weight: number; // in lbs
+  weight: number; // in lbs; 0 means bodyweight
   isWarmup?: boolean;
+  isBodyweight?: boolean;
 }
 
 export interface GymExercise {
@@ -23,6 +24,7 @@ export interface GymExercise {
   sets: GymSet[];
   notes?: string;
   restBetweenSets?: number; // in seconds
+  supersetGroupId?: string; // exercises sharing this ID are displayed/done as a superset
 }
 
 export interface WorkoutSession {
@@ -78,6 +80,35 @@ export interface ExerciseInfo {
   muscleGroups: string[];
   equipment?: string[];
   tips?: string;
+}
+
+// PUMP OS — PLAN types (loaded from TRAINER)
+export interface PlanExercise {
+  name: string;
+  sets: number;
+  targetReps: string; // "10-12" or "10"
+  targetWeight?: number; // undefined or 0 = bodyweight
+  isBodyweight?: boolean;
+  notes?: string;
+  supersetWith?: string | null; // exercise name
+}
+
+export interface PlanSession {
+  id: string;
+  name: string;
+  exercises: PlanExercise[];
+}
+
+export interface TrainerPlan {
+  planId: string;
+  name: string;
+  version: number;
+  createdDate: string;
+  blockType?: string;
+  weeklyStructure?: string[]; // ordered session names for rotation
+  progressionScheme?: string;
+  sessions: PlanSession[];
+  trainerNotes?: string;
 }
 
 // Storage data structure

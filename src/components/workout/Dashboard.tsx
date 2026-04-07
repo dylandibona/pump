@@ -5,15 +5,19 @@ import { motion } from 'framer-motion';
 import { Dumbbell, Activity, Trophy, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, getPRs } from '@/lib/storage';
-import { WorkoutSession } from '@/lib/types';
+import { WorkoutSession, TrainerPlan } from '@/lib/types';
+import { PlanLoader } from './PlanLoader';
 
 interface DashboardProps {
   onStartWorkout: () => void;
   onViewHistory: () => void;
   onViewSession: (session: WorkoutSession) => void;
+  plan: TrainerPlan | null;
+  onPlanLoaded: (plan: TrainerPlan) => void;
+  onPlanCleared: () => void;
 }
 
-export function Dashboard({ onStartWorkout, onViewHistory, onViewSession }: DashboardProps) {
+export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, onPlanLoaded, onPlanCleared }: DashboardProps) {
   const stats = useMemo(() => getWorkoutStats(), []);
   const recentSessions = useMemo(() => getRecentSessions(5), []);
   const prs = useMemo(() => getPRs(), []);
@@ -82,6 +86,19 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession }: Dash
           >
             Track. Lift. Conquer.
           </motion.p>
+        </motion.div>
+
+        {/* Plan Loader */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+        >
+          <PlanLoader
+            currentPlan={plan}
+            onPlanLoaded={onPlanLoaded}
+            onPlanCleared={onPlanCleared}
+          />
         </motion.div>
 
         {/* Start Workout CTA */}

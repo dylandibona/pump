@@ -12,8 +12,10 @@ import { WorkoutHistory } from '@/components/workout/WorkoutHistory';
 import { Timer } from '@/components/workout/Timer';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { WorkoutSession, WorkoutType } from '@/lib/types';
+import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 import { useWorkout } from '@/hooks/useWorkout';
+import { getSession, getPlan, getNextPlanSession } from '@/lib/storage';
+import { PlanLoader } from '@/components/workout/PlanLoader';
 
 type View = 'dashboard' | 'start' | 'gym' | 'cardio' | 'summary' | 'history' | 'session-detail';
 
@@ -22,14 +24,19 @@ export default function Home() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [viewingSession, setViewingSession] = useState<WorkoutSession | null>(null);
   const [showTimer, setShowTimer] = useState(false);
+  const [plan, setPlan] = useState<TrainerPlan | null>(() => getPlan());
+  const [activePlanSession, setActivePlanSession] = useState<PlanSession | null>(null);
 
   const { session, startSession, newPRs, clearNewPRs } = useWorkout({
     sessionId: activeSessionId || undefined,
   });
 
-  const handleStartWorkout = useCallback((type: WorkoutType, date: string) => {
+  const suggestedSessionId = plan ? getNextPlanSession(plan) : null;
+
+  const handleStartWorkout = useCallback((type: WorkoutType, date: string, planSession?: PlanSession) => {
     const newSession = startSession(type, date);
     setActiveSessionId(newSession.id);
+    setActivePlanSession(planSession ?? null);
     setView(type === 'gym' ? 'gym' : 'cardio');
   }, [startSession]);
 
@@ -147,6 +154,9 @@ export default function Home() {
                 onStartWorkout={() => setView('start')}
                 onViewHistory={() => setView('history')}
                 onViewSession={handleViewSession}
+                plan={plan}
+                onPlanLoaded={(p) => setPlan(p)}
+                onPlanCleared={() => setPlan(null)}
               />
             </motion.div>
           )}
@@ -159,7 +169,11 @@ export default function Home() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <SessionStart onStart={handleStartWorkout} />
+              <SessionStart
+                onStart={handleStartWorkout}
+                plan={plan}
+                suggestedSessionId={suggestedSessionId}
+              />
             </motion.div>
           )}
 
@@ -173,6 +187,7 @@ export default function Home() {
             >
               <GymWorkout
                 sessionId={activeSessionId}
+                planSession={activePlanSession}
                 onComplete={handleWorkoutComplete}
               />
             </motion.div>
@@ -193,7 +208,7 @@ export default function Home() {
             </motion.div>
           )}
 
-          {view === 'summary' && session && (
+          {view === 'summary' && activeSessionId && (getSession(activeSessionId) || session) && (
             <motion.div
               key="summary"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -202,7 +217,7 @@ export default function Home() {
               transition={{ duration: 0.4, type: 'spring' }}
             >
               <SessionSummary
-                session={session}
+                session={(activeSessionId ? getSession(activeSessionId) : null) ?? session!}
                 onClose={handleCloseSummary}
                 newPRs={newPRs}
               />

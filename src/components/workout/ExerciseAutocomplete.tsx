@@ -133,10 +133,10 @@ export function ExerciseAutocomplete({
         {isOpen && suggestions.length > 0 && (
           <motion.ul
             ref={listRef}
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute z-50 w-full mt-2 glass rounded-xl shadow-2xl max-h-80 overflow-auto border border-primary/20"
+            exit={{ opacity: 0, y: 10 }}
+            className="absolute z-50 w-full bottom-full mb-2 glass shadow-2xl max-h-64 overflow-auto border border-primary/20"
           >
             {suggestions.map((exercise, index) => (
               <motion.li
