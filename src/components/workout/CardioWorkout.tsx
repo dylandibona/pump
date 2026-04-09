@@ -41,21 +41,27 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
   const [seconds, setSeconds] = useState('');
+  const [incline, setIncline] = useState('');
+  const [speed, setSpeed] = useState('');
   const [notes, setNotes] = useState('');
 
   const handleAddEntry = () => {
-    const distanceNum = parseFloat(distance);
-    const totalSeconds =
+    const totalSecs =
       (parseInt(hours) || 0) * 3600 +
       (parseInt(minutes) || 0) * 60 +
       (parseInt(seconds) || 0);
 
-    if (distanceNum > 0 && totalSeconds > 0) {
-      addCardioEntry(selectedActivity, distanceNum, totalSeconds, notes || undefined);
+    if (totalSecs > 0) {
+      const distOrUndef = parseFloat(distance) > 0 ? parseFloat(distance) : undefined;
+      const inclOrUndef = parseFloat(incline) > 0 ? parseFloat(incline) : undefined;
+      const speedOrUndef = parseFloat(speed) > 0 ? parseFloat(speed) : undefined;
+      addCardioEntry(selectedActivity, distOrUndef, totalSecs, notes || undefined, inclOrUndef, speedOrUndef);
       setDistance('');
       setHours('');
       setMinutes('');
       setSeconds('');
+      setIncline('');
+      setSpeed('');
       setNotes('');
       setShowAddForm(false);
     }
@@ -182,22 +188,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                 </div>
               </div>
 
-              {/* Distance */}
-              <div>
-                <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
-                  DISTANCE (MILES)
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={distance}
-                  onChange={(e) => setDistance(e.target.value)}
-                  placeholder="e.g., 3.1"
-                  className="touch-target text-2xl font-mono text-center bg-background/50"
-                />
-              </div>
-
-              {/* Duration */}
+              {/* Duration (required) */}
               <div>
                 <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
                   TOTAL TIME
@@ -242,6 +233,55 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                 </div>
               </div>
 
+              {/* Distance (optional for all; prominent for run) */}
+              <div>
+                <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
+                  DISTANCE (MILES){selectedActivity !== 'run' && <span className="ml-2 normal-case tracking-normal text-muted-foreground/60">— optional</span>}
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={distance}
+                  onChange={(e) => setDistance(e.target.value)}
+                  placeholder="e.g., 3.1"
+                  className="touch-target text-2xl font-mono text-center bg-background/50"
+                />
+              </div>
+
+              {/* Incline — walk and run */}
+              {(selectedActivity === 'walk' || selectedActivity === 'run') && (
+                <div>
+                  <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
+                    INCLINE (%) <span className="normal-case tracking-normal text-muted-foreground/60">— optional</span>
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={incline}
+                    onChange={(e) => setIncline(e.target.value)}
+                    placeholder="e.g., 15"
+                    className="touch-target text-2xl font-mono text-center bg-background/50"
+                  />
+                </div>
+              )}
+
+              {/* Speed — walk only */}
+              {selectedActivity === 'walk' && (
+                <div>
+                  <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
+                    SPEED (MPH) <span className="normal-case tracking-normal text-muted-foreground/60">— optional</span>
+                  </label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={speed}
+                    onChange={(e) => setSpeed(e.target.value)}
+                    placeholder="e.g., 3.5"
+                    className="touch-target text-2xl font-mono text-center bg-background/50"
+                  />
+                </div>
+              )}
+
               {/* Notes */}
               <div>
                 <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
@@ -257,7 +297,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
 
               {/* Preview */}
               <AnimatePresence>
-                {distance && (parseInt(hours) || parseInt(minutes) || parseInt(seconds)) ? (
+                {(parseInt(hours) || parseInt(minutes) || parseInt(seconds)) ? (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -267,11 +307,15 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                     <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase mb-2">
                       PREVIEW
                     </p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-4xl text-accent text-glow-hot">
-                        {distance}
-                      </span>
-                      <span className="text-muted-foreground">mi in</span>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      {distance && (
+                        <>
+                          <span className="font-display text-4xl text-accent text-glow-hot">
+                            {distance}
+                          </span>
+                          <span className="text-muted-foreground">mi ·</span>
+                        </>
+                      )}
                       <span className="font-display text-4xl text-accent text-glow-hot">
                         {formatTime(
                           (parseInt(hours) || 0) * 3600 +
@@ -279,15 +323,20 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                           (parseInt(seconds) || 0)
                         )}
                       </span>
-                    </div>
-                    <p className="text-lg font-mono text-accent mt-1">
-                      {calculatePace(
-                        parseFloat(distance),
-                        (parseInt(hours) || 0) * 3600 +
-                        (parseInt(minutes) || 0) * 60 +
-                        (parseInt(seconds) || 0)
+                      {incline && (
+                        <span className="font-mono text-lg text-accent">· {incline}% incline</span>
                       )}
-                    </p>
+                    </div>
+                    {distance && (
+                      <p className="text-lg font-mono text-accent mt-1">
+                        {calculatePace(
+                          parseFloat(distance),
+                          (parseInt(hours) || 0) * 3600 +
+                          (parseInt(minutes) || 0) * 60 +
+                          (parseInt(seconds) || 0)
+                        )}
+                      </p>
+                    )}
                   </motion.div>
                 ) : null}
               </AnimatePresence>
@@ -296,7 +345,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                 onClick={handleAddEntry}
                 className="w-full h-14 font-display text-lg tracking-widest relative overflow-hidden group touch-target"
                 size="lg"
-                disabled={!distance || !(parseInt(hours) || parseInt(minutes) || parseInt(seconds))}
+                disabled={!(parseInt(hours) || parseInt(minutes) || parseInt(seconds))}
               >
                 <span className="relative z-10">ADD ACTIVITY</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-accent via-primary to-accent bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -413,18 +462,40 @@ function CardioEntryCard({
             <p className="font-display text-2xl tracking-wider text-foreground">
               {entry.activity.toUpperCase()}
             </p>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="font-mono text-accent text-glow-hot">
-                {entry.distance} mi
-              </span>
-              <span className="text-muted-foreground">•</span>
-              <span className="font-mono text-foreground">
-                {formatTime(entry.duration)}
-              </span>
-              <span className="text-muted-foreground">•</span>
-              <span className="font-mono text-accent">
-                {calculatePace(entry.distance, entry.duration)}
-              </span>
+            <div className="flex items-center gap-2 text-sm flex-wrap">
+              {entry.duration != null && (
+                <span className="font-mono text-foreground">
+                  {formatTime(entry.duration)}
+                </span>
+              )}
+              {entry.distance != null && entry.duration != null && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-accent text-glow-hot">
+                    {entry.distance} mi
+                  </span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-accent">
+                    {calculatePace(entry.distance, entry.duration)}
+                  </span>
+                </>
+              )}
+              {entry.incline != null && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-foreground">
+                    {entry.incline}% incline
+                  </span>
+                </>
+              )}
+              {entry.speed != null && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="font-mono text-foreground">
+                    {entry.speed} mph
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

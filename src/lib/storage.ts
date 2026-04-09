@@ -96,7 +96,7 @@ function checkAndUpdatePRs(session: WorkoutSession, data: WorkoutData): void {
 
   session.exercises.forEach(exercise => {
     exercise.sets.forEach(set => {
-      if (set.isWarmup) return; // Skip warmup sets
+      if (set.isWarmup || set.isPlanned) return; // Skip warmup and planned sets
 
       const existingPR = data.personalRecords.find(
         pr => pr.exerciseName.toLowerCase() === exercise.name.toLowerCase()
@@ -218,7 +218,7 @@ export function getWorkoutStats() {
     if (session.type === 'gym' && session.exercises) {
       session.exercises.forEach(exercise => {
         exercise.sets.forEach(set => {
-          if (!set.isWarmup) {
+          if (!set.isWarmup && !set.isPlanned) {
             totalVolume += set.weight * set.reps;
           }
         });
@@ -231,7 +231,7 @@ export function getWorkoutStats() {
   data.sessions.forEach(session => {
     if (session.type === 'cardio' && session.cardio) {
       session.cardio.forEach(entry => {
-        totalDistance += entry.distance;
+        totalDistance += entry.distance ?? 0;
       });
     }
   });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   WorkoutSession,
   WorkoutType,
@@ -14,7 +14,7 @@ import {
   getSession,
   generateId,
   getExerciseHistory,
-  getPRForExercise,
+  getPRs,
 } from '@/lib/storage';
 
 interface UseWorkoutOptions {
@@ -25,6 +25,9 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [newPRs, setNewPRs] = useState<string[]>([]); // Track exercises with new PRs
+  // Snapshot of PRs that existed BEFORE this session started — used to prevent
+  // intra-session set escalations from triggering false celebrations.
+  const prSnapshotRef = useRef<Map<string, number>>(new Map());
 
   // Load existing session or create new one
   useEffect(() => {
@@ -39,6 +42,17 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Start a new workout session
   const startSession = useCallback((type: WorkoutType, date: string) => {
+    // Snapshot all existing PRs (as estimated 1RM) before this session begins.
+    // Comparisons in addSet use this snapshot so intra-session set escalations
+    // don't trigger false PR celebrations.
+    const allPRs = getPRs();
+    const snapshot = new Map<string, number>();
+    allPRs.forEach(pr => {
+      const e1rm = pr.weight * (36 / (37 - Math.min(pr.reps, 36)));
+      snapshot.set(pr.exerciseName.toLowerCase(), e1rm);
+    });
+    prSnapshotRef.current = snapshot;
+
     const newSession: WorkoutSession = {
       id: generateId(),
       date,
@@ -54,13 +68,13 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   }, []);
 
   // Add a gym exercise
-  const addExercise = useCallback((name: string) => {
+  const addExercise = useCallback((name: string, initialSets?: GymSet[]) => {
     if (!session) return;
 
     const newExercise: GymExercise = {
       id: generateId(),
       name,
-      sets: [],
+      sets: initialSets ?? [],
     };
 
     const updatedSession = {
@@ -92,18 +106,21 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       exercises: updatedExercises,
     };
 
-    // Check for PR — only celebrate when beating an existing record (not first-time baseline)
+    // Check for PR — only celebrate when beating a record from a PREVIOUS session.
+    // Uses prSnapshotRef (captured at session start) so intra-session set escalations
+    // don't trigger false celebrations.
     const exercise = updatedExercises?.find(ex => ex.id === exerciseId);
-    if (exercise && !set.isWarmup) {
-      const currentPR = getPRForExercise(exercise.name);
-      if (currentPR) {
-        const currentEstimated1RM = currentPR.weight * (36 / (37 - Math.min(currentPR.reps, 36)));
+    if (exercise && !set.isWarmup && !set.isPlanned && !set.isBodyweight && set.weight > 0) {
+      const preSessionBest = prSnapshotRef.current.get(exercise.name.toLowerCase());
+      if (preSessionBest !== undefined) {
         const newEstimated1RM = set.weight * (36 / (37 - Math.min(set.reps, 36)));
-        if (newEstimated1RM > currentEstimated1RM) {
-          setNewPRs(prev => [...prev, exercise.name]);
+        if (newEstimated1RM > preSessionBest) {
+          setNewPRs(prev =>
+            prev.includes(exercise.name) ? prev : [...prev, exercise.name]
+          );
         }
       }
-      // First time doing this exercise: silently record baseline, no celebration
+      // No pre-session PR exists: silently record baseline, no celebration
     }
 
     setSession(updatedSession);
@@ -186,6 +203,18 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     saveSession(updatedSession);
   }, [session]);
 
+  // Update weight type for an exercise
+  const updateExerciseWeightType = useCallback((exerciseId: string, weightType: 'total' | 'per_side') => {
+    if (!session) return;
+    const updatedExercises = session.exercises?.map(ex => {
+      if (ex.id === exerciseId) return { ...ex, weightType };
+      return ex;
+    });
+    const updatedSession = { ...session, exercises: updatedExercises };
+    setSession(updatedSession);
+    saveSession(updatedSession);
+  }, [session]);
+
   // Link two exercises as a superset
   const linkSuperset = useCallback((exerciseIdA: string, exerciseIdB: string) => {
     if (!session) return;
@@ -232,14 +261,23 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   }, [session, addSet]);
 
   // Add cardio entry
-  const addCardioEntry = useCallback((activity: CardioActivity, distance: number, duration: number, notes?: string) => {
+  const addCardioEntry = useCallback((
+    activity: CardioActivity,
+    distance?: number,
+    duration?: number,
+    notes?: string,
+    incline?: number,
+    speed?: number
+  ) => {
     if (!session) return;
 
     const newEntry: CardioEntry = {
       id: generateId(),
       activity,
-      distance,
-      duration,
+      ...(distance !== undefined && { distance }),
+      ...(duration !== undefined && { duration }),
+      ...(incline !== undefined && { incline }),
+      ...(speed !== undefined && { speed }),
       notes,
     };
 
@@ -334,7 +372,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
       session.exercises?.forEach(ex => {
         ex.sets.forEach(set => {
-          if (!set.isWarmup) {
+          if (!set.isWarmup && !set.isPlanned) {
             totalSets++;
             totalVolume += set.weight * set.reps;
           }
@@ -354,8 +392,8 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       let totalDuration = 0;
 
       session.cardio?.forEach(entry => {
-        totalDistance += entry.distance;
-        totalDuration += entry.duration;
+        totalDistance += entry.distance ?? 0;
+        totalDuration += entry.duration ?? 0;
       });
 
       return {
@@ -378,6 +416,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     removeSet,
     removeExercise,
     updateExerciseNotes,
+    updateExerciseWeightType,
     duplicateLastSet,
     addCardioEntry,
     updateCardioEntry,

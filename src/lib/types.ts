@@ -6,8 +6,10 @@ export type CardioActivity = 'run' | 'bike' | 'swim' | 'row' | 'elliptical' | 'w
 export interface CardioEntry {
   id: string;
   activity: CardioActivity;
-  distance: number; // in miles
-  duration: number; // in seconds
+  distance?: number;    // miles — optional
+  duration?: number;    // seconds — optional
+  incline?: number;     // % grade (treadmill, walk)
+  speed?: number;       // mph (treadmill)
   notes?: string;
 }
 
@@ -16,6 +18,7 @@ export interface GymSet {
   weight: number; // in lbs; 0 means bodyweight
   isWarmup?: boolean;
   isBodyweight?: boolean;
+  isPlanned?: boolean; // true = placeholder slot from plan, not yet logged
 }
 
 export interface GymExercise {
@@ -25,6 +28,8 @@ export interface GymExercise {
   notes?: string;
   restBetweenSets?: number; // in seconds
   supersetGroupId?: string; // exercises sharing this ID are displayed/done as a superset
+  equipment?: 'barbell' | 'dumbbell' | 'cable' | 'machine' | 'bodyweight' | 'other';
+  weightType?: 'total' | 'per_side'; // 'total' is default
 }
 
 export interface WorkoutSession {
@@ -91,6 +96,8 @@ export interface PlanExercise {
   isBodyweight?: boolean;
   notes?: string;
   supersetWith?: string | null; // exercise name
+  equipment?: 'barbell' | 'dumbbell' | 'cable' | 'machine' | 'bodyweight' | 'other';
+  weightType?: 'total' | 'per_side';
 }
 
 export interface PlanSession {

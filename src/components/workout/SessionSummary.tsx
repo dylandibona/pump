@@ -5,8 +5,9 @@ import { motion } from 'framer-motion';
 import { Dumbbell, Flame, Trophy, Send, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { WorkoutSession, TrainerPlan } from '@/lib/types';
+import { WorkoutSession } from '@/lib/types';
 import { getPRs, getPlan } from '@/lib/storage';
+import { generateBrief } from '@/lib/brief';
 
 interface SessionSummaryProps {
   session: WorkoutSession;
@@ -14,75 +15,22 @@ interface SessionSummaryProps {
   newPRs?: string[];
 }
 
-function generateBrief(session: WorkoutSession, plan: TrainerPlan | null, newPRs: string[]): string {
-  const date = new Date(session.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-  const duration = session.endTime
-    ? Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)
-    : null;
-
-  const planSession = plan?.sessions.find(ps =>
-    session.exercises?.some(ex => ps.exercises.some(pe => pe.name.toLowerCase() === ex.name.toLowerCase()))
-  );
-
-  let brief = `PUMP BRIEF — ${planSession ? planSession.name + ' — ' : ''}${date}${duration ? ` — ${duration}m` : ''}\n`;
-  if (plan) brief += `PLAN: ${plan.name} v${plan.version}\n`;
-  brief += '\n';
-
-  if (session.exercises?.length) {
-    brief += 'EXERCISES:\n';
-    session.exercises.forEach(ex => {
-      const planEx = planSession?.exercises.find(p => p.name.toLowerCase() === ex.name.toLowerCase());
-      const target = planEx
-        ? `target: ${planEx.sets}×${planEx.targetReps}${planEx.isBodyweight ? ' BW' : planEx.targetWeight ? ` @ ${planEx.targetWeight}lbs` : ''}`
-        : null;
-      const superset = ex.supersetGroupId ? ' ⚡SUPERSET' : '';
-      brief += `${ex.name.toUpperCase()}${superset}${target ? ` (${target})` : ''}\n`;
-      ex.sets.forEach((set, i) => {
-        if (set.isWarmup) return;
-        const label = set.isBodyweight ? 'BW' : `${set.weight}lbs`;
-        const targetW = planEx?.targetWeight;
-        const indicator = !targetW ? '' : set.weight > targetW ? ' ↑' : set.weight < targetW ? ' ↓' : ' ✓';
-        const prMark = newPRs.includes(ex.name) && i === ex.sets.filter(s => !s.isWarmup).length - 1 ? ' 🏆PR' : '';
-        brief += `  Set ${i + 1}: ${label} × ${set.reps}${indicator}${prMark}\n`;
-      });
-    });
-  }
-
-  if (session.cardio?.length) {
-    brief += '\nCARDIO:\n';
-    session.cardio.forEach(c => {
-      const pace = c.distance > 0 ? `${Math.floor(c.duration / c.distance / 60)}:${Math.round((c.duration / c.distance) % 60).toString().padStart(2, '0')}/mi` : '';
-      brief += `  ${c.activity.toUpperCase()} — ${c.distance}mi in ${Math.floor(c.duration / 60)}:${(c.duration % 60).toString().padStart(2, '0')}${pace ? ` (${pace})` : ''}\n`;
-    });
-  }
-
-  const totalVolume = session.exercises?.reduce((sum, ex) =>
-    sum + ex.sets.filter(s => !s.isWarmup && !s.isBodyweight).reduce((s2, set) => s2 + set.weight * set.reps, 0), 0) ?? 0;
-
-  if (totalVolume > 0) brief += `\nVOLUME: ${totalVolume.toLocaleString()} lbs\n`;
-  if (newPRs.length) brief += `NEW PRs: ${newPRs.join(', ')}\n`;
-  if (session.notes) brief += `\nNOTES: ${session.notes}\n`;
-
-  return brief.trim();
-}
-
 export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummaryProps) {
   const prs = getPRs();
   const plan = getPlan();
   const [briefCopied, setBriefCopied] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
+  const brief = generateBrief(session, plan, newPRs);
 
   const handleSendToTrainer = async () => {
-    const brief = generateBrief(session, plan, newPRs);
     try {
       await navigator.clipboard.writeText(brief);
       setBriefCopied(true);
       setTimeout(() => setBriefCopied(false), 3000);
-      // Open claude.ai in new tab
-      window.open('https://claude.ai', '_blank');
     } catch {
-      // Fallback: show in a prompt so user can copy manually
-      window.prompt('Copy your BRIEF and paste into your Health Project:', brief);
+      // Clipboard failed — brief panel will still show for manual copy
     }
+    setShowBrief(true);
   };
 
   // Calculate gym stats (show whenever exercises exist)
@@ -368,6 +316,7 @@ export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummary
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.95 }}
+          className="space-y-3"
         >
           <Button
             onClick={handleSendToTrainer}
@@ -378,15 +327,35 @@ export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummary
             {briefCopied ? (
               <>
                 <Check className="w-5 h-5 mr-2 text-primary" />
-                <span>BRIEF COPIED — PASTE IN HEALTH PROJECT</span>
+                <span>COPIED — PASTE INTO HEALTH PROJECT</span>
               </>
             ) : (
               <>
                 <Send className="w-5 h-5 mr-2" />
-                SEND TO TRAINER
+                COPY BRIEF FOR TRAINER
               </>
             )}
           </Button>
+
+          {showBrief && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="overflow-hidden"
+            >
+              <div className="glass rounded-2xl p-4 space-y-2">
+                <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                  YOUR BRIEF — paste into Health Project
+                </p>
+                <textarea
+                  readOnly
+                  value={brief}
+                  className="w-full min-h-[200px] bg-background/50 border border-white/10 rounded-xl p-3 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-primary/50"
+                  onFocus={(e) => e.target.select()}
+                />
+              </div>
+            </motion.div>
+          )}
         </motion.div>
 
         {/* Done Button */}

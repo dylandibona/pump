@@ -30,6 +30,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
     removeSet,
     removeExercise,
     updateExerciseNotes,
+    updateExerciseWeightType,
     duplicateLastSet,
     addCardioEntry,
     removeCardioEntry,
@@ -47,13 +48,21 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
   const planLoadedRef = useRef(false);
   const prevPRCountRef = useRef(newPRs.length);
 
-  // Pre-load plan session exercises once when session is ready
+  // Pre-load plan session exercises with placeholder sets once when session is ready
   useEffect(() => {
     if (!planSession || !session || planLoadedRef.current || session.exercises?.length) return;
     planLoadedRef.current = true;
     planSession.exercises.forEach((planEx, i) => {
       setTimeout(() => {
-        addExercise(planEx.name);
+        const targetWeight = planEx.isBodyweight ? 0 : (planEx.targetWeight ?? 0);
+        const setCount = planEx.sets ?? 3;
+        const initialSets: import('@/lib/types').GymSet[] = Array.from({ length: setCount }, () => ({
+          weight: targetWeight,
+          reps: 0,
+          isBodyweight: planEx.isBodyweight ?? false,
+          isPlanned: true,
+        }));
+        addExercise(planEx.name, initialSets);
       }, i * 20);
     });
   }, [planSession, session, addExercise]);
@@ -152,6 +161,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
                 onRemoveExercise={() => removeExercise(exercise.id)}
                 onDuplicateLastSet={() => duplicateLastSet(exercise.id)}
                 onUpdateNotes={(notes) => updateExerciseNotes(exercise.id, notes)}
+                onUpdateWeightType={(type) => updateExerciseWeightType(exercise.id, type)}
                 isLinking={linkingExerciseId === exercise.id}
                 onToggleLink={() => {
                   if (linkingExerciseId && linkingExerciseId !== exercise.id) {
@@ -260,7 +270,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
             >
               <InlineCardioForm
                 cardioEntries={session.cardio || []}
-                onAdd={(activity, distance, duration, notes) => addCardioEntry(activity, distance, duration, notes)}
+                onAdd={(activity, distance, duration, notes, incline, speed) => addCardioEntry(activity, distance, duration, notes, incline, speed)}
                 onRemove={(id) => removeCardioEntry(id)}
               />
             </motion.div>
@@ -333,6 +343,7 @@ interface ExerciseCardProps {
   onRemoveExercise: () => void;
   onDuplicateLastSet: () => void;
   onUpdateNotes: (notes: string) => void;
+  onUpdateWeightType: (type: 'total' | 'per_side') => void;
   isLinking?: boolean;
   onToggleLink?: () => void;
   onUnlink?: () => void;
@@ -347,6 +358,7 @@ function ExerciseCard({
   onRemoveExercise,
   onDuplicateLastSet,
   onUpdateNotes,
+  onUpdateWeightType,
   isLinking,
   onToggleLink,
   onUnlink,
@@ -359,6 +371,7 @@ function ExerciseCard({
   const [isBodyweight, setIsBodyweight] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [weightType, setWeightType] = useState<'total' | 'per_side'>(exercise.weightType ?? 'total');
 
   // Get history and PR for this exercise
   const history = getExerciseHistory(exercise.name, 3);
@@ -369,7 +382,15 @@ function ExerciseCard({
     const reps = parseInt(newReps);
 
     if (reps > 0 && (isBodyweight || weight >= 0)) {
-      onAddSet({ weight: isBodyweight ? 0 : weight, reps, isWarmup, isBodyweight });
+      const loggedSet: GymSet = { weight: isBodyweight ? 0 : weight, reps, isWarmup, isBodyweight };
+
+      // Replace first planned slot if one exists
+      const firstPlannedIdx = exercise.sets.findIndex(s => s.isPlanned);
+      if (firstPlannedIdx >= 0) {
+        onUpdateSet(firstPlannedIdx, { ...loggedSet, isPlanned: false });
+      } else {
+        onAddSet(loggedSet);
+      }
       setNewReps('');
       setIsWarmup(false);
       playSetCompleteFeedback();
@@ -400,6 +421,18 @@ function ExerciseCard({
                 <Badge className="bg-primary/20 text-primary border-primary/30 font-mono text-xs">
                   PR: {pr.weight} × {pr.reps}
                 </Badge>
+              )}
+              {!isBodyweight && (
+                <button
+                  onClick={() => {
+                    const next = weightType === 'total' ? 'per_side' : 'total';
+                    setWeightType(next);
+                    onUpdateWeightType(next);
+                  }}
+                  className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors px-2 py-0.5 border border-muted-foreground/20 hover:border-primary/40"
+                >
+                  {weightType === 'total' ? 'TOTAL' : 'EA SIDE'}
+                </button>
               )}
             </div>
             {planExercise?.notes && (
@@ -480,6 +513,39 @@ function ExerciseCard({
             </div>
             {exercise.sets.map((set, index) => {
               const setNumber = index + 1 - exercise.sets.filter((s, i) => i < index && s.isWarmup).length;
+
+              if (set.isPlanned) {
+                // Planned placeholder — tap to pre-fill the add-set form
+                return (
+                  <motion.div
+                    key={index}
+                    className="grid grid-cols-4 gap-2 items-center p-2 rounded-xl bg-secondary/10 border border-dashed border-white/10 cursor-pointer hover:border-primary/30 transition-colors"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    onClick={() => {
+                      if (!set.isBodyweight) setNewWeight(set.weight > 0 ? String(set.weight) : '');
+                      setIsBodyweight(set.isBodyweight ?? false);
+                    }}
+                  >
+                    <span className="font-display text-lg text-muted-foreground/50">{setNumber}</span>
+                    <span className="text-center font-mono text-sm text-muted-foreground/50">
+                      {set.isBodyweight ? 'BW' : set.weight > 0 ? `${set.weight}` : '—'}
+                    </span>
+                    <span className="text-center font-mono text-sm text-muted-foreground/50">—</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); onRemoveSet(index); }}
+                      className="text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 h-10"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </motion.div>
+                );
+              }
+
+              // Normal logged set row
               return (
                 <motion.div
                   key={index}
@@ -496,17 +562,22 @@ function ExerciseCard({
                   {set.isBodyweight ? (
                     <span className="h-10 flex items-center justify-center font-mono text-primary text-sm">BW</span>
                   ) : (
-                    <Input
-                      type="number"
-                      value={set.weight}
-                      onChange={(e) => onUpdateSet(index, { weight: parseFloat(e.target.value) || 0 })}
-                      className="h-10 text-center font-mono bg-background/50"
-                    />
+                    <div>
+                      <Input
+                        type="number"
+                        value={set.weight}
+                        onChange={(e) => onUpdateSet(index, { weight: parseFloat(e.target.value) || 0 })}
+                        onFocus={(e) => e.target.select()}
+                        className="h-10 text-center font-mono bg-background/50"
+                      />
+                      {weightType === 'per_side' && <span className="text-[10px] text-muted-foreground text-center block">ea.</span>}
+                    </div>
                   )}
                   <Input
                     type="number"
                     value={set.reps}
                     onChange={(e) => onUpdateSet(index, { reps: parseInt(e.target.value) || 0 })}
+                    onFocus={(e) => e.target.select()}
                     className="h-10 text-center font-mono bg-background/50"
                   />
                   <Button
@@ -538,9 +609,13 @@ function ExerciseCard({
                 type="number"
                 value={newWeight}
                 onChange={(e) => setNewWeight(e.target.value)}
+                onFocus={(e) => e.target.select()}
                 placeholder="lbs"
                 className="touch-target text-center font-mono"
               />
+              <span className="text-xs text-muted-foreground block text-center mt-0.5">
+                {weightType === 'per_side' ? 'lbs ea.' : 'lbs'}
+              </span>
             </div>
           )}
           <div>
@@ -551,6 +626,7 @@ function ExerciseCard({
               type="number"
               value={newReps}
               onChange={(e) => setNewReps(e.target.value)}
+              onFocus={(e) => e.target.select()}
               placeholder="#"
               className="touch-target text-center font-mono"
               onKeyDown={(e) => e.key === 'Enter' && handleAddSet()}
@@ -665,7 +741,7 @@ const CARDIO_ACTIVITY_OPTIONS: { value: CardioActivity; label: string; icon: Rea
 
 interface InlineCardioFormProps {
   cardioEntries: CardioEntry[];
-  onAdd: (activity: CardioActivity, distance: number, duration: number, notes?: string) => void;
+  onAdd: (activity: CardioActivity, distance: number | undefined, duration: number | undefined, notes?: string, incline?: number, speed?: number) => void;
   onRemove: (id: string) => void;
 }
 
@@ -674,6 +750,7 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
   const [distance, setDistance] = useState('');
   const [minutes, setMinutes] = useState('');
   const [seconds, setSeconds] = useState('');
+  const [incline, setIncline] = useState('');
   const [showForm, setShowForm] = useState(cardioEntries.length === 0);
 
   const formatTime = (totalSeconds: number) => {
@@ -683,13 +760,15 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
   };
 
   const handleAdd = () => {
-    const dist = parseFloat(distance);
     const totalSecs = (parseInt(minutes) || 0) * 60 + (parseInt(seconds) || 0);
-    if (dist > 0 && totalSecs > 0) {
-      onAdd(selectedActivity, dist, totalSecs);
+    if (totalSecs > 0) {
+      const distOrUndef = parseFloat(distance) > 0 ? parseFloat(distance) : undefined;
+      const inclOrUndef = parseFloat(incline) > 0 ? parseFloat(incline) : undefined;
+      onAdd(selectedActivity, distOrUndef, totalSecs, undefined, inclOrUndef);
       setDistance('');
       setMinutes('');
       setSeconds('');
+      setIncline('');
       setShowForm(false);
     }
   };
@@ -700,8 +779,9 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
       {cardioEntries.map((entry) => {
         const info = CARDIO_ACTIVITY_OPTIONS.find(a => a.value === entry.activity);
         const Icon = info?.icon || Activity;
-        const paceMin = Math.floor(entry.duration / entry.distance / 60);
-        const paceSec = Math.round((entry.duration / entry.distance) % 60);
+        const showPace = entry.distance != null && entry.duration != null;
+        const paceMin = showPace ? Math.floor(entry.duration! / entry.distance! / 60) : 0;
+        const paceSec = showPace ? Math.round((entry.duration! / entry.distance!) % 60) : 0;
         return (
           <div key={entry.id} className="flex items-center justify-between p-3 bg-secondary/30 border border-accent/20">
             <div className="flex items-center gap-3">
@@ -709,7 +789,10 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
               <div>
                 <span className="font-display tracking-wider text-sm text-accent">{entry.activity.toUpperCase()}</span>
                 <div className="text-xs text-muted-foreground font-mono">
-                  {entry.distance}mi · {formatTime(entry.duration)} · {paceMin}:{paceSec.toString().padStart(2,'0')}/mi
+                  {entry.duration != null && formatTime(entry.duration)}
+                  {entry.distance != null && ` · ${entry.distance}mi`}
+                  {showPace && ` · ${paceMin}:${paceSec.toString().padStart(2,'0')}/mi`}
+                  {entry.incline != null && ` · ${entry.incline}% incline`}
                 </div>
               </div>
             </div>
@@ -741,10 +824,6 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Miles</label>
-              <Input type="number" step="0.01" value={distance} onChange={e => setDistance(e.target.value)} placeholder="0.0" className="touch-target text-center font-mono" />
-            </div>
-            <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Min</label>
               <Input type="number" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="0" className="touch-target text-center font-mono" />
             </div>
@@ -752,9 +831,19 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
               <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Sec</label>
               <Input type="number" value={seconds} onChange={e => setSeconds(e.target.value)} placeholder="0" className="touch-target text-center font-mono" />
             </div>
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Miles (opt)</label>
+              <Input type="number" step="0.01" value={distance} onChange={e => setDistance(e.target.value)} placeholder="0.0" className="touch-target text-center font-mono" />
+            </div>
           </div>
+          {selectedActivity === 'walk' && (
+            <div>
+              <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Incline % (opt)</label>
+              <Input type="number" step="0.5" value={incline} onChange={e => setIncline(e.target.value)} placeholder="0" className="touch-target text-center font-mono" />
+            </div>
+          )}
           <div className="flex gap-2">
-            <Button onClick={handleAdd} disabled={!distance || !(parseInt(minutes) || parseInt(seconds))} className="flex-1 font-display tracking-wider">
+            <Button onClick={handleAdd} disabled={!(parseInt(minutes) || parseInt(seconds))} className="flex-1 font-display tracking-wider">
               LOG CARDIO
             </Button>
             {cardioEntries.length > 0 && (

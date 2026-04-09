@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Timer as TimerIcon, Dumbbell, Activity } from 'lucide-react';
+import { ChevronLeft, Timer as TimerIcon, Dumbbell, Activity, Pencil, Send } from 'lucide-react';
 import { Dashboard } from '@/components/workout/Dashboard';
 import { SessionStart } from '@/components/workout/SessionStart';
 import { GymWorkout } from '@/components/workout/GymWorkout';
@@ -14,7 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 import { useWorkout } from '@/hooks/useWorkout';
-import { getSession, getPlan, getNextPlanSession } from '@/lib/storage';
+import { getSession, getPlan, getNextPlanSession, getPRs } from '@/lib/storage';
+import { generateBrief } from '@/lib/brief';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
 type View = 'dashboard' | 'start' | 'gym' | 'cardio' | 'summary' | 'history' | 'session-detail';
@@ -26,6 +27,9 @@ export default function Home() {
   const [showTimer, setShowTimer] = useState(false);
   const [plan, setPlan] = useState<TrainerPlan | null>(() => getPlan());
   const [activePlanSession, setActivePlanSession] = useState<PlanSession | null>(null);
+  const [showSessionBrief, setShowSessionBrief] = useState(false);
+  const [sessionBriefText, setSessionBriefText] = useState('');
+  const [isEditingExisting, setIsEditingExisting] = useState(false);
 
   const { session, startSession, newPRs, clearNewPRs } = useWorkout({
     sessionId: activeSessionId || undefined,
@@ -41,8 +45,17 @@ export default function Home() {
   }, [startSession]);
 
   const handleWorkoutComplete = useCallback(() => {
-    setView('summary');
-  }, []);
+    if (isEditingExisting && viewingSession) {
+      // Reload the updated session from storage, return to session detail
+      const updated = getSession(activeSessionId!);
+      if (updated) setViewingSession(updated);
+      setActiveSessionId(null);
+      setIsEditingExisting(false);
+      setView('session-detail');
+    } else {
+      setView('summary');
+    }
+  }, [isEditingExisting, viewingSession, activeSessionId]);
 
   const handleCloseSummary = useCallback(() => {
     setActiveSessionId(null);
@@ -52,7 +65,24 @@ export default function Home() {
 
   const handleViewSession = useCallback((session: WorkoutSession) => {
     setViewingSession(session);
+    setShowSessionBrief(false);
+    setSessionBriefText('');
     setView('session-detail');
+  }, []);
+
+  const handleEditSession = useCallback((session: WorkoutSession) => {
+    setActiveSessionId(session.id);
+    setActivePlanSession(null);
+    setIsEditingExisting(true);
+    setView(session.type === 'gym' ? 'gym' : 'cardio');
+  }, []);
+
+  const handleCopySessionBrief = useCallback((session: WorkoutSession) => {
+    const plan = getPlan();
+    const brief = generateBrief(session, plan, []);
+    navigator.clipboard.writeText(brief).catch(() => {});
+    setSessionBriefText(brief);
+    setShowSessionBrief(true);
   }, []);
 
   const handleBack = useCallback(() => {
@@ -253,6 +283,10 @@ export default function Home() {
                   setViewingSession(null);
                   setView('history');
                 }}
+                onEdit={() => handleEditSession(viewingSession)}
+                onCopyBrief={() => handleCopySessionBrief(viewingSession)}
+                showBrief={showSessionBrief}
+                brief={sessionBriefText}
               />
             </motion.div>
           )}
@@ -266,9 +300,17 @@ export default function Home() {
 function SessionDetailView({
   session,
   onBack,
+  onEdit,
+  onCopyBrief,
+  showBrief,
+  brief,
 }: {
   session: WorkoutSession;
   onBack: () => void;
+  onEdit: () => void;
+  onCopyBrief: () => void;
+  showBrief: boolean;
+  brief: string;
 }) {
   const formatDate = (dateStr: string): string => {
     return new Date(dateStr).toLocaleDateString('en-US', {
@@ -384,16 +426,21 @@ function SessionDetailView({
                   {entry.activity}
                 </h3>
                 <span className="font-display text-2xl text-accent text-glow-hot">
-                  {entry.distance} mi
+                  {entry.distance != null ? `${entry.distance} mi` : entry.duration != null ? `${Math.floor(entry.duration / 60)}m` : '—'}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                <span className="font-mono">{formatTime(entry.duration)}</span>
-                <span className="mx-2">·</span>
-                <span className="font-mono text-accent">
-                  {Math.floor(entry.duration / entry.distance / 60)}:
-                  {Math.round((entry.duration / entry.distance) % 60).toString().padStart(2, '0')}/mi
-                </span>
+                <span className="font-mono">{entry.duration != null ? formatTime(entry.duration) : '—'}</span>
+                {entry.distance != null && entry.duration != null && (
+                  <>
+                    <span className="mx-2">·</span>
+                    <span className="font-mono text-accent">
+                      {Math.floor(entry.duration / entry.distance / 60)}:
+                      {Math.round((entry.duration / entry.distance) % 60).toString().padStart(2, '0')}/mi
+                    </span>
+                  </>
+                )}
+                {entry.incline != null && <span className="font-mono text-muted-foreground">{entry.incline}% incline</span>}
               </p>
               {entry.notes && (
                 <p className="text-sm text-muted-foreground mt-3 italic border-l-2 border-accent/30 pl-3">
@@ -424,7 +471,7 @@ function SessionDetailView({
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.45 }}
       >
         <Button
           onClick={onBack}
@@ -433,6 +480,52 @@ function SessionDetailView({
         >
           BACK TO HISTORY
         </Button>
+      </motion.div>
+
+      {/* Edit Session */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Button
+          onClick={onEdit}
+          variant="outline"
+          className="w-full h-14 font-display text-lg tracking-widest border-2 hover:border-primary/50 hover:bg-primary/5 transition-all"
+        >
+          <Pencil className="w-5 h-5 mr-2" />
+          EDIT SESSION
+        </Button>
+      </motion.div>
+
+      {/* Copy Brief for Trainer */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.55 }}
+        className="space-y-3"
+      >
+        <Button
+          onClick={onCopyBrief}
+          variant="outline"
+          className="w-full h-14 font-display text-lg tracking-widest border-2 hover:border-primary/50 hover:bg-primary/5 transition-all"
+        >
+          <Send className="w-5 h-5 mr-2" />
+          COPY BRIEF FOR TRAINER
+        </Button>
+        {showBrief && (
+          <div className="glass rounded-2xl p-4 space-y-2">
+            <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
+              YOUR BRIEF — paste into Health Project
+            </p>
+            <textarea
+              readOnly
+              value={brief}
+              className="w-full min-h-[200px] bg-background/50 border border-white/10 rounded-xl p-3 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-primary/50"
+              onFocus={(e) => e.target.select()}
+            />
+          </div>
+        )}
       </motion.div>
     </div>
   );

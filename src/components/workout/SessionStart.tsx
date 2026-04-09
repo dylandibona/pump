@@ -19,7 +19,12 @@ export function SessionStart({ onStart, plan, suggestedSessionId }: SessionStart
   const [showCalendar, setShowCalendar] = useState(false);
   const [hoveredType, setHoveredType] = useState<string | null>(null);
 
-  const formatDate = (date: Date): string => date.toISOString().split('T')[0];
+  const formatDate = (date: Date): string => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
 
   const formatDisplayDate = (date: Date): string => {
     const today = new Date();

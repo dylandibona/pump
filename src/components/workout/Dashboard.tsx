@@ -2,9 +2,9 @@
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Dumbbell, Activity, Trophy, Zap } from 'lucide-react';
+import { Dumbbell, Activity, Trophy, Zap, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getRecentSessions, getWorkoutStats, getPRs } from '@/lib/storage';
+import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { PlanLoader } from './PlanLoader';
 
@@ -21,6 +21,17 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
   const stats = useMemo(() => getWorkoutStats(), []);
   const recentSessions = useMemo(() => getRecentSessions(5), []);
   const prs = useMemo(() => getPRs(), []);
+
+  const handleExport = () => {
+    const json = exportData();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `pump-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const formatDate = (dateStr: string): string => {
     const date = new Date(dateStr);
@@ -251,6 +262,22 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
             </div>
           </motion.div>
         )}
+
+        {/* Export / Backup */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9 }}
+        >
+          <Button
+            onClick={handleExport}
+            variant="outline"
+            className="w-full font-display tracking-wider border-dashed border opacity-50 hover:opacity-100 transition-opacity"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            EXPORT BACKUP
+          </Button>
+        </motion.div>
       </div>
     </div>
   );
