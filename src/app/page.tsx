@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Timer as TimerIcon, Dumbbell, Activity, Pencil, Send } from 'lucide-react';
+import { ChevronLeft, Timer as TimerIcon, Dumbbell, Activity, Pencil, Send, Check } from 'lucide-react';
 import { Dashboard } from '@/components/workout/Dashboard';
 import { SessionStart } from '@/components/workout/SessionStart';
 import { GymWorkout } from '@/components/workout/GymWorkout';
@@ -312,6 +312,16 @@ function SessionDetailView({
   showBrief: boolean;
   brief: string;
 }) {
+  const [copied, setCopied] = useState(false);
+  const briefRef = useRef<HTMLDivElement>(null);
+
+  const handleCopy = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 3000);
+    onCopyBrief();
+    setTimeout(() => briefRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  };
+
   const formatDate = (dateStr: string): string => {
     return new Date(dateStr).toLocaleDateString('en-US', {
       weekday: 'long',
@@ -506,15 +516,24 @@ function SessionDetailView({
         className="space-y-3"
       >
         <Button
-          onClick={onCopyBrief}
+          onClick={handleCopy}
           variant="outline"
           className="w-full h-14 font-display text-lg tracking-widest border-2 hover:border-primary/50 hover:bg-primary/5 transition-all"
         >
-          <Send className="w-5 h-5 mr-2" />
-          COPY WORKOUT SUMMARY FOR TRAINER
+          {copied ? (
+            <>
+              <Check className="w-5 h-5 mr-2 text-primary" />
+              COPIED! PASTE INTO HEALTH PROJECT
+            </>
+          ) : (
+            <>
+              <Send className="w-5 h-5 mr-2" />
+              COPY WORKOUT SUMMARY FOR TRAINER
+            </>
+          )}
         </Button>
         {showBrief && (
-          <div className="glass rounded-2xl p-4 space-y-2">
+          <div ref={briefRef} className="glass rounded-2xl p-4 space-y-2">
             <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
               YOUR BRIEF — paste into Health Project
             </p>
