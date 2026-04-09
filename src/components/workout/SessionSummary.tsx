@@ -22,15 +22,14 @@ export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummary
   const [showBrief, setShowBrief] = useState(false);
   const brief = generateBrief(session, plan, newPRs);
 
-  const handleSendToTrainer = async () => {
-    try {
-      await navigator.clipboard.writeText(brief);
-      setBriefCopied(true);
-      setTimeout(() => setBriefCopied(false), 3000);
-    } catch {
-      // Clipboard failed — brief panel will still show for manual copy
-    }
+  const handleSendToTrainer = () => {
+    // Show feedback immediately — don't wait for async clipboard
+    setBriefCopied(true);
     setShowBrief(true);
+    setTimeout(() => setBriefCopied(false), 3000);
+    navigator.clipboard.writeText(brief).catch(() => {
+      // Clipboard failed — text panel is visible for manual copy
+    });
   };
 
   // Calculate gym stats (show whenever exercises exist)

@@ -80,9 +80,9 @@ export default function Home() {
   const handleCopySessionBrief = useCallback((session: WorkoutSession) => {
     const plan = getPlan();
     const brief = generateBrief(session, plan, []);
-    navigator.clipboard.writeText(brief).catch(() => {});
     setSessionBriefText(brief);
     setShowSessionBrief(true);
+    navigator.clipboard.writeText(brief).catch(() => {});
   }, []);
 
   const handleBack = useCallback(() => {
