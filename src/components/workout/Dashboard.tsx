@@ -140,6 +140,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
             value={stats.totalSessions}
             label="WORKOUTS"
             delay={0}
+            onClick={onViewHistory}
           />
           <StatCard
             value={prs.length}
@@ -288,22 +289,25 @@ function StatCard({
   value,
   label,
   accent = false,
-  delay = 0
+  delay = 0,
+  onClick,
 }: {
   value: string | number;
   label: string;
   accent?: boolean;
   delay?: number;
+  onClick?: () => void;
 }) {
   return (
     <motion.div
       className={`glass rounded-xl p-4 text-center relative overflow-hidden group ${
         accent ? 'border-accent/30' : ''
-      }`}
+      } ${onClick ? 'cursor-pointer' : ''}`}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 0.4 + delay * 0.1 }}
       whileHover={{ scale: 1.05 }}
+      onClick={onClick}
     >
       <motion.p
         className={`font-display text-4xl tracking-wide ${

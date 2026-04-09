@@ -327,12 +327,12 @@ export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummary
             {briefCopied ? (
               <>
                 <Check className="w-5 h-5 mr-2 text-primary" />
-                <span>COPIED — PASTE INTO HEALTH PROJECT</span>
+                <span>COPIED! PASTE INTO HEALTH PROJECT</span>
               </>
             ) : (
               <>
                 <Send className="w-5 h-5 mr-2" />
-                COPY BRIEF FOR TRAINER
+                COPY WORKOUT SUMMARY FOR TRAINER
               </>
             )}
           </Button>
