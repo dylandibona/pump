@@ -38,8 +38,13 @@ export function generateBrief(session: WorkoutSession, plan: TrainerPlan | null,
   if (session.cardio?.length) {
     brief += '\nCARDIO:\n';
     session.cardio.forEach(c => {
-      const pace = c.distance > 0 ? `${Math.floor(c.duration / c.distance / 60)}:${Math.round((c.duration / c.distance) % 60).toString().padStart(2, '0')}/mi` : '';
-      brief += `  ${c.activity.toUpperCase()} — ${c.distance}mi in ${Math.floor(c.duration / 60)}:${(c.duration % 60).toString().padStart(2, '0')}${pace ? ` (${pace})` : ''}\n`;
+      const dist = c.distance ?? 0;
+      const dur = c.duration ?? 0;
+      const pace = dist > 0 && dur > 0 ? `${Math.floor(dur / dist / 60)}:${Math.round((dur / dist) % 60).toString().padStart(2, '0')}/mi` : '';
+      const distStr = dist > 0 ? `${dist}mi` : '';
+      const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${(dur % 60).toString().padStart(2, '0')}` : '';
+      const inclineStr = c.incline != null ? ` ${c.incline}% incline` : '';
+      brief += `  ${c.activity.toUpperCase()} —${distStr ? ` ${distStr}` : ''}${durStr ? ` in ${durStr}` : ''}${pace ? ` (${pace})` : ''}${inclineStr}\n`;
     });
   }
 

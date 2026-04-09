@@ -228,7 +228,7 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
                               )}
                               {session.type === 'cardio' && session.cardio && (
                                 <p className="font-mono text-accent">
-                                  {session.cardio.reduce((sum, c) => sum + c.distance, 0).toFixed(2)} mi
+                                  {session.cardio.reduce((sum, c) => sum + (c.distance ?? 0), 0).toFixed(2)} mi
                                 </p>
                               )}
                             </div>

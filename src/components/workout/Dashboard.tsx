@@ -218,7 +218,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
                       )}
                       {session.type === 'cardio' && session.cardio && (
                         <p className="text-sm font-medium text-accent">
-                          {session.cardio.reduce((sum, c) => sum + c.distance, 0).toFixed(1)} mi
+                          {session.cardio.reduce((sum, c) => sum + (c.distance ?? 0), 0).toFixed(1)} mi
                         </p>
                       )}
                     </div>

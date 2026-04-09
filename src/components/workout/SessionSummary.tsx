@@ -50,8 +50,8 @@ export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummary
   // Calculate cardio stats (show whenever cardio exists)
   const cardioStats = session.cardio && session.cardio.length > 0 ? {
     activityCount: session.cardio.length,
-    totalDistance: session.cardio.reduce((sum, c) => sum + c.distance, 0),
-    totalDuration: session.cardio.reduce((sum, c) => sum + c.duration, 0),
+    totalDistance: session.cardio.reduce((sum, c) => sum + (c.distance ?? 0), 0),
+    totalDuration: session.cardio.reduce((sum, c) => sum + (c.duration ?? 0), 0),
   } : null;
 
   // Calculate duration
