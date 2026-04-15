@@ -9,12 +9,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 
 interface SessionStartProps {
-  onStart: (type: WorkoutType, date: string, planSession?: PlanSession) => void;
+  onStart: (type: WorkoutType, date: string) => void;
+  onPreview: (planSession: PlanSession, date: string) => void;
   plan: TrainerPlan | null;
   suggestedSessionId: string | null;
 }
 
-export function SessionStart({ onStart, plan, suggestedSessionId }: SessionStartProps) {
+export function SessionStart({ onStart, onPreview, plan, suggestedSessionId }: SessionStartProps) {
   const [date, setDate] = useState<Date>(new Date());
   const [showCalendar, setShowCalendar] = useState(false);
   const [hoveredType, setHoveredType] = useState<string | null>(null);
@@ -109,7 +110,7 @@ export function SessionStart({ onStart, plan, suggestedSessionId }: SessionStart
                   return (
                     <motion.button
                       key={session.id}
-                      onClick={() => onStart('gym', formatDate(date), session)}
+                      onClick={() => onPreview(session, formatDate(date))}
                       onHoverStart={() => setHoveredType(session.id)}
                       onHoverEnd={() => setHoveredType(null)}
                       className={`relative w-full glass p-4 text-left group transition-all overflow-hidden ${

@@ -7,6 +7,7 @@ import { Dashboard } from '@/components/workout/Dashboard';
 import { SessionStart } from '@/components/workout/SessionStart';
 import { GymWorkout } from '@/components/workout/GymWorkout';
 import { CardioWorkout } from '@/components/workout/CardioWorkout';
+import { SessionPreview } from '@/components/workout/SessionPreview';
 import { SessionSummary } from '@/components/workout/SessionSummary';
 import { WorkoutHistory } from '@/components/workout/WorkoutHistory';
 import { Timer } from '@/components/workout/Timer';
@@ -18,7 +19,7 @@ import { getSession, getPlan, getNextPlanSession, getPRs } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
-type View = 'dashboard' | 'start' | 'gym' | 'cardio' | 'summary' | 'history' | 'session-detail';
+type View = 'dashboard' | 'start' | 'preview' | 'gym' | 'cardio' | 'summary' | 'history' | 'session-detail';
 
 export default function Home() {
   const [view, setView] = useState<View>('dashboard');
@@ -30,6 +31,7 @@ export default function Home() {
   const [showSessionBrief, setShowSessionBrief] = useState(false);
   const [sessionBriefText, setSessionBriefText] = useState('');
   const [isEditingExisting, setIsEditingExisting] = useState(false);
+  const [pendingPreview, setPendingPreview] = useState<{ planSession: PlanSession; date: string } | null>(null);
 
   const { session, startSession, newPRs, newBaselines, clearNewPRs } = useWorkout({
     sessionId: activeSessionId || undefined,
@@ -43,6 +45,22 @@ export default function Home() {
     setActivePlanSession(planSession ?? null);
     setView(type === 'gym' ? 'gym' : 'cardio');
   }, [startSession]);
+
+  const handleOpenPreview = useCallback((planSession: PlanSession, date: string) => {
+    setPendingPreview({ planSession, date });
+    setView('preview');
+  }, []);
+
+  const handleStartFromPreview = useCallback((adjusted: PlanSession) => {
+    if (!pendingPreview) return;
+    handleStartWorkout('gym', pendingPreview.date, adjusted);
+    setPendingPreview(null);
+  }, [pendingPreview, handleStartWorkout]);
+
+  const handleCancelPreview = useCallback(() => {
+    setPendingPreview(null);
+    setView('start');
+  }, []);
 
   const handleWorkoutComplete = useCallback(() => {
     if (isEditingExisting && viewingSession) {
@@ -88,6 +106,9 @@ export default function Home() {
   const handleBack = useCallback(() => {
     if (view === 'start') {
       setView('dashboard');
+    } else if (view === 'preview') {
+      setPendingPreview(null);
+      setView('start');
     } else if (view === 'gym' || view === 'cardio') {
       if (confirm('Leave current workout? Your progress is saved.')) {
         setActiveSessionId(null);
@@ -104,6 +125,7 @@ export default function Home() {
   const getViewTitle = () => {
     switch (view) {
       case 'start': return 'NEW WORKOUT';
+      case 'preview': return 'SESSION PREVIEW';
       case 'gym': return 'GYM SESSION';
       case 'cardio': return 'CARDIO SESSION';
       case 'history': return 'HISTORY';
@@ -201,8 +223,26 @@ export default function Home() {
             >
               <SessionStart
                 onStart={handleStartWorkout}
+                onPreview={handleOpenPreview}
                 plan={plan}
                 suggestedSessionId={suggestedSessionId}
+              />
+            </motion.div>
+          )}
+
+          {view === 'preview' && pendingPreview && plan && (
+            <motion.div
+              key="preview"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <SessionPreview
+                plan={plan}
+                planSession={pendingPreview.planSession}
+                onStart={handleStartFromPreview}
+                onCancel={handleCancelPreview}
               />
             </motion.div>
           )}
