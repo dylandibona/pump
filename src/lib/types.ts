@@ -46,8 +46,10 @@ export interface WorkoutSession {
 
 export interface PersonalRecord {
   exerciseName: string;
-  weight: number;
-  reps: number;
+  weight: number;       // weight of the best set
+  reps: number;         // reps of the best set
+  e1rm: number;         // estimated 1RM (Epley) — source of truth for PR comparison
+  previousE1rm?: number; // the e1RM this PR beat, for "prev:" display in BRIEF
   date: string;
   sessionId: string;
 }

@@ -15,6 +15,7 @@ import {
   generateId,
   getExerciseHistory,
   getPRs,
+  computeE1RM,
 } from '@/lib/storage';
 
 interface UseWorkoutOptions {
@@ -24,9 +25,10 @@ interface UseWorkoutOptions {
 export function useWorkout(options: UseWorkoutOptions = {}) {
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [newPRs, setNewPRs] = useState<string[]>([]); // Track exercises with new PRs
-  // Snapshot of PRs that existed BEFORE this session started — used to prevent
-  // intra-session set escalations from triggering false celebrations.
+  const [newPRs, setNewPRs] = useState<string[]>([]); // Exercises with beaten records (celebrate)
+  const [newBaselines, setNewBaselines] = useState<string[]>([]); // First-ever exercises (silent)
+  // Snapshot of pre-session PR e1RMs — used to gate celebrations and to
+  // distinguish baseline (no entry) from improvement (entry present).
   const prSnapshotRef = useRef<Map<string, number>>(new Map());
 
   // Load existing session or create new one
@@ -42,13 +44,14 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
   // Start a new workout session
   const startSession = useCallback((type: WorkoutType, date: string) => {
-    // Snapshot all existing PRs (as estimated 1RM) before this session begins.
+    // Snapshot all existing PR e1RMs before this session begins (Epley).
     // Comparisons in addSet use this snapshot so intra-session set escalations
-    // don't trigger false PR celebrations.
+    // don't trigger false PR celebrations. Absence of a key = no prior history
+    // for that exercise → baseline, not PR.
     const allPRs = getPRs();
     const snapshot = new Map<string, number>();
     allPRs.forEach(pr => {
-      const e1rm = pr.weight * (36 / (37 - Math.min(pr.reps, 36)));
+      const e1rm = pr.e1rm && pr.e1rm > 0 ? pr.e1rm : computeE1RM(pr.weight, pr.reps);
       snapshot.set(pr.exerciseName.toLowerCase(), e1rm);
     });
     prSnapshotRef.current = snapshot;
@@ -106,21 +109,25 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       exercises: updatedExercises,
     };
 
-    // Check for PR — only celebrate when beating a record from a PREVIOUS session.
-    // Uses prSnapshotRef (captured at session start) so intra-session set escalations
-    // don't trigger false celebrations.
+    // Per-set PR evaluation (Epley e1RM). Celebrate only when a set beats the
+    // pre-session snapshot. First-ever exercises (no snapshot entry) establish
+    // a baseline — tracked for BRIEF but never trigger sound/banner.
     const exercise = updatedExercises?.find(ex => ex.id === exerciseId);
-    if (exercise && !set.isWarmup && !set.isPlanned && !set.isBodyweight && set.weight > 0) {
-      const preSessionBest = prSnapshotRef.current.get(exercise.name.toLowerCase());
-      if (preSessionBest !== undefined) {
-        const newEstimated1RM = set.weight * (36 / (37 - Math.min(set.reps, 36)));
-        if (newEstimated1RM > preSessionBest) {
-          setNewPRs(prev =>
-            prev.includes(exercise.name) ? prev : [...prev, exercise.name]
-          );
-        }
+    if (exercise && !set.isWarmup && !set.isPlanned && !set.isBodyweight && set.weight > 0 && set.reps > 0) {
+      const key = exercise.name.toLowerCase();
+      const preSessionBest = prSnapshotRef.current.get(key);
+      const setE1RM = computeE1RM(set.weight, set.reps);
+
+      if (preSessionBest === undefined) {
+        // No prior history → baseline (silent)
+        setNewBaselines(prev =>
+          prev.includes(exercise.name) ? prev : [...prev, exercise.name]
+        );
+      } else if (setE1RM > preSessionBest) {
+        setNewPRs(prev =>
+          prev.includes(exercise.name) ? prev : [...prev, exercise.name]
+        );
       }
-      // No pre-session PR exists: silently record baseline, no celebration
     }
 
     setSession(updatedSession);
@@ -356,9 +363,10 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     return getExerciseHistory(exerciseName);
   }, []);
 
-  // Clear new PRs notification
+  // Clear new PRs notification (also clears baselines — they're session-scoped)
   const clearNewPRs = useCallback(() => {
     setNewPRs([]);
+    setNewBaselines([]);
   }, []);
 
   // Calculate session stats
@@ -409,6 +417,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     session,
     isLoading,
     newPRs,
+    newBaselines,
     startSession,
     addExercise,
     addSet,

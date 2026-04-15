@@ -31,7 +31,7 @@ export default function Home() {
   const [sessionBriefText, setSessionBriefText] = useState('');
   const [isEditingExisting, setIsEditingExisting] = useState(false);
 
-  const { session, startSession, newPRs, clearNewPRs } = useWorkout({
+  const { session, startSession, newPRs, newBaselines, clearNewPRs } = useWorkout({
     sessionId: activeSessionId || undefined,
   });
 
@@ -250,6 +250,7 @@ export default function Home() {
                 session={(activeSessionId ? getSession(activeSessionId) : null) ?? session!}
                 onClose={handleCloseSummary}
                 newPRs={newPRs}
+                newBaselines={newBaselines}
               />
             </motion.div>
           )}

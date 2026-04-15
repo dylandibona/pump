@@ -13,14 +13,15 @@ interface SessionSummaryProps {
   session: WorkoutSession;
   onClose: () => void;
   newPRs?: string[];
+  newBaselines?: string[];
 }
 
-export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummaryProps) {
+export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [] }: SessionSummaryProps) {
   const prs = getPRs();
   const plan = getPlan();
   const [briefCopied, setBriefCopied] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
-  const brief = generateBrief(session, plan, newPRs);
+  const brief = generateBrief(session, plan, newPRs, newBaselines);
 
   const handleSendToTrainer = () => {
     // Show feedback immediately — don't wait for async clipboard
@@ -265,6 +266,7 @@ export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummary
                   (pr) => pr.exerciseName.toLowerCase() === exercise.name.toLowerCase()
                 );
                 const isNewPR = newPRs.includes(exercise.name);
+                const isBaseline = !isNewPR && newBaselines.includes(exercise.name);
 
                 return (
                   <motion.div
@@ -285,6 +287,11 @@ export function SessionSummary({ session, onClose, newPRs = [] }: SessionSummary
                       {isNewPR && (
                         <Badge className="bg-accent text-accent-foreground font-display tracking-wider">
                           NEW PR
+                        </Badge>
+                      )}
+                      {isBaseline && (
+                        <Badge variant="outline" className="font-display tracking-wider text-muted-foreground">
+                          BASELINE
                         </Badge>
                       )}
                     </div>

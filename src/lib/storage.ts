@@ -17,6 +17,14 @@ const defaultData: WorkoutData = {
   settings: defaultSettings,
 };
 
+// Estimated 1RM using Epley formula. High-rep sets are poor predictors,
+// so reps are capped at 30 before applying the formula.
+export function computeE1RM(weight: number, reps: number): number {
+  if (weight <= 0 || reps <= 0) return 0;
+  const cappedReps = Math.min(reps, 30);
+  return weight * (1 + cappedReps / 30);
+}
+
 // Get all workout data from localStorage
 export function getWorkoutData(): WorkoutData {
   if (typeof window === 'undefined') return defaultData;
@@ -26,11 +34,25 @@ export function getWorkoutData(): WorkoutData {
     if (!stored) return defaultData;
 
     const parsed = JSON.parse(stored);
-    return {
+    const data: WorkoutData = {
       ...defaultData,
       ...parsed,
       settings: { ...defaultSettings, ...parsed.settings },
     };
+
+    // Backfill e1rm on legacy PR records (per-set Epley from stored weight/reps).
+    // Preserves existing weight/reps; does not mutate storage until next save.
+    let mutated = false;
+    data.personalRecords = data.personalRecords.map(pr => {
+      if (typeof pr.e1rm === 'number' && pr.e1rm > 0) return pr;
+      mutated = true;
+      return { ...pr, e1rm: computeE1RM(pr.weight, pr.reps) };
+    });
+    if (mutated) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+    }
+
+    return data;
   } catch (error) {
     console.error('Error reading workout data:', error);
     return defaultData;
@@ -91,39 +113,52 @@ export function getRecentSessions(limit: number = 10): WorkoutSession[] {
 }
 
 // PR operations
+// Per-set evaluation using Epley e1RM. The "best set" of the session is the
+// single set with the highest e1RM (weight, reps preserved together — never a
+// frankenstein combo). Bodyweight and zero-weight sets are skipped. First-ever
+// exercises establish a baseline silently; celebration is gated in useWorkout.
 function checkAndUpdatePRs(session: WorkoutSession, data: WorkoutData): void {
   if (!session.exercises) return;
 
   session.exercises.forEach(exercise => {
-    exercise.sets.forEach(set => {
-      if (set.isWarmup || set.isPlanned) return; // Skip warmup and planned sets
-
-      const existingPR = data.personalRecords.find(
-        pr => pr.exerciseName.toLowerCase() === exercise.name.toLowerCase()
-      );
-
-      // Calculate estimated 1RM using Brzycki formula: weight × (36 / (37 - reps))
-      const estimated1RM = set.weight * (36 / (37 - Math.min(set.reps, 36)));
-
-      if (!existingPR) {
-        data.personalRecords.push({
-          exerciseName: exercise.name,
-          weight: set.weight,
-          reps: set.reps,
-          date: session.date,
-          sessionId: session.id,
-        });
-      } else {
-        const existingEstimated1RM = existingPR.weight * (36 / (37 - Math.min(existingPR.reps, 36)));
-
-        if (estimated1RM > existingEstimated1RM) {
-          existingPR.weight = set.weight;
-          existingPR.reps = set.reps;
-          existingPR.date = session.date;
-          existingPR.sessionId = session.id;
-        }
+    // Find best set of this session for this exercise
+    let best: { weight: number; reps: number; e1rm: number } | null = null;
+    for (const set of exercise.sets) {
+      if (set.isWarmup || set.isPlanned || set.isBodyweight) continue;
+      if (set.weight <= 0 || set.reps <= 0) continue;
+      const e1rm = computeE1RM(set.weight, set.reps);
+      if (!best || e1rm > best.e1rm) {
+        best = { weight: set.weight, reps: set.reps, e1rm };
       }
-    });
+    }
+    if (!best) return;
+
+    const existing = data.personalRecords.find(
+      pr => pr.exerciseName.toLowerCase() === exercise.name.toLowerCase()
+    );
+
+    if (!existing) {
+      // Baseline: record silently with no previousE1rm marker.
+      data.personalRecords.push({
+        exerciseName: exercise.name,
+        weight: best.weight,
+        reps: best.reps,
+        e1rm: best.e1rm,
+        date: session.date,
+        sessionId: session.id,
+      });
+      return;
+    }
+
+    // Only update on a true PR (best set e1RM strictly greater).
+    if (best.e1rm > existing.e1rm) {
+      existing.previousE1rm = existing.e1rm;
+      existing.weight = best.weight;
+      existing.reps = best.reps;
+      existing.e1rm = best.e1rm;
+      existing.date = session.date;
+      existing.sessionId = session.id;
+    }
   });
 }
 

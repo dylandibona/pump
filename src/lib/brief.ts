@@ -1,6 +1,12 @@
 import { WorkoutSession, TrainerPlan } from './types';
+import { computeE1RM, getPRForExercise } from './storage';
 
-export function generateBrief(session: WorkoutSession, plan: TrainerPlan | null, newPRs: string[]): string {
+export function generateBrief(
+  session: WorkoutSession,
+  plan: TrainerPlan | null,
+  newPRs: string[],
+  newBaselines: string[] = []
+): string {
   const date = new Date(session.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   const duration = session.endTime
     ? Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)
@@ -24,13 +30,39 @@ export function generateBrief(session: WorkoutSession, plan: TrainerPlan | null,
       const superset = ex.supersetGroupId ? ' ⚡SUPERSET' : '';
       const equipStr = ex.equipment ? ` [${ex.equipment}]` : '';
       brief += `${ex.name.toUpperCase()}${equipStr}${superset}${target ? ` (${target})` : ''}\n`;
+
+      // Identify the best set (highest e1RM) for PR/baseline annotation.
+      // Skip warmup, bodyweight, and zero-weight sets.
+      let bestIdx = -1;
+      let bestE1rm = 0;
+      ex.sets.forEach((set, i) => {
+        if (set.isWarmup || set.isBodyweight || set.weight <= 0 || set.reps <= 0) return;
+        const e1rm = computeE1RM(set.weight, set.reps);
+        if (e1rm > bestE1rm) { bestE1rm = e1rm; bestIdx = i; }
+      });
+
+      const isPR = newPRs.includes(ex.name);
+      const isBaseline = newBaselines.includes(ex.name);
+      const storedPR = (isPR || isBaseline) ? getPRForExercise(ex.name) : undefined;
+
       ex.sets.forEach((set, i) => {
         if (set.isWarmup) return;
         const label = set.isBodyweight ? 'BW' : `${set.weight}lbs${ex.weightType === 'per_side' ? ' ea.' : ''}`;
         const targetW = planEx?.targetWeight;
         const indicator = !targetW ? '' : set.weight > targetW ? ' ↑' : set.weight < targetW ? ' ↓' : ' ✓';
-        const prMark = newPRs.includes(ex.name) && i === ex.sets.filter(s => !s.isWarmup).length - 1 ? ' 🏆PR' : '';
-        brief += `  Set ${i + 1}: ${label} × ${set.reps}${indicator}${prMark}\n`;
+
+        let mark = '';
+        if (i === bestIdx) {
+          const e1 = Math.round(bestE1rm);
+          if (isPR) {
+            const prev = storedPR?.previousE1rm != null ? `, prev: ${Math.round(storedPR.previousE1rm)}` : '';
+            mark = ` ⚡PR (e1RM: ${e1}${prev})`;
+          } else if (isBaseline) {
+            mark = ` ★Baseline (e1RM: ${e1})`;
+          }
+        }
+
+        brief += `  Set ${i + 1}: ${label} × ${set.reps}${indicator}${mark}\n`;
       });
     });
   }
@@ -53,6 +85,7 @@ export function generateBrief(session: WorkoutSession, plan: TrainerPlan | null,
 
   if (totalVolume > 0) brief += `\nVOLUME: ${totalVolume.toLocaleString()} lbs\n`;
   if (newPRs.length) brief += `NEW PRs: ${newPRs.join(', ')}\n`;
+  if (newBaselines.length) brief += `BASELINES: ${newBaselines.join(', ')}\n`;
   if (session.notes) brief += `\nNOTES: ${session.notes}\n`;
 
   return brief.trim();
