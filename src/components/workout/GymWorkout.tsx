@@ -12,7 +12,7 @@ import { RestTimerInline } from './Timer';
 import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet, CardioActivity, CardioEntry } from '@/lib/types';
 import { getExerciseHistory, getPRForExercise } from '@/lib/storage';
-import { playSetCompleteFeedback, playPRFeedback } from '@/lib/sounds';
+import { playSetCompleteFeedback, playPRFeedback, preloadSound } from '@/lib/sounds';
 
 interface GymWorkoutProps {
   sessionId?: string;
@@ -66,6 +66,12 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
       }, i * 20);
     });
   }, [planSession, session, addExercise]);
+
+  // Preload PR / set-complete audio buffer once per session so Web Audio
+  // has it decoded by the time the first set lands.
+  useEffect(() => {
+    preloadSound('setComplete');
+  }, []);
 
   // Play sound when a new PR is achieved
   useEffect(() => {
