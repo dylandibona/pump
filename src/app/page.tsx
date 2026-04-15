@@ -141,7 +141,7 @@ export default function Home() {
 
   const getViewTitle = () => {
     switch (view) {
-      case 'start': return 'NEW WORKOUT';
+      case 'start': return 'New Workout';
       case 'preview': return 'SESSION PREVIEW';
       case 'gym': return 'GYM SESSION';
       case 'cardio': return 'CARDIO SESSION';
@@ -152,9 +152,10 @@ export default function Home() {
     }
   };
 
-  // Root tab views get the script font (Pacifico) centered; workflow views
-  // keep the display (Outfit 800) uppercase style.
-  const isScriptTitle = view === 'plan' || view === 'history';
+  // These views carry their title in the nav bar using Pacifico script.
+  // Workflow views deep inside a session (preview/gym/cardio/session-detail)
+  // keep the Outfit 800 uppercase treatment.
+  const isScriptTitle = view === 'plan' || view === 'history' || view === 'start';
 
   return (
     <main className="min-h-screen bg-background relative">
