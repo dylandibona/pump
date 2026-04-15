@@ -403,30 +403,37 @@ function ExerciseCard({
     }
   };
 
+  const isSuperset = Boolean(exercise.supersetGroupId);
+
   return (
     <motion.div
-      className="glass rounded-2xl overflow-hidden"
+      className={`pump-card ${isSuperset ? 'pump-card--superset' : 'pump-card--active'} overflow-hidden p-0`}
       whileHover={{ scale: 1.005 }}
       transition={{ duration: 0.2 }}
     >
       {/* Header */}
-      <div className="p-4 border-b border-white/5">
+      <div className="p-4 border-b border-[color:var(--pump-border-card)]">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-display text-2xl tracking-wider text-foreground">
+            <h3 className="font-display text-2xl text-[color:var(--pump-text)]">
               {exercise.name.toUpperCase()}
             </h3>
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {planExercise && (
-                <Badge className="bg-secondary/60 text-muted-foreground border-0 font-mono text-xs">
-                  TARGET: {planExercise.sets}×{planExercise.targetReps}
-                  {planExercise.isBodyweight ? ' BW' : planExercise.targetWeight ? ` @ ${planExercise.targetWeight}lbs` : ''}
-                </Badge>
+                <span className="tag tag--target">
+                  {planExercise.sets}×{planExercise.targetReps}
+                  {planExercise.isBodyweight ? ' BW' : planExercise.targetWeight ? ` @ ${planExercise.targetWeight}` : ''}
+                </span>
               )}
               {pr && (
-                <Badge className="bg-primary/20 text-primary border-primary/30 font-mono text-xs">
-                  PR: {pr.weight} × {pr.reps}
-                </Badge>
+                <span className="tag tag--pr">
+                  PR {pr.weight}×{pr.reps}
+                </span>
+              )}
+              {isSuperset && (
+                <span className="tag tag--superset">
+                  SUPERSET
+                </span>
               )}
               {!isBodyweight && (
                 <button

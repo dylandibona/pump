@@ -2,22 +2,20 @@
 
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Dumbbell, Activity, Trophy, Zap, Download } from 'lucide-react';
+import { Dumbbell, Activity, Download, ClipboardList, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
-import { PlanLoader } from './PlanLoader';
 
 interface DashboardProps {
   onStartWorkout: () => void;
   onViewHistory: () => void;
   onViewSession: (session: WorkoutSession) => void;
+  onOpenPlan: () => void;
   plan: TrainerPlan | null;
-  onPlanLoaded: (plan: TrainerPlan) => void;
-  onPlanCleared: () => void;
 }
 
-export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, onPlanLoaded, onPlanCleared }: DashboardProps) {
+export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpenPlan, plan }: DashboardProps) {
   const stats = useMemo(() => getWorkoutStats(), []);
   const recentSessions = useMemo(() => getRecentSessions(5), []);
   const prs = useMemo(() => getPRs(), []);
@@ -65,24 +63,28 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
   };
 
   return (
-    <div className="min-h-screen pb-24 relative">
-      {/* Background Effects */}
+    <div className="min-h-screen pb-28 relative">
+      {/* Subtle warm radial glow (light theme) */}
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
-      <div className="fixed inset-0 bg-grid pointer-events-none opacity-50" />
+      <div className="fixed inset-0 bg-grid pointer-events-none opacity-60" />
 
-      {/* Decorative glow */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+      {/* Hot-pink ambient halo behind the hero */}
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[color:var(--pump-hot)]/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative z-10 space-y-8">
-        {/* Hero Header */}
+        {/* Hero Header — brand mark in Monoton with sunset gradient */}
         <motion.div
           className="text-center pt-8 pb-4"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <motion.h1
-            className="font-display text-7xl md:text-8xl tracking-wider text-gradient"
+            className="font-brand text-7xl md:text-8xl text-gradient-sunset"
+            style={{
+              filter:
+                'drop-shadow(0 0 18px rgba(255,0,128,0.35)) drop-shadow(0 0 40px rgba(255,0,128,0.18))',
+            }}
             initial={{ scale: 0.9 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -90,27 +92,37 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
             PUMP
           </motion.h1>
           <motion.p
-            className="text-muted-foreground text-sm tracking-[0.3em] uppercase mt-2"
+            className="font-mono text-[10px] tracking-[0.4em] uppercase mt-2 text-[color:var(--pump-cyan-deep)]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            Track. Lift. Conquer.
+            Train like it&rsquo;s 1987
           </motion.p>
         </motion.div>
 
-        {/* Plan Loader */}
-        <motion.div
+        {/* Plan status bar — tap to open Plan tab */}
+        <motion.button
+          onClick={onOpenPlan}
+          className="w-full glass rounded-xl p-3 flex items-center gap-3 text-left group"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
+          whileTap={{ scale: 0.99 }}
         >
-          <PlanLoader
-            currentPlan={plan}
-            onPlanLoaded={onPlanLoaded}
-            onPlanCleared={onPlanCleared}
-          />
-        </motion.div>
+          <div className="w-10 h-10 rounded-lg bg-[color:var(--pump-cyan-deep)]/14 flex items-center justify-center text-[color:var(--pump-cyan-deep)] shrink-0">
+            <ClipboardList className="w-5 h-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-mono tracking-[0.2em] text-muted-foreground uppercase">
+              {plan ? 'ACTIVE PLAN' : 'NO PLAN LOADED'}
+            </p>
+            <p className="text-sm font-semibold truncate">
+              {plan ? `${plan.name} · v${plan.version}` : 'Paste a trainer plan →'}
+            </p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-[color:var(--pump-hot)] transition-colors shrink-0" />
+        </motion.button>
 
         {/* Start Workout CTA */}
         <motion.div
@@ -120,12 +132,15 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
         >
           <Button
             onClick={onStartWorkout}
-            className="w-full h-20 text-2xl font-display tracking-widest relative overflow-hidden group touch-target"
+            className="w-full h-20 text-3xl tracking-wide relative overflow-hidden group touch-target text-white border-0 shadow-[0_0_24px_rgba(255,0,128,0.35),0_0_60px_rgba(255,0,128,0.12)]"
+            style={{
+              background: 'var(--pump-grad-hot)',
+              fontFamily: 'var(--font-pacifico), cursive',
+            }}
             size="lg"
           >
-            <span className="relative z-10">START WORKOUT</span>
-            <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="absolute inset-0 glow-neon opacity-50 group-hover:opacity-100 transition-opacity" />
+            <span className="relative z-10">Let&rsquo;s Go</span>
+            <div className="absolute inset-0 animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity" />
           </Button>
         </motion.div>
 
@@ -251,10 +266,10 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, plan, 
                 >
                   <span className="text-sm font-medium truncate mr-4">{pr.exerciseName}</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-sm text-primary font-bold">
+                    <span className="tag tag--pr">
                       {pr.weight}×{pr.reps}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] font-mono tracking-wider text-muted-foreground">
                       {new Date(pr.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>

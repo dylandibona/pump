@@ -77,15 +77,18 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <p className="text-xs tracking-[0.3em] text-muted-foreground uppercase">
-          {plan.name.toUpperCase()}
+        <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-[color:var(--pump-cyan-deep)]">
+          PREVIEW · {plan.name.toUpperCase()}
           {plan.blockType ? ` · ${plan.blockType.toUpperCase()}` : ''}
         </p>
-        <h1 className="font-display text-3xl tracking-wider text-primary text-glow-neon">
-          {planSession.name.toUpperCase()}
+        <h1
+          className="text-4xl text-[color:var(--pump-hot)] text-glow-hot"
+          style={{ fontFamily: 'var(--font-pacifico), cursive' }}
+        >
+          {planSession.name}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {adjusted.length} {adjusted.length === 1 ? 'exercise' : 'exercises'} · ~{duration} min
+        <p className="font-mono text-xs text-muted-foreground tracking-wider">
+          {adjusted.length} {adjusted.length === 1 ? 'EXERCISE' : 'EXERCISES'} · ~{duration} MIN
         </p>
       </motion.div>
 
@@ -101,10 +104,13 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
               ? `${ex.targetWeight} lbs`
               : '—';
 
+          const cardClass = partner
+            ? 'pump-card pump-card--superset'
+            : 'pump-card pump-card--preview';
           return (
             <motion.div
               key={`${ex.name}-${i}`}
-              className="glass rounded-xl p-4"
+              className={`${cardClass} p-4`}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.05 + i * 0.04 }}
@@ -207,9 +213,13 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
           </Button>
           <Button
             onClick={handleStart}
-            className="flex-1 h-14 font-display text-lg tracking-widest"
+            className="flex-1 h-14 text-2xl tracking-wide text-white border-0 shadow-[0_0_24px_rgba(255,0,128,0.35),0_0_60px_rgba(255,0,128,0.12)]"
+            style={{
+              background: 'var(--pump-grad-hot)',
+              fontFamily: 'var(--font-pacifico), cursive',
+            }}
           >
-            START SESSION
+            Let&rsquo;s Go
             <ChevronRight className="w-5 h-5 ml-1" />
           </Button>
         </div>

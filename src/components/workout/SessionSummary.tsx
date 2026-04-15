@@ -271,28 +271,24 @@ export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [
                 return (
                   <motion.div
                     key={exercise.id}
-                    className={`p-4 rounded-xl transition-all ${
-                      isNewPR
-                        ? 'bg-accent/10 border border-accent/30'
-                        : 'bg-secondary/30'
-                    }`}
+                    className={`pump-card p-4 ${isNewPR ? 'pump-card--active' : ''}`}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.9 + index * 0.05 }}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-display text-lg tracking-wider">
+                      <span className="font-display text-lg">
                         {exercise.name.toUpperCase()}
                       </span>
                       {isNewPR && (
-                        <Badge className="bg-accent text-accent-foreground font-display tracking-wider">
+                        <span className="pr-badge">
                           NEW PR
-                        </Badge>
+                        </span>
                       )}
                       {isBaseline && (
-                        <Badge variant="outline" className="font-display tracking-wider text-muted-foreground">
+                        <span className="tag tag--warmup">
                           BASELINE
-                        </Badge>
+                        </span>
                       )}
                     </div>
                     <div className="flex flex-wrap gap-2">

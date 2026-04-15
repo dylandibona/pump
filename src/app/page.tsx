@@ -10,6 +10,7 @@ import { CardioWorkout } from '@/components/workout/CardioWorkout';
 import { SessionPreview } from '@/components/workout/SessionPreview';
 import { SessionSummary } from '@/components/workout/SessionSummary';
 import { WorkoutHistory } from '@/components/workout/WorkoutHistory';
+import { BottomTabBar, TabKey } from '@/components/workout/BottomTabBar';
 import { Timer } from '@/components/workout/Timer';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -19,7 +20,17 @@ import { getSession, getPlan, getNextPlanSession, getPRs } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
-type View = 'dashboard' | 'start' | 'preview' | 'gym' | 'cardio' | 'summary' | 'history' | 'session-detail';
+type View = 'dashboard' | 'start' | 'preview' | 'gym' | 'cardio' | 'summary' | 'history' | 'plan' | 'session-detail';
+
+// Views that are "root tabs" — the tab bar highlights one of them and is shown.
+// Other views (start, preview, gym, cardio, summary, session-detail) are
+// workflow/drill-down screens where the tab bar is hidden.
+function activeTab(view: View): TabKey | null {
+  if (view === 'dashboard' || view === 'start') return 'workout';
+  if (view === 'history') return 'history';
+  if (view === 'plan') return 'plan';
+  return null;
+}
 
 export default function Home() {
   const [view, setView] = useState<View>('dashboard');
@@ -122,6 +133,12 @@ export default function Home() {
     }
   }, [view]);
 
+  const handleTabChange = useCallback((tab: TabKey) => {
+    if (tab === 'workout') setView('dashboard');
+    else if (tab === 'history') setView('history');
+    else if (tab === 'plan') setView('plan');
+  }, []);
+
   const getViewTitle = () => {
     switch (view) {
       case 'start': return 'NEW WORKOUT';
@@ -129,6 +146,7 @@ export default function Home() {
       case 'gym': return 'GYM SESSION';
       case 'cardio': return 'CARDIO SESSION';
       case 'history': return 'HISTORY';
+      case 'plan': return 'PLAN';
       case 'session-detail': return 'SESSION';
       default: return '';
     }
@@ -206,9 +224,8 @@ export default function Home() {
                 onStartWorkout={() => setView('start')}
                 onViewHistory={() => setView('history')}
                 onViewSession={handleViewSession}
+                onOpenPlan={() => setView('plan')}
                 plan={plan}
-                onPlanLoaded={(p) => setPlan(p)}
-                onPlanCleared={() => setPlan(null)}
               />
             </motion.div>
           )}
@@ -310,6 +327,22 @@ export default function Home() {
             </motion.div>
           )}
 
+          {view === 'plan' && (
+            <motion.div
+              key="plan"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <PlanView
+                plan={plan}
+                onPlanLoaded={(p) => setPlan(p)}
+                onPlanCleared={() => setPlan(null)}
+              />
+            </motion.div>
+          )}
+
           {view === 'session-detail' && viewingSession && (
             <motion.div
               key="session-detail"
@@ -333,7 +366,53 @@ export default function Home() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Persistent bottom tab bar on root views only */}
+      {activeTab(view) && (
+        <BottomTabBar active={activeTab(view)!} onChange={handleTabChange} />
+      )}
     </main>
+  );
+}
+
+// Plan View — dedicated tab for managing the TrainerPlan JSON
+function PlanView({
+  plan,
+  onPlanLoaded,
+  onPlanCleared,
+}: {
+  plan: TrainerPlan | null;
+  onPlanLoaded: (plan: TrainerPlan) => void;
+  onPlanCleared: () => void;
+}) {
+  return (
+    <div className="space-y-6 pb-28">
+      <motion.div
+        className="text-center"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <p className="text-xs tracking-[0.3em] text-muted-foreground uppercase mb-1">YOUR TRAINING PLAN</p>
+        <h2
+          className="text-4xl text-[color:var(--pump-hot)] text-glow-hot"
+          style={{ fontFamily: 'var(--font-pacifico), cursive' }}
+        >
+          Plan
+        </h2>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <PlanLoader
+          currentPlan={plan}
+          onPlanLoaded={onPlanLoaded}
+          onPlanCleared={onPlanCleared}
+        />
+      </motion.div>
+    </div>
   );
 }
 
