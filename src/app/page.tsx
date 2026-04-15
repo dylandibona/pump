@@ -145,12 +145,16 @@ export default function Home() {
       case 'preview': return 'SESSION PREVIEW';
       case 'gym': return 'GYM SESSION';
       case 'cardio': return 'CARDIO SESSION';
-      case 'history': return 'HISTORY';
-      case 'plan': return 'PLAN';
+      case 'history': return 'History';
+      case 'plan': return 'Plan';
       case 'session-detail': return 'SESSION';
       default: return '';
     }
   };
+
+  // Root tab views get the script font (Pacifico) centered; workflow views
+  // keep the display (Outfit 800) uppercase style.
+  const isScriptTitle = view === 'plan' || view === 'history';
 
   return (
     <main className="min-h-screen bg-background relative">
@@ -179,7 +183,12 @@ export default function Home() {
               </motion.button>
 
               <motion.h1
-                className="font-display text-xl tracking-wider text-gradient"
+                className={
+                  isScriptTitle
+                    ? 'text-3xl text-[color:var(--pump-hot)] text-glow-hot'
+                    : 'font-display text-xl tracking-wider text-gradient'
+                }
+                style={isScriptTitle ? { fontFamily: 'var(--font-pacifico), cursive' } : undefined}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
@@ -388,23 +397,8 @@ function PlanView({
   return (
     <div className="space-y-6 pb-28">
       <motion.div
-        className="text-center"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <p className="text-xs tracking-[0.3em] text-muted-foreground uppercase mb-1">YOUR TRAINING PLAN</p>
-        <h2
-          className="text-4xl text-[color:var(--pump-hot)] text-glow-hot"
-          style={{ fontFamily: 'var(--font-pacifico), cursive' }}
-        >
-          Plan
-        </h2>
-      </motion.div>
-
-      <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
       >
         <PlanLoader
           currentPlan={plan}

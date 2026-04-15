@@ -81,16 +81,6 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
 
       <div className="relative z-10 space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <h1 className="font-display text-5xl tracking-wider text-gradient text-center">
-            HISTORY
-          </h1>
-        </motion.div>
-
         {/* Filter Tabs */}
         <motion.div
           className="flex gap-2 justify-center"

@@ -44,7 +44,7 @@ interface RetrowaveSceneProps {
   height?: number;
 }
 
-export function RetrowaveScene({ tagline = "Train like it's 1987", height = 200 }: RetrowaveSceneProps) {
+export function RetrowaveScene({ tagline, height = 200 }: RetrowaveSceneProps) {
   return (
     <div className="pump-scene" style={{ height }}>
       {/* Stars */}
@@ -123,7 +123,7 @@ export function RetrowaveScene({ tagline = "Train like it's 1987", height = 200 
       {/* Title overlay */}
       <div className="pump-scene__title-overlay">
         <div className="pump-scene__title">PUMP</div>
-        <div className="pump-scene__tagline">{tagline}</div>
+        {tagline && <div className="pump-scene__tagline">{tagline}</div>}
       </div>
 
       {/* CRT scanlines */}
