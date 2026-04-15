@@ -1,14 +1,25 @@
 import type { Metadata, Viewport } from 'next';
-import { Bebas_Neue, Space_Mono, Outfit } from 'next/font/google';
+import { Monoton, Pacifico, Space_Mono, Outfit } from 'next/font/google';
 import './globals.css';
 
-const bebasNeue = Bebas_Neue({
+// Monoton — brand mark ONLY (retrowave header "PUMP" title). Never below the
+// scene. Single weight.
+const monoton = Monoton({
   weight: '400',
-  variable: '--font-bebas',
+  variable: '--font-monoton',
   subsets: ['latin'],
   display: 'swap',
 });
 
+// Pacifico — session names and primary CTA. Personality layer. Single weight.
+const pacifico = Pacifico({
+  weight: '400',
+  variable: '--font-pacifico',
+  subsets: ['latin'],
+  display: 'swap',
+});
+
+// Space Mono — all numerical/data display (weights, reps, tags, timestamps).
 const spaceMono = Space_Mono({
   weight: ['400', '700'],
   variable: '--font-space-mono',
@@ -16,6 +27,7 @@ const spaceMono = Space_Mono({
   display: 'swap',
 });
 
+// Outfit — all UI text (exercise names at 800, labels at 700, body copy).
 const outfit = Outfit({
   weight: ['300', '400', '500', '600', '700', '800', '900'],
   variable: '--font-outfit',
@@ -29,7 +41,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'Pump',
   },
   icons: {
@@ -42,7 +54,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0f1419',
+  themeColor: '#F0FCFB',
 };
 
 export default function RootLayout({
@@ -53,7 +65,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${spaceMono.variable} ${bebasNeue.variable} h-full antialiased`}
+      className={`${outfit.variable} ${spaceMono.variable} ${monoton.variable} ${pacifico.variable} h-full antialiased`}
     >
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />

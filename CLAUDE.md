@@ -39,7 +39,7 @@ SessionSummary generates BRIEF
 ```
 
 ## Active design decisions
-- **Square edges** — `--radius: 0rem` in globals.css. Intentional.
+- **Miami Heat Wave theme** — light background (ice→warm gradient), hot-pink/cyan/purple accents, 14px card radius, spectrum-bar tops, card glow system. See `april 15/DESIGN_SYSTEM.md`. Replaced the earlier square-edge dark theme.
 - **No session type guard** — sessions have both `exercises[]` and `cardio[]` always initialized. Mixed sessions are supported.
 - **PR celebrations only on beaten records** — first-time sets are silently recorded as baseline.
 - **Autocomplete opens upward** — `bottom-full` positioning so it clears the fixed bottom bar.
