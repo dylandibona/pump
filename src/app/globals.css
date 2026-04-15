@@ -518,6 +518,259 @@
   outline-offset: 2px;
 }
 
+/* ============================================================
+   Retrowave scene (dashboard header)
+   Source: april 15/RETROWAVE_SCENE.html
+   ============================================================ */
+
+.pump-scene {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+  border-radius: var(--radius);
+  /* Sky gradient: near-black through purple, magenta, hot pink, orange, gold,
+     abrupt cut to pink/maroon/dark below the horizon. */
+  background: linear-gradient(180deg,
+    #050818 0%,
+    #0a1028 12%,
+    #180845 28%,
+    #3a0868 40%,
+    #6a0080 48%,
+    #aa0077 56%,
+    #FF0080 63%,
+    #FF3366 67%,
+    #FF8844 71%,
+    #FFcc66 74%,
+    #FFee88 75.5%,
+    #FF0080 76%,
+    #aa0055 78%,
+    #440033 82%,
+    #0a0020 100%
+  );
+  isolation: isolate;
+}
+
+.pump-scene__star {
+  position: absolute;
+  background: #fff;
+  border-radius: 50%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pump-scene__corona-outer,
+.pump-scene__corona-inner {
+  position: absolute;
+  border-radius: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.pump-scene__corona-outer {
+  width: 200px; height: 200px;
+  top: 55px;
+  background: radial-gradient(circle,
+    rgba(0,255,238,0.55) 0%,
+    rgba(0,255,238,0.25) 30%,
+    rgba(0,255,238,0.08) 50%,
+    transparent 65%);
+  filter: blur(8px);
+}
+
+.pump-scene__corona-inner {
+  width: 140px; height: 140px;
+  top: 80px;
+  background: radial-gradient(circle,
+    rgba(0,255,238,0.65) 0%,
+    rgba(0,255,238,0.3) 40%,
+    transparent 70%);
+  filter: blur(3px);
+}
+
+.pump-scene__sun {
+  position: absolute;
+  width: 110px;
+  height: 55px;
+  border-radius: 110px 110px 0 0;
+  background: var(--pump-grad-sun);
+  top: 95px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow:
+    0 0 30px rgba(255, 0, 128, 0.6),
+    0 0 60px rgba(255, 0, 128, 0.3),
+    0 0 100px rgba(0, 255, 238, 0.15);
+  z-index: 1;
+  overflow: hidden;
+}
+
+.pump-scene__sun-cut {
+  position: absolute;
+  width: 100%;
+  background: rgba(10, 0, 32, 0.3);
+  left: 0;
+}
+
+.pump-scene__mountains {
+  position: absolute;
+  bottom: 52px;
+  left: 0;
+  width: 100%;
+  height: 35px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.pump-scene__mountain {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.pump-scene__palm {
+  position: absolute;
+  bottom: 35px;
+  z-index: 6;
+  background-color: var(--pump-palm);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  pointer-events: none;
+}
+
+.pump-scene__horizon {
+  position: absolute;
+  bottom: 52px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 5%,
+    rgba(0, 255, 238, 0.5) 30%,
+    rgba(255, 0, 128, 0.5) 50%,
+    rgba(0, 255, 238, 0.5) 70%,
+    transparent 95%);
+  box-shadow:
+    0 0 12px rgba(0, 255, 238, 0.4),
+    0 0 24px rgba(255, 0, 128, 0.2);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.pump-scene__grid-container {
+  position: absolute;
+  bottom: 0;
+  left: -15%;
+  width: 130%;
+  height: 54px;
+  perspective: 180px;
+  overflow: hidden;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.pump-scene__grid-plane {
+  position: absolute;
+  width: 100%;
+  height: 350%;
+  bottom: 0;
+  transform: rotateX(58deg);
+  transform-origin: bottom center;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(0, 255, 238, 0.3) 0px,
+      rgba(0, 255, 238, 0.3) 1px,
+      transparent 1px,
+      transparent 28px),
+    repeating-linear-gradient(0deg,
+      rgba(255, 0, 128, 0.2) 0px,
+      rgba(255, 0, 128, 0.2) 1px,
+      transparent 1px,
+      transparent 28px);
+  animation: grid-scroll 1.8s linear infinite;
+}
+
+.pump-scene__grid-glow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 12px;
+  background: linear-gradient(0deg, rgba(0, 255, 238, 0.12), transparent);
+  z-index: 5;
+}
+
+.pump-scene__title-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 10px;
+  z-index: 7;
+  pointer-events: none;
+}
+
+.pump-scene__title {
+  font-family: var(--font-monoton), Impact, sans-serif;
+  font-size: 54px;
+  background: var(--pump-grad-title);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+  filter:
+    drop-shadow(0 0 24px rgba(255, 0, 128, 0.6))
+    drop-shadow(0 0 50px rgba(255, 0, 128, 0.3))
+    drop-shadow(0 2px 0px rgba(0, 255, 238, 0.4));
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.pump-scene__tagline {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(0, 255, 238, 0.9);
+  text-shadow: 0 0 12px rgba(0, 255, 238, 0.5);
+  margin-top: 5px;
+}
+
+.pump-scene__scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(0deg,
+    transparent, transparent 2px,
+    rgba(0, 0, 0, 0.03) 2px,
+    rgba(0, 0, 0, 0.03) 4px);
+  pointer-events: none;
+  z-index: 8;
+}
+
+/* Respect reduced motion — stop the grid scroll so it doesn't wash across the viewport */
+@media (prefers-reduced-motion: reduce) {
+  .pump-scene__grid-plane {
+    animation: none;
+  }
+}
+
 /* ======= Number input — hide native spinners ======= */
 
 input[type="number"]::-webkit-inner-spin-button,

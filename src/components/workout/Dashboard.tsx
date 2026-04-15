@@ -6,6 +6,7 @@ import { Dumbbell, Activity, Download, ClipboardList, ChevronRight } from 'lucid
 import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
+import { RetrowaveScene } from './RetrowaveScene';
 
 interface DashboardProps {
   onStartWorkout: () => void;
@@ -71,34 +72,16 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
       {/* Hot-pink ambient halo behind the hero */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[color:var(--pump-hot)]/10 rounded-full blur-[120px] pointer-events-none" />
 
-      <div className="relative z-10 space-y-8">
-        {/* Hero Header — brand mark in Monoton with sunset gradient */}
+      <div className="relative z-10 space-y-6">
+        {/* Retrowave hero — Monoton brand + 1987 sunset. The only place the
+            Monoton mark appears. Dashboard-only (see april 15/README.md). */}
         <motion.div
-          className="text-center pt-8 pb-4"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="-mx-4"
         >
-          <motion.h1
-            className="font-brand text-7xl md:text-8xl text-gradient-sunset"
-            style={{
-              filter:
-                'drop-shadow(0 0 18px rgba(255,0,128,0.35)) drop-shadow(0 0 40px rgba(255,0,128,0.18))',
-            }}
-            initial={{ scale: 0.9 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-          >
-            PUMP
-          </motion.h1>
-          <motion.p
-            className="font-mono text-[10px] tracking-[0.4em] uppercase mt-2 text-[color:var(--pump-cyan-deep)]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            Train like it&rsquo;s 1987
-          </motion.p>
+          <RetrowaveScene />
         </motion.div>
 
         {/* Plan status bar — tap to open Plan tab */}
