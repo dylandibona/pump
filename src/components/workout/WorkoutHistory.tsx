@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getWorkoutData, deleteSession } from '@/lib/storage';
 import { WorkoutSession } from '@/lib/types';
+import { parseSessionDate } from '@/lib/utils';
 
 interface WorkoutHistoryProps {
   onBack: () => void;
@@ -24,7 +25,7 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
       : sessions.filter((s) => s.type === filter);
 
     return [...filtered].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      (a, b) => parseSessionDate(b.date).getTime() - parseSessionDate(a.date).getTime()
     );
   }, [sessions, filter]);
 
@@ -33,7 +34,7 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
     const groups: { [key: string]: WorkoutSession[] } = {};
 
     filteredSessions.forEach((session) => {
-      const date = new Date(session.date);
+      const date = parseSessionDate(session.date);
       const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
       if (!groups[label]) {
@@ -53,7 +54,7 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
   };
 
   const formatDate = (dateStr: string): string => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return parseSessionDate(dateStr).toLocaleDateString('en-US', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',

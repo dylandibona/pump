@@ -28,6 +28,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
     session,
     newPRs,
     addExercise,
+    bulkAddExercises,
     addSet,
     updateSet,
     removeSet,
@@ -53,24 +54,28 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
   const planLoadedRef = useRef(false);
   const prevPRCountRef = useRef(newPRs.length);
 
-  // Pre-load plan session exercises with placeholder sets once when session is ready
+  // Pre-load plan session exercises with placeholder sets once when session
+  // is ready. Committed in a single atomic write — the prior version looped
+  // with setTimeouts that each captured a stale `session` closure, so every
+  // new exercise clobbered the previous one in storage and only the last
+  // exercise of the programmed workout actually rendered. bulkAddExercises
+  // builds the full exercises list and writes it once.
   useEffect(() => {
     if (!planSession || !session || planLoadedRef.current || session.exercises?.length) return;
     planLoadedRef.current = true;
-    planSession.exercises.forEach((planEx, i) => {
-      setTimeout(() => {
-        const targetWeight = planEx.isBodyweight ? 0 : (planEx.targetWeight ?? 0);
-        const setCount = planEx.sets ?? 3;
-        const initialSets: import('@/lib/types').GymSet[] = Array.from({ length: setCount }, () => ({
-          weight: targetWeight,
-          reps: 0,
-          isBodyweight: planEx.isBodyweight ?? false,
-          isPlanned: true,
-        }));
-        addExercise(planEx.name, initialSets);
-      }, i * 20);
+    const items = planSession.exercises.map((planEx) => {
+      const targetWeight = planEx.isBodyweight ? 0 : (planEx.targetWeight ?? 0);
+      const setCount = planEx.sets ?? 3;
+      const initialSets: import('@/lib/types').GymSet[] = Array.from({ length: setCount }, () => ({
+        weight: targetWeight,
+        reps: 0,
+        isBodyweight: planEx.isBodyweight ?? false,
+        isPlanned: true,
+      }));
+      return { name: planEx.name, sets: initialSets };
     });
-  }, [planSession, session, addExercise]);
+    bulkAddExercises(items);
+  }, [planSession, session, bulkAddExercises]);
 
   // Preload PR / set-complete audio buffer once per session so Web Audio
   // has it decoded by the time the first set lands.

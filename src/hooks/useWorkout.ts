@@ -91,6 +91,26 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     return newExercise;
   }, [session]);
 
+  // Bulk-add multiple exercises atomically. Used by plan preload so the
+  // entire programmed workout shows up in order. A per-call addExercise
+  // loop races here: each setTimeout captures the same stale `session`
+  // closure and writes-then-clobbers, leaving only the last exercise.
+  // This commits everything in one setState + one saveSession.
+  const bulkAddExercises = useCallback((items: { name: string; sets: GymSet[] }[]) => {
+    if (!session || items.length === 0) return;
+    const newExercises: GymExercise[] = items.map(item => ({
+      id: generateId(),
+      name: item.name,
+      sets: item.sets,
+    }));
+    const updatedSession = {
+      ...session,
+      exercises: [...(session.exercises || []), ...newExercises],
+    };
+    setSession(updatedSession);
+    saveSession(updatedSession);
+  }, [session]);
+
   // Add a set to an exercise
   const addSet = useCallback((exerciseId: string, set: Omit<GymSet, 'id'>) => {
     if (!session) return;
@@ -434,6 +454,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     newBaselines,
     startSession,
     addExercise,
+    bulkAddExercises,
     addSet,
     updateSet,
     removeSet,

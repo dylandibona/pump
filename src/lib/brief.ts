@@ -1,5 +1,6 @@
 import { WorkoutSession, TrainerPlan } from './types';
 import { computeE1RM, getPRForExercise } from './storage';
+import { parseSessionDate } from './utils';
 
 export function generateBrief(
   session: WorkoutSession,
@@ -7,7 +8,7 @@ export function generateBrief(
   newPRs: string[],
   newBaselines: string[] = []
 ): string {
-  const date = new Date(session.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const date = parseSessionDate(session.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   const duration = session.endTime
     ? Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)
     : null;

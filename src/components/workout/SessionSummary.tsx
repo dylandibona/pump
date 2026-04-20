@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { WorkoutSession } from '@/lib/types';
 import { getPRs, getPlan, patchSession } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
+import { parseSessionDate } from '@/lib/utils';
 
 interface SessionSummaryProps {
   session: WorkoutSession;
@@ -154,7 +155,7 @@ export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            {new Date(session.date).toLocaleDateString('en-US', {
+            {parseSessionDate(session.date).toLocaleDateString('en-US', {
               weekday: 'long',
               month: 'long',
               day: 'numeric',

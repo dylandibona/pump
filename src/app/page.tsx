@@ -18,6 +18,7 @@ import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/typ
 import { useWorkout } from '@/hooks/useWorkout';
 import { getSession, getPlan, getNextPlanSession, getPRs } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
+import { parseSessionDate } from '@/lib/utils';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
 type View = 'dashboard' | 'start' | 'preview' | 'gym' | 'cardio' | 'summary' | 'history' | 'plan' | 'session-detail';
@@ -438,7 +439,7 @@ function SessionDetailView({
   };
 
   const formatDate = (dateStr: string): string => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
+    return parseSessionDate(dateStr).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',

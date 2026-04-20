@@ -6,6 +6,7 @@ import { Dumbbell, Activity, Download, ClipboardList, ChevronRight } from 'lucid
 import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
+import { parseSessionDate } from '@/lib/utils';
 import { RetrowaveScene } from './RetrowaveScene';
 
 interface DashboardProps {
@@ -33,7 +34,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
   };
 
   const formatDate = (dateStr: string): string => {
-    const date = new Date(dateStr);
+    const date = parseSessionDate(dateStr);
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -253,7 +254,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
                       {pr.weight}×{pr.reps}
                     </span>
                     <span className="text-[10px] font-mono tracking-wider text-muted-foreground">
-                      {new Date(pr.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {parseSessionDate(pr.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
                 </motion.div>
