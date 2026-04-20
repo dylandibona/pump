@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ExerciseAutocomplete } from './ExerciseAutocomplete';
 import { RestTimerInline } from './Timer';
+import { WorkoutTimerBar } from './WorkoutTimerBar';
 import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet, CardioActivity, CardioEntry } from '@/lib/types';
 import { getExerciseHistory, getPRForExercise } from '@/lib/storage';
@@ -101,6 +102,10 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
 
   return (
     <div className="space-y-4 pb-24">
+      {/* Persistent timer header — session clock + rest presets, sticks to
+          top of the scroll container so it's always reachable mid-set. */}
+      <WorkoutTimerBar startTime={session.startTime} />
+
       {/* New PR Celebration */}
       <AnimatePresence>
         {newPRs.length > 0 && (
