@@ -4,8 +4,8 @@
   "description": "Dylan's personal workout tracker. Log gym sessions and cardio with ease.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f1419",
-  "theme_color": "#0f1419",
+  "background_color": "#F0FCFB",
+  "theme_color": "#F0FCFB",
   "orientation": "portrait",
   "icons": [
     {

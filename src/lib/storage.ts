@@ -18,11 +18,41 @@ const defaultData: WorkoutData = {
 };
 
 // Estimated 1RM using Epley formula. High-rep sets are poor predictors,
-// so reps are capped at 30 before applying the formula.
+// so reps are capped at 30 before applying the formula. e1RM is kept for
+// BRIEF display but is NOT the PR comparison field — PRs compare by weight.
 export function computeE1RM(weight: number, reps: number): number {
   if (weight <= 0 || reps <= 0) return 0;
   const cappedReps = Math.min(reps, 30);
   return weight * (1 + cappedReps / 30);
+}
+
+// Minimum reps required for a set to qualify as a PR candidate. A 1-rep max
+// or a heavy single doesn't count — PR means a working-weight lift held for
+// at least this many clean reps.
+export const MIN_PR_REPS = 6;
+
+// Canonical predicate for "working set" — the set of sets that count for
+// volume, stats, and PR eligibility. Single source of truth; components and
+// computations must route through this. Warmups, planned placeholders,
+// bodyweight sets, and empty rows (zero weight or zero reps) are excluded.
+export function isWorkingSet(s: GymSet): boolean {
+  return !s.isWarmup && !s.isPlanned && !s.isBodyweight && s.weight > 0 && s.reps > 0;
+}
+
+// Find the PR candidate set for an exercise this session: the heaviest
+// weight among sets with reps >= MIN_PR_REPS. Ties on weight go to the set
+// with more reps (objectively better rep performance at the same load).
+// Returns null if no qualifying set exists.
+function bestPRCandidate(sets: GymSet[]): { weight: number; reps: number } | null {
+  let best: { weight: number; reps: number } | null = null;
+  for (const s of sets) {
+    if (!isWorkingSet(s)) continue;
+    if (s.reps < MIN_PR_REPS) continue;
+    if (!best || s.weight > best.weight || (s.weight === best.weight && s.reps > best.reps)) {
+      best = { weight: s.weight, reps: s.reps };
+    }
+  }
+  return best;
 }
 
 // Get all workout data from localStorage
@@ -81,10 +111,10 @@ export function saveSession(session: WorkoutSession): void {
     data.sessions.push(session);
   }
 
-  // Check for PRs when saving a gym session
-  if (session.type === 'gym' && session.exercises) {
-    checkAndUpdatePRs(session, data);
-  }
+  // NOTE: PR evaluation does NOT run here. Every keystroke in a weight/reps
+  // Input flows through saveSession; running PR logic per keystroke would
+  // set PRs from half-typed intermediate values. PRs are committed once, at
+  // session completion, via finalizePRs(session).
 
   saveWorkoutData(data);
 }
@@ -124,53 +154,64 @@ export function getRecentSessions(limit: number = 10): WorkoutSession[] {
 }
 
 // PR operations
-// Per-set evaluation using Epley e1RM. The "best set" of the session is the
-// single set with the highest e1RM (weight, reps preserved together — never a
-// frankenstein combo). Bodyweight and zero-weight sets are skipped. First-ever
-// exercises establish a baseline silently; celebration is gated in useWorkout.
-function checkAndUpdatePRs(session: WorkoutSession, data: WorkoutData): void {
+//
+// Rule (Dylan's spec): one PR per exercise, based on WEIGHT. To qualify as
+// a PR candidate a set must be a working set (see isWorkingSet) and hit at
+// least MIN_PR_REPS reps. The heaviest qualifying set of the session is the
+// candidate; ties on weight break to the set with more reps. A candidate
+// that strictly exceeds the stored PR weight is the new PR — same weight
+// done twice is not a new PR. First-ever qualifying set for an exercise
+// establishes a silent baseline.
+//
+// Commit point: ONLY at session completion via finalizePRs. Never on every
+// saveSession call — that would set PRs from half-typed intermediate values
+// and leave them orphaned if the user deletes the set. PRs are immortal
+// across edits: finalizePRs only upgrades an existing PR (strictly greater
+// weight); it never downgrades, so removing a PR-setting set in a later
+// edit does not erase the record.
+export function finalizePRs(session: WorkoutSession): void {
   if (!session.exercises) return;
+  const data = getWorkoutData();
 
   session.exercises.forEach(exercise => {
-    // Find best set of this session for this exercise
-    let best: { weight: number; reps: number; e1rm: number } | null = null;
-    for (const set of exercise.sets) {
-      if (set.isWarmup || set.isPlanned || set.isBodyweight) continue;
-      if (set.weight <= 0 || set.reps <= 0) continue;
-      const e1rm = computeE1RM(set.weight, set.reps);
-      if (!best || e1rm > best.e1rm) {
-        best = { weight: set.weight, reps: set.reps, e1rm };
-      }
-    }
+    const best = bestPRCandidate(exercise.sets);
     if (!best) return;
 
-    const existing = data.personalRecords.find(
+    const idx = data.personalRecords.findIndex(
       pr => pr.exerciseName.toLowerCase() === exercise.name.toLowerCase()
     );
+    const e1rm = computeE1RM(best.weight, best.reps);
 
-    if (!existing) {
-      // Baseline: record silently with no previousE1rm marker.
+    if (idx < 0) {
+      // Silent baseline — first qualifying set for this exercise.
       data.personalRecords.push({
         exerciseName: exercise.name,
         weight: best.weight,
         reps: best.reps,
-        e1rm: best.e1rm,
+        e1rm,
         date: session.date,
         sessionId: session.id,
       });
       return;
     }
 
-    // Only update on a true PR (best set e1RM strictly greater).
-    if (best.e1rm > existing.e1rm) {
-      existing.previousE1rm = existing.e1rm;
-      existing.weight = best.weight;
-      existing.reps = best.reps;
-      existing.e1rm = best.e1rm;
-      existing.date = session.date;
-      existing.sessionId = session.id;
+    const existing = data.personalRecords[idx];
+    // Strictly greater weight only. Same weight ≠ PR (per spec).
+    if (best.weight > existing.weight) {
+      data.personalRecords[idx] = {
+        ...existing,
+        previousWeight: existing.weight,
+        previousReps: existing.reps,
+        weight: best.weight,
+        reps: best.reps,
+        e1rm,
+        date: session.date,
+        sessionId: session.id,
+      };
     }
   });
+
+  saveWorkoutData(data);
 }
 
 export function getPRs(): PersonalRecord[] {
@@ -258,13 +299,15 @@ export function getWorkoutStats() {
   const gymSessions = data.sessions.filter(s => s.type === 'gym').length;
   const cardioSessions = data.sessions.filter(s => s.type === 'cardio').length;
 
-  // Calculate total volume (weight x reps) for gym sessions
+  // Calculate total volume (weight x reps) for gym sessions using the
+  // canonical working-set predicate — keeps stats consistent with BRIEF,
+  // session summary, and PR eligibility.
   let totalVolume = 0;
   data.sessions.forEach(session => {
     if (session.type === 'gym' && session.exercises) {
       session.exercises.forEach(exercise => {
         exercise.sets.forEach(set => {
-          if (!set.isWarmup && !set.isPlanned) {
+          if (isWorkingSet(set)) {
             totalVolume += set.weight * set.reps;
           }
         });
@@ -333,29 +376,50 @@ export function clearPlan(): void {
   localStorage.removeItem(PLAN_KEY);
 }
 
-// Returns the next session based on what was last done and the plan's weekly structure
+// Returns the next plan session to run based on what was last completed
+// and the plan's weekly rotation. Primary matching is by stored
+// planSessionId on the last completed session — deterministic and immune
+// to ambiguous plans where two sessions start with the same exercise
+// (review M6). Legacy sessions predating planSessionId fall through to a
+// name-based heuristic for backward compat.
 export function getNextPlanSession(plan: TrainerPlan): string | null {
   const data = getWorkoutData();
   if (!plan.weeklyStructure?.length) return plan.sessions[0]?.id ?? null;
 
-  // Find last completed session that matches a plan session
-  const planSessionNames = plan.sessions.map(s => s.name.toLowerCase());
   const recent = [...data.sessions]
     .filter(s => s.completed)
     .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
 
+  const advance = (lastName: string): string | null => {
+    const idx = plan.weeklyStructure!.findIndex(n => n.toLowerCase() === lastName.toLowerCase());
+    if (idx < 0) return null;
+    const nextName = plan.weeklyStructure![(idx + 1) % plan.weeklyStructure!.length].toLowerCase();
+    const next = plan.sessions.find(s => s.name.toLowerCase() === nextName);
+    return next?.id ?? plan.sessions[0]?.id ?? null;
+  };
+
   for (const log of recent) {
-    const match = planSessionNames.findIndex(name =>
+    // Preferred path: stored planSessionId on the completed session.
+    if (log.planSessionId) {
+      const matched = plan.sessions.find(ps => ps.id === log.planSessionId);
+      if (matched) {
+        const advanced = advance(matched.name);
+        if (advanced) return advanced;
+      }
+    }
+
+    // Legacy heuristic: notes substring or first-exercise name equality.
+    // Retained only for pre-planSessionId sessions.
+    const planSessionNames = plan.sessions.map(s => s.name.toLowerCase());
+    const heuristicMatch = planSessionNames.findIndex(name =>
       log.notes?.toLowerCase().includes(name) ||
       (log.exercises?.[0]?.name && plan.sessions.some(ps =>
         ps.exercises[0]?.name.toLowerCase() === log.exercises![0].name.toLowerCase()
       ))
     );
-    if (match >= 0) {
-      const nextIndex = (match + 1) % plan.weeklyStructure.length;
-      const nextName = plan.weeklyStructure[nextIndex].toLowerCase();
-      const nextSession = plan.sessions.find(s => s.name.toLowerCase() === nextName);
-      return nextSession?.id ?? plan.sessions[0].id;
+    if (heuristicMatch >= 0) {
+      const advanced = advance(planSessionNames[heuristicMatch]);
+      if (advanced) return advanced;
     }
   }
 

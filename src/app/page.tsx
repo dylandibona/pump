@@ -52,7 +52,10 @@ export default function Home() {
   const suggestedSessionId = plan ? getNextPlanSession(plan) : null;
 
   const handleStartWorkout = useCallback((type: WorkoutType, date: string, planSession?: PlanSession) => {
-    const newSession = startSession(type, date);
+    // Persist planSession.id onto the WorkoutSession so plan rotation can
+    // match deterministically next time (review M6). Free-form (non-plan)
+    // sessions pass undefined and stay untagged.
+    const newSession = startSession(type, date, planSession?.id);
     setActiveSessionId(newSession.id);
     setActivePlanSession(planSession ?? null);
     setView(type === 'gym' ? 'gym' : 'cardio');
@@ -76,8 +79,9 @@ export default function Home() {
 
   const handleWorkoutComplete = useCallback(() => {
     if (isEditingExisting && viewingSession) {
+      if (!activeSessionId) return;
       // Reload the updated session from storage, return to session detail
-      const updated = getSession(activeSessionId!);
+      const updated = getSession(activeSessionId);
       if (updated) setViewingSession(updated);
       setActiveSessionId(null);
       setIsEditingExisting(false);

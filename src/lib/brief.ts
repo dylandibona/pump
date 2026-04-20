@@ -1,5 +1,5 @@
 import { WorkoutSession, TrainerPlan } from './types';
-import { computeE1RM, getPRForExercise } from './storage';
+import { getPRForExercise, isWorkingSet, MIN_PR_REPS } from './storage';
 import { parseSessionDate } from './utils';
 
 export function generateBrief(
@@ -32,14 +32,21 @@ export function generateBrief(
       const equipStr = ex.equipment ? ` [${ex.equipment}]` : '';
       brief += `${ex.name.toUpperCase()}${equipStr}${superset}${target ? ` (${target})` : ''}\n`;
 
-      // Identify the best set (highest e1RM) for PR/baseline annotation.
-      // Skip warmup, bodyweight, and zero-weight sets.
+      // Identify the PR-candidate set for annotation: heaviest working set
+      // with reps >= MIN_PR_REPS, tiebreak on reps. Matches the PR selection
+      // rule in storage.bestPRCandidate so the BRIEF shows the same set the
+      // PR system actually committed.
       let bestIdx = -1;
-      let bestE1rm = 0;
+      let bestW = 0;
+      let bestR = 0;
       ex.sets.forEach((set, i) => {
-        if (set.isWarmup || set.isBodyweight || set.weight <= 0 || set.reps <= 0) return;
-        const e1rm = computeE1RM(set.weight, set.reps);
-        if (e1rm > bestE1rm) { bestE1rm = e1rm; bestIdx = i; }
+        if (!isWorkingSet(set)) return;
+        if (set.reps < MIN_PR_REPS) return;
+        if (set.weight > bestW || (set.weight === bestW && set.reps > bestR)) {
+          bestW = set.weight;
+          bestR = set.reps;
+          bestIdx = i;
+        }
       });
 
       const isPR = newPRs.includes(ex.name);
@@ -54,12 +61,13 @@ export function generateBrief(
 
         let mark = '';
         if (i === bestIdx) {
-          const e1 = Math.round(bestE1rm);
           if (isPR) {
-            const prev = storedPR?.previousE1rm != null ? `, prev: ${Math.round(storedPR.previousE1rm)}` : '';
-            mark = ` ⚡PR (e1RM: ${e1}${prev})`;
+            const prev = storedPR?.previousWeight != null
+              ? `, prev: ${storedPR.previousWeight}lbs × ${storedPR.previousReps ?? '?'}`
+              : '';
+            mark = ` ⚡PR${prev}`;
           } else if (isBaseline) {
-            mark = ` ★Baseline (e1RM: ${e1})`;
+            mark = ' ★Baseline';
           }
         }
 
@@ -101,7 +109,7 @@ export function generateBrief(
   }
 
   const totalVolume = session.exercises?.reduce((sum, ex) =>
-    sum + ex.sets.filter(s => !s.isWarmup && !s.isBodyweight).reduce((s2, set) => s2 + set.weight * set.reps, 0), 0) ?? 0;
+    sum + ex.sets.filter(isWorkingSet).reduce((s2, set) => s2 + set.weight * set.reps, 0), 0) ?? 0;
 
   if (totalVolume > 0) brief += `\nVOLUME: ${totalVolume.toLocaleString()} lbs\n`;
   if (newPRs.length) brief += `NEW PRs: ${newPRs.join(', ')}\n`;

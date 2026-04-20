@@ -16,7 +16,9 @@ import {
   generateId,
   getExerciseHistory,
   getPRs,
-  computeE1RM,
+  finalizePRs,
+  isWorkingSet,
+  MIN_PR_REPS,
 } from '@/lib/storage';
 
 interface UseWorkoutOptions {
@@ -28,9 +30,54 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [newPRs, setNewPRs] = useState<string[]>([]); // Exercises with beaten records (celebrate)
   const [newBaselines, setNewBaselines] = useState<string[]>([]); // First-ever exercises (silent)
-  // Snapshot of pre-session PR e1RMs — used to gate celebrations and to
-  // distinguish baseline (no entry) from improvement (entry present).
+
+  // sessionRef mirrors `session` and is the source every mutator reads from.
+  // React's closed-over `session` is stale by one render cycle; before this
+  // refactor, two mutations in the same tick both read the same pre-mutation
+  // snapshot, computed independent deltas, and the second clobbered the
+  // first in both state and localStorage (review B1 — the same bug that
+  // bulkAddExercises worked around). Mutators now serialize through mutate():
+  // they read ref, derive next, write state + storage + ref, so back-to-back
+  // calls chain correctly and cross-component writes stay coherent.
+  const sessionRef = useRef<WorkoutSession | null>(null);
+
+  // Keep the ref aligned with React state on every commit. Mutate() also
+  // updates the ref synchronously at write time, so intra-tick callers see
+  // their own writes; this effect handles rerenders from other sources
+  // (initial load, external patchSession, etc.).
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+
+  // Snapshot of pre-session PR WEIGHTS keyed by lowercased exercise name.
+  // Gates celebrations: a set is a live PR only when its weight strictly
+  // exceeds this snapshot value. Absence of a key = no prior PR for this
+  // exercise → baseline (silent). PRs compare by weight (Dylan's spec),
+  // not by e1RM, so this map holds raw weight values.
   const prSnapshotRef = useRef<Map<string, number>>(new Map());
+
+  // Build the pre-session PR snapshot from current storage. Shared between
+  // startSession (new workout) and the sessionId-load effect (edit-from-
+  // history) so PR celebrations work consistently in both flows.
+  const snapshotCurrentPRs = () => {
+    const snapshot = new Map<string, number>();
+    getPRs().forEach(pr => snapshot.set(pr.exerciseName.toLowerCase(), pr.weight));
+    prSnapshotRef.current = snapshot;
+  };
+
+  // Apply a transform to the current session, commit to state + storage,
+  // keep the ref in lockstep. fn returns the next session (or the same
+  // reference to bail out). Every mutator routes through this — back-to-back
+  // calls in the same tick each see the prior write via sessionRef.
+  const mutate = useCallback((fn: (current: WorkoutSession) => WorkoutSession) => {
+    const current = sessionRef.current;
+    if (!current) return;
+    const next = fn(current);
+    if (next === current) return;
+    sessionRef.current = next;
+    setSession(next);
+    saveSession(next);
+  }, []);
 
   // Load existing session or create new one
   useEffect(() => {
@@ -38,24 +85,27 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       const existingSession = getSession(options.sessionId);
       if (existingSession) {
         setSession(existingSession);
+        // Seed the ref directly so the first mutator in this session picks
+        // up the real state (the useEffect that syncs ref from state hasn't
+        // run yet on the same tick).
+        sessionRef.current = existingSession;
+        // Populate the PR snapshot so edit-flow PR detection mirrors a
+        // fresh session. Without this, any top set in an edited session
+        // was mis-tagged as a silent baseline (review M4).
+        snapshotCurrentPRs();
       }
     }
     setIsLoading(false);
   }, [options.sessionId]);
 
-  // Start a new workout session
-  const startSession = useCallback((type: WorkoutType, date: string) => {
-    // Snapshot all existing PR e1RMs before this session begins (Epley).
-    // Comparisons in addSet use this snapshot so intra-session set escalations
-    // don't trigger false PR celebrations. Absence of a key = no prior history
-    // for that exercise → baseline, not PR.
-    const allPRs = getPRs();
-    const snapshot = new Map<string, number>();
-    allPRs.forEach(pr => {
-      const e1rm = pr.e1rm && pr.e1rm > 0 ? pr.e1rm : computeE1RM(pr.weight, pr.reps);
-      snapshot.set(pr.exerciseName.toLowerCase(), e1rm);
-    });
-    prSnapshotRef.current = snapshot;
+  // Start a new workout session. Optional planSessionId is stored on the
+  // session so plan rotation can match deterministically later instead of
+  // guessing from exercise-name overlap (review M6).
+  const startSession = useCallback((type: WorkoutType, date: string, planSessionId?: string) => {
+    // Snapshot pre-session PR weights so mid-session set escalations don't
+    // double-fire celebrations. Absence of a key = no prior history for that
+    // exercise → baseline (silent), not PR.
+    snapshotCurrentPRs();
 
     const newSession: WorkoutSession = {
       id: generateId(),
@@ -65,228 +115,195 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       completed: false,
       exercises: [],
       cardio: [],
+      ...(planSessionId && { planSessionId }),
     };
     setSession(newSession);
+    sessionRef.current = newSession;
     saveSession(newSession);
     return newSession;
   }, []);
 
   // Add a gym exercise
   const addExercise = useCallback((name: string, initialSets?: GymSet[]) => {
-    if (!session) return;
-
     const newExercise: GymExercise = {
       id: generateId(),
       name,
       sets: initialSets ?? [],
     };
-
-    const updatedSession = {
-      ...session,
-      exercises: [...(session.exercises || []), newExercise],
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
+    mutate(current => ({
+      ...current,
+      exercises: [...(current.exercises || []), newExercise],
+    }));
     return newExercise;
-  }, [session]);
+  }, [mutate]);
 
   // Bulk-add multiple exercises atomically. Used by plan preload so the
-  // entire programmed workout shows up in order. A per-call addExercise
-  // loop races here: each setTimeout captures the same stale `session`
-  // closure and writes-then-clobbers, leaving only the last exercise.
-  // This commits everything in one setState + one saveSession.
-  const bulkAddExercises = useCallback((items: { name: string; sets: GymSet[] }[]) => {
-    if (!session || items.length === 0) return;
+  // entire programmed workout shows up in one write. Accepts optional
+  // supersetGroupId per item so pairings from the plan survive into the
+  // running session (review M7).
+  const bulkAddExercises = useCallback((
+    items: { name: string; sets: GymSet[]; supersetGroupId?: string; equipment?: GymExercise['equipment']; weightType?: GymExercise['weightType'] }[]
+  ) => {
+    if (items.length === 0) return;
     const newExercises: GymExercise[] = items.map(item => ({
       id: generateId(),
       name: item.name,
       sets: item.sets,
+      ...(item.supersetGroupId && { supersetGroupId: item.supersetGroupId }),
+      ...(item.equipment && { equipment: item.equipment }),
+      ...(item.weightType && { weightType: item.weightType }),
     }));
-    const updatedSession = {
-      ...session,
-      exercises: [...(session.exercises || []), ...newExercises],
-    };
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    mutate(current => ({
+      ...current,
+      exercises: [...(current.exercises || []), ...newExercises],
+    }));
+  }, [mutate]);
 
   // Add a set to an exercise
   const addSet = useCallback((exerciseId: string, set: Omit<GymSet, 'id'>) => {
-    if (!session) return;
-
-    const updatedExercises = session.exercises?.map(ex => {
-      if (ex.id === exerciseId) {
-        return {
-          ...ex,
-          sets: [...ex.sets, set],
-        };
-      }
-      return ex;
+    let exerciseName: string | undefined;
+    mutate(current => {
+      const updatedExercises = current.exercises?.map(ex => {
+        if (ex.id === exerciseId) {
+          exerciseName = ex.name;
+          return { ...ex, sets: [...ex.sets, set] };
+        }
+        return ex;
+      });
+      return { ...current, exercises: updatedExercises };
     });
 
-    const updatedSession = {
-      ...session,
-      exercises: updatedExercises,
-    };
+    // Live PR / baseline detection — fires celebration UI only. Storage
+    // commit happens once at session completion (finalizePRs), so mid-set
+    // edits, typos, or set removals can't leave orphan PRs behind. Set must
+    // be a working set and hit MIN_PR_REPS; comparison is by weight against
+    // the pre-session snapshot. Strictly greater = PR, matching weight does
+    // not upgrade (Dylan's spec). One celebration per exercise per session
+    // — subsequent qualifying sets just update the stored best silently.
+    if (!exerciseName) return;
+    if (!isWorkingSet(set as GymSet) || set.reps < MIN_PR_REPS) return;
+    const key = exerciseName.toLowerCase();
+    const preSessionWeight = prSnapshotRef.current.get(key);
+    const exerciseDisplayName = exerciseName;
 
-    // Per-set PR evaluation (Epley e1RM). Celebrate only when a set beats the
-    // pre-session snapshot. First-ever exercises (no snapshot entry) establish
-    // a baseline — tracked for BRIEF but never trigger sound/banner.
-    const exercise = updatedExercises?.find(ex => ex.id === exerciseId);
-    if (exercise && !set.isWarmup && !set.isPlanned && !set.isBodyweight && set.weight > 0 && set.reps > 0) {
-      const key = exercise.name.toLowerCase();
-      const preSessionBest = prSnapshotRef.current.get(key);
-      const setE1RM = computeE1RM(set.weight, set.reps);
-
-      if (preSessionBest === undefined) {
-        // No prior history → baseline (silent)
-        setNewBaselines(prev =>
-          prev.includes(exercise.name) ? prev : [...prev, exercise.name]
-        );
-      } else if (setE1RM > preSessionBest) {
-        setNewPRs(prev =>
-          prev.includes(exercise.name) ? prev : [...prev, exercise.name]
-        );
-      }
+    if (preSessionWeight === undefined) {
+      setNewBaselines(prev =>
+        prev.includes(exerciseDisplayName) ? prev : [...prev, exerciseDisplayName]
+      );
+    } else if (set.weight > preSessionWeight) {
+      setNewPRs(prev =>
+        prev.includes(exerciseDisplayName) ? prev : [...prev, exerciseDisplayName]
+      );
     }
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+  }, [mutate]);
 
   // Update a set
   const updateSet = useCallback((exerciseId: string, setIndex: number, updates: Partial<GymSet>) => {
-    if (!session) return;
-
-    const updatedExercises = session.exercises?.map(ex => {
-      if (ex.id === exerciseId) {
-        const updatedSets = [...ex.sets];
-        updatedSets[setIndex] = { ...updatedSets[setIndex], ...updates };
-        return { ...ex, sets: updatedSets };
-      }
-      return ex;
+    mutate(current => {
+      const updatedExercises = current.exercises?.map(ex => {
+        if (ex.id === exerciseId) {
+          const updatedSets = [...ex.sets];
+          updatedSets[setIndex] = { ...updatedSets[setIndex], ...updates };
+          return { ...ex, sets: updatedSets };
+        }
+        return ex;
+      });
+      return { ...current, exercises: updatedExercises };
     });
-
-    const updatedSession = {
-      ...session,
-      exercises: updatedExercises,
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+  }, [mutate]);
 
   // Remove a set
   const removeSet = useCallback((exerciseId: string, setIndex: number) => {
-    if (!session) return;
-
-    const updatedExercises = session.exercises?.map(ex => {
-      if (ex.id === exerciseId) {
-        const updatedSets = ex.sets.filter((_, i) => i !== setIndex);
-        return { ...ex, sets: updatedSets };
-      }
-      return ex;
+    mutate(current => {
+      const updatedExercises = current.exercises?.map(ex => {
+        if (ex.id === exerciseId) {
+          return { ...ex, sets: ex.sets.filter((_, i) => i !== setIndex) };
+        }
+        return ex;
+      });
+      return { ...current, exercises: updatedExercises };
     });
-
-    const updatedSession = {
-      ...session,
-      exercises: updatedExercises,
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+  }, [mutate]);
 
   // Remove an exercise
   const removeExercise = useCallback((exerciseId: string) => {
-    if (!session) return;
-
-    const updatedSession = {
-      ...session,
-      exercises: session.exercises?.filter(ex => ex.id !== exerciseId),
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    mutate(current => ({
+      ...current,
+      exercises: current.exercises?.filter(ex => ex.id !== exerciseId),
+    }));
+  }, [mutate]);
 
   // Add exercise notes
   const updateExerciseNotes = useCallback((exerciseId: string, notes: string) => {
-    if (!session) return;
-
-    const updatedExercises = session.exercises?.map(ex => {
-      if (ex.id === exerciseId) {
-        return { ...ex, notes };
-      }
-      return ex;
-    });
-
-    const updatedSession = {
-      ...session,
-      exercises: updatedExercises,
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    mutate(current => ({
+      ...current,
+      exercises: current.exercises?.map(ex =>
+        ex.id === exerciseId ? { ...ex, notes } : ex
+      ),
+    }));
+  }, [mutate]);
 
   // Update weight type for an exercise
   const updateExerciseWeightType = useCallback((exerciseId: string, weightType: 'total' | 'per_side') => {
-    if (!session) return;
-    const updatedExercises = session.exercises?.map(ex => {
-      if (ex.id === exerciseId) return { ...ex, weightType };
-      return ex;
-    });
-    const updatedSession = { ...session, exercises: updatedExercises };
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    mutate(current => ({
+      ...current,
+      exercises: current.exercises?.map(ex =>
+        ex.id === exerciseId ? { ...ex, weightType } : ex
+      ),
+    }));
+  }, [mutate]);
 
   // Link two exercises as a superset
   const linkSuperset = useCallback((exerciseIdA: string, exerciseIdB: string) => {
-    if (!session) return;
-    const a = session.exercises?.find(ex => ex.id === exerciseIdA);
-    const b = session.exercises?.find(ex => ex.id === exerciseIdB);
-    if (!a || !b) return;
-    const groupId = a.supersetGroupId || b.supersetGroupId || generateId();
-    const updatedExercises = session.exercises?.map(ex => {
-      if (ex.id === exerciseIdA || ex.id === exerciseIdB) return { ...ex, supersetGroupId: groupId };
-      return ex;
+    mutate(current => {
+      const a = current.exercises?.find(ex => ex.id === exerciseIdA);
+      const b = current.exercises?.find(ex => ex.id === exerciseIdB);
+      if (!a || !b) return current;
+      const groupId = a.supersetGroupId || b.supersetGroupId || generateId();
+      return {
+        ...current,
+        exercises: current.exercises?.map(ex =>
+          ex.id === exerciseIdA || ex.id === exerciseIdB
+            ? { ...ex, supersetGroupId: groupId }
+            : ex
+        ),
+      };
     });
-    const updatedSession = { ...session, exercises: updatedExercises };
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+  }, [mutate]);
 
-  // Remove an exercise from its superset group
+  // Remove an exercise from its superset group. If the partner is left
+  // alone in the group, clear its groupId too — a single-member "group" is
+  // not a superset.
   const unlinkSuperset = useCallback((exerciseId: string) => {
-    if (!session) return;
-    const ex = session.exercises?.find(e => e.id === exerciseId);
-    if (!ex?.supersetGroupId) return;
-    const groupId = ex.supersetGroupId;
-    const remaining = session.exercises?.filter(e => e.supersetGroupId === groupId && e.id !== exerciseId) || [];
-    const updatedExercises = session.exercises?.map(e => {
-      if (e.id === exerciseId) return { ...e, supersetGroupId: undefined };
-      // If only one left in group, clear their groupId too
-      if (e.supersetGroupId === groupId && remaining.length === 1 && remaining[0].id === e.id) return { ...e, supersetGroupId: undefined };
-      return e;
+    mutate(current => {
+      const ex = current.exercises?.find(e => e.id === exerciseId);
+      if (!ex?.supersetGroupId) return current;
+      const groupId = ex.supersetGroupId;
+      const remaining = current.exercises?.filter(
+        e => e.supersetGroupId === groupId && e.id !== exerciseId
+      ) || [];
+      return {
+        ...current,
+        exercises: current.exercises?.map(e => {
+          if (e.id === exerciseId) return { ...e, supersetGroupId: undefined };
+          if (e.supersetGroupId === groupId && remaining.length === 1 && remaining[0].id === e.id) {
+            return { ...e, supersetGroupId: undefined };
+          }
+          return e;
+        }),
+      };
     });
-    const updatedSession = { ...session, exercises: updatedExercises };
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+  }, [mutate]);
 
   // Quick duplicate last set
   const duplicateLastSet = useCallback((exerciseId: string) => {
-    if (!session || session.type !== 'gym') return;
-
-    const exercise = session.exercises?.find(ex => ex.id === exerciseId);
+    const current = sessionRef.current;
+    if (!current || current.type !== 'gym') return;
+    const exercise = current.exercises?.find(ex => ex.id === exerciseId);
     if (!exercise || exercise.sets.length === 0) return;
-
     const lastSet = exercise.sets[exercise.sets.length - 1];
     addSet(exerciseId, { ...lastSet });
-  }, [session, addSet]);
+  }, [addSet]);
 
   // Add cardio entry
   const addCardioEntry = useCallback((
@@ -297,8 +314,6 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     incline?: number,
     speed?: number
   ) => {
-    if (!session) return;
-
     const newEntry: CardioEntry = {
       id: generateId(),
       activity,
@@ -308,89 +323,74 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       ...(speed !== undefined && { speed }),
       notes,
     };
-
-    const updatedSession = {
-      ...session,
-      cardio: [...(session.cardio || []), newEntry],
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
+    mutate(current => ({
+      ...current,
+      cardio: [...(current.cardio || []), newEntry],
+    }));
     return newEntry;
-  }, [session]);
+  }, [mutate]);
 
   // Update cardio entry
   const updateCardioEntry = useCallback((entryId: string, updates: Partial<CardioEntry>) => {
-    if (!session) return;
-
-    const updatedCardio = session.cardio?.map(entry => {
-      if (entry.id === entryId) {
-        return { ...entry, ...updates };
-      }
-      return entry;
-    });
-
-    const updatedSession = {
-      ...session,
-      cardio: updatedCardio,
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    mutate(current => ({
+      ...current,
+      cardio: current.cardio?.map(entry =>
+        entry.id === entryId ? { ...entry, ...updates } : entry
+      ),
+    }));
+  }, [mutate]);
 
   // Remove cardio entry
   const removeCardioEntry = useCallback((entryId: string) => {
-    if (!session) return;
+    mutate(current => ({
+      ...current,
+      cardio: current.cardio?.filter(entry => entry.id !== entryId),
+    }));
+  }, [mutate]);
 
-    const updatedSession = {
-      ...session,
-      cardio: session.cardio?.filter(entry => entry.id !== entryId),
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
-
-  // Complete the session
+  // Complete the session. This is the one and only PR commit point —
+  // finalizePRs re-derives each exercise's best qualifying set from the
+  // just-saved session and upgrades the stored record when weight is
+  // strictly greater. Safe to re-run on edit-complete; never downgrades.
+  //
+  // Plan-preloaded placeholder sets that the user never filled in
+  // (isPlanned still true) are stripped here. They're a UX scaffold, not
+  // actual data; leaving them in inflates set counts in stats and pollutes
+  // the BRIEF with "Set N: 0lbs × 0" rows (review N7).
   const completeSession = useCallback(() => {
-    if (!session) return;
-
-    const updatedSession = {
-      ...session,
-      endTime: new Date().toISOString(),
-      completed: true,
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    let completed: WorkoutSession | null = null;
+    mutate(current => {
+      const cleanedExercises = current.exercises?.map(ex => ({
+        ...ex,
+        sets: ex.sets.filter(s => !s.isPlanned),
+      }));
+      completed = {
+        ...current,
+        exercises: cleanedExercises,
+        endTime: new Date().toISOString(),
+        completed: true,
+      };
+      return completed;
+    });
+    if (completed && (completed as WorkoutSession).type === 'gym') {
+      finalizePRs(completed);
+    }
+  }, [mutate]);
 
   // Append a completed interval run to the session. Intervals are timed
   // conditioning blocks logged alongside exercises/cardio; they don't
   // participate in PR evaluation.
   const logInterval = useCallback((completed: CompletedInterval) => {
-    if (!session) return;
-    const updatedSession: WorkoutSession = {
-      ...session,
-      intervals: [...(session.intervals ?? []), completed],
-    };
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    mutate(current => ({
+      ...current,
+      intervals: [...(current.intervals ?? []), completed],
+    }));
+  }, [mutate]);
 
   // Update session notes
   const updateSessionNotes = useCallback((notes: string) => {
-    if (!session) return;
-
-    const updatedSession = {
-      ...session,
-      notes,
-    };
-
-    setSession(updatedSession);
-    saveSession(updatedSession);
-  }, [session]);
+    mutate(current => ({ ...current, notes }));
+  }, [mutate]);
 
   // Get history for an exercise
   const getHistory = useCallback((exerciseName: string) => {
@@ -410,11 +410,11 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     if (session.type === 'gym') {
       let totalSets = 0;
       let totalVolume = 0;
-      let exerciseCount = session.exercises?.length || 0;
+      const exerciseCount = session.exercises?.length || 0;
 
       session.exercises?.forEach(ex => {
         ex.sets.forEach(set => {
-          if (!set.isWarmup && !set.isPlanned) {
+          if (isWorkingSet(set)) {
             totalSets++;
             totalVolume += set.weight * set.reps;
           }

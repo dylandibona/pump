@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { playSound as playSoundFx, vibrate as vibrateFx, preloadSound } from '@/lib/sounds';
 
 interface TimerState {
   mode: 'countdown' | 'countup';
@@ -27,15 +28,16 @@ export function useTimer(options: UseTimerOptions = {}) {
     label: undefined,
   });
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Initialize audio
+  // Preload the timer chime once per mount. Routed through sounds.ts Web
+  // Audio so it mixes over Spotify/podcasts instead of claiming the iOS
+  // audio session (HTMLAudioElement path would duck background audio).
+  // The previous `/timer-complete.mp3` asset never existed in public/;
+  // playback rejected silently (review B2). sounds.ts maps 'timerDone'
+  // to the shipped explosion mp3 already used for set-complete/PR cues.
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      audioRef.current = new Audio('/timer-complete.mp3');
-      audioRef.current.volume = 0.5;
-    }
+    preloadSound('timerDone');
   }, []);
 
   const clearTimer = useCallback(() => {
@@ -49,16 +51,12 @@ export function useTimer(options: UseTimerOptions = {}) {
     clearTimer();
     setState(prev => ({ ...prev, isRunning: false }));
 
-    // Play sound
-    if (playSound && audioRef.current) {
-      audioRef.current.play().catch(() => {
-        // Audio play failed, likely due to autoplay policy
-      });
+    if (playSound) {
+      playSoundFx('timerDone', 0.5);
     }
 
-    // Vibrate
-    if (vibrate && typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate([200, 100, 200]);
+    if (vibrate) {
+      vibrateFx([200, 100, 200]);
     }
 
     onComplete?.();
@@ -99,6 +97,11 @@ export function useTimer(options: UseTimerOptions = {}) {
 
   const resume = useCallback(() => {
     if (state.remaining > 0 || state.mode === 'countup') {
+      // Clear any existing interval first. If resume fires while an
+      // interval is already running (double-tap, state desync), we'd
+      // otherwise leak the previous ticker and end up with two intervals
+      // racing the same state (review M3).
+      clearTimer();
       setState(prev => ({ ...prev, isRunning: true }));
 
       intervalRef.current = setInterval(() => {
@@ -116,7 +119,7 @@ export function useTimer(options: UseTimerOptions = {}) {
         });
       }, 1000);
     }
-  }, [state.remaining, state.mode, triggerComplete]);
+  }, [state.remaining, state.mode, triggerComplete, clearTimer]);
 
   const reset = useCallback(() => {
     clearTimer();

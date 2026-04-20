@@ -55,14 +55,31 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
   const prevPRCountRef = useRef(newPRs.length);
 
   // Pre-load plan session exercises with placeholder sets once when session
-  // is ready. Committed in a single atomic write — the prior version looped
-  // with setTimeouts that each captured a stale `session` closure, so every
-  // new exercise clobbered the previous one in storage and only the last
-  // exercise of the programmed workout actually rendered. bulkAddExercises
-  // builds the full exercises list and writes it once.
+  // is ready. Committed in a single atomic write so the whole programmed
+  // workout lands at once (prior setTimeout-loop version lost all but the
+  // last exercise to stale-closure races). Superset pairings from the plan
+  // are preserved by hoisting each `supersetWith` link into a shared
+  // supersetGroupId (review M7) — without this, arriving in the gym view
+  // required manually re-linking every pair.
   useEffect(() => {
     if (!planSession || !session || planLoadedRef.current || session.exercises?.length) return;
     planLoadedRef.current = true;
+
+    // Build name → shared groupId map by scanning the plan's supersetWith
+    // declarations. Both ends of the pair share one id so the running
+    // session's linkage UI treats them as one superset.
+    const nameKey = (s: string) => s.trim().toLowerCase();
+    const groupIds = new Map<string, string>();
+    planSession.exercises.forEach((planEx) => {
+      if (!planEx.supersetWith) return;
+      const selfKey = nameKey(planEx.name);
+      const partnerKey = nameKey(planEx.supersetWith);
+      const existing = groupIds.get(selfKey) ?? groupIds.get(partnerKey);
+      const groupId = existing ?? `ss-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      groupIds.set(selfKey, groupId);
+      groupIds.set(partnerKey, groupId);
+    });
+
     const items = planSession.exercises.map((planEx) => {
       const targetWeight = planEx.isBodyweight ? 0 : (planEx.targetWeight ?? 0);
       const setCount = planEx.sets ?? 3;
@@ -72,7 +89,13 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
         isBodyweight: planEx.isBodyweight ?? false,
         isPlanned: true,
       }));
-      return { name: planEx.name, sets: initialSets };
+      return {
+        name: planEx.name,
+        sets: initialSets,
+        supersetGroupId: groupIds.get(nameKey(planEx.name)),
+        equipment: planEx.equipment,
+        weightType: planEx.weightType,
+      };
     });
     bulkAddExercises(items);
   }, [planSession, session, bulkAddExercises]);
@@ -617,7 +640,8 @@ function ExerciseCard({
                       variant="ghost"
                       size="sm"
                       onClick={(e) => { e.stopPropagation(); onRemoveSet(index); }}
-                      className="text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 h-10"
+                      className="text-destructive/70 hover:text-destructive hover:bg-destructive/10 h-10"
+                      aria-label="Remove planned set"
                     >
                       <X className="w-4 h-4" />
                     </Button>

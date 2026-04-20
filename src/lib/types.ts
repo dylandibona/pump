@@ -43,6 +43,12 @@ export interface WorkoutSession {
   intervals?: CompletedInterval[]; // timed conditioning blocks (battle ropes, Tabata, EMOM)
   notes?: string;
   completed: boolean;
+  // ID of the PlanSession this session was launched from. Captured at
+  // startSession time so plan rotation (getNextPlanSession) can match
+  // deterministically instead of heuristically comparing exercise names.
+  // Legacy sessions predating this field omit it and fall through to the
+  // name-based heuristic for backward compat.
+  planSessionId?: string;
 }
 
 // Interval builder — timed conditioning sequences.
@@ -77,12 +83,17 @@ export interface CompletedInterval {
   completedAt: string;   // ISO timestamp
 }
 
+// A PR is the heaviest weight performed for a qualifying set (reps >= MIN_PR_REPS,
+// see storage.ts). Comparison is by `weight` only — a matching weight does not
+// upgrade the PR, and higher e1RM at a lower weight does not count. e1rm is
+// kept for informational display (BRIEF) but is not the comparison field.
 export interface PersonalRecord {
   exerciseName: string;
-  weight: number;       // weight of the best set
-  reps: number;         // reps of the best set
-  e1rm: number;         // estimated 1RM (Epley) — source of truth for PR comparison
-  previousE1rm?: number; // the e1RM this PR beat, for "prev:" display in BRIEF
+  weight: number;           // authoritative PR field — comparison is by weight
+  reps: number;             // reps of the PR-setting set (>= MIN_PR_REPS)
+  e1rm: number;             // estimated 1RM (Epley) — informational only
+  previousWeight?: number;  // weight this PR beat, for "prev:" display in BRIEF
+  previousReps?: number;    // reps of the beaten PR set
   date: string;
   sessionId: string;
 }
