@@ -28,7 +28,13 @@ function estimateDuration(exercises: PlanExercise[]): number {
 }
 
 function midpointReps(target: string): number {
-  const m = target.match(/^(\d+)\s*-\s*(\d+)$/);
+  // Accept any dash variant: ASCII hyphen `-`, en-dash `–`, em-dash `—`.
+  // Trainer plan JSON is hand-written and copy-paste from docs often
+  // auto-corrects a hyphen into an en-dash, which previously fell through
+  // to the default of 10 silently (review M10). Plan import also
+  // normalizes to hyphen, but this regex is the belt to that suspenders
+  // for any unnormalized strings in flight.
+  const m = target.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
   if (m) return Math.round((parseInt(m[1], 10) + parseInt(m[2], 10)) / 2);
   const n = parseInt(target, 10);
   return Number.isFinite(n) ? n : 10;

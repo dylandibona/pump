@@ -1,4 +1,4 @@
-import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet, TrainerPlan } from './types';
+import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet, TrainerPlan, ExerciseStatus } from './types';
 
 const STORAGE_KEY = 'dylan-workout-tracker';
 
@@ -37,6 +37,51 @@ export const MIN_PR_REPS = 6;
 // bodyweight sets, and empty rows (zero weight or zero reps) are excluded.
 export function isWorkingSet(s: GymSet): boolean {
   return !s.isWarmup && !s.isPlanned && !s.isBodyweight && s.weight > 0 && s.reps > 0;
+}
+
+// Auto-derive per-exercise status from what the user actually logged
+// (review C1 — trainer thresholds). The user can override on the summary
+// screen if auto got it wrong.
+//
+// Thresholds agreed with trainer:
+//   skipped:   0 sets logged, OR <25% of planned sets completed.
+//   partial:   25-74% of planned sets, OR >=75% sets but avg load <70% of target.
+//   completed: >=75% of planned sets AND (load check passes, or no target).
+//
+// Load check: skipped for bodyweight exercises (no target weight comparison
+// possible) and for free-form exercises without a captured plannedWeight.
+// The 3-of-4 "last-set cap" case falls naturally into completed at 75%.
+//
+// MUST be called before isPlanned placeholders are stripped — partial/
+// completed need the original planned count to compute the ratio.
+export function deriveExerciseStatus(ex: GymExercise): ExerciseStatus {
+  const plannedRemaining = ex.sets.filter(s => s.isPlanned).length;
+  const loggedSets = ex.sets.filter(s => !s.isPlanned && s.reps > 0);
+  const totalProgrammed = plannedRemaining + loggedSets.length;
+
+  if (loggedSets.length === 0) return 'skipped';
+
+  // Free-form exercise (no plan targets) — any real work is "completed".
+  if (totalProgrammed === 0 || (!ex.plannedSets && plannedRemaining === 0)) {
+    return 'completed';
+  }
+
+  const targetSetCount = ex.plannedSets ?? totalProgrammed;
+  const completionRatio = loggedSets.length / targetSetCount;
+
+  if (completionRatio < 0.25) return 'skipped';
+  if (completionRatio < 0.75) return 'partial';
+
+  // >=75% sets — now check load. Bodyweight exercises + exercises with no
+  // captured target weight bypass the load check.
+  const target = ex.plannedWeight ?? 0;
+  const weightedLogged = loggedSets.filter(s => !s.isBodyweight && s.weight > 0);
+  if (target > 0 && weightedLogged.length > 0) {
+    const avg = weightedLogged.reduce((sum, s) => sum + s.weight, 0) / weightedLogged.length;
+    if (avg / target < 0.70) return 'partial';
+  }
+
+  return 'completed';
 }
 
 // Find the PR candidate set for an exercise this session: the heaviest

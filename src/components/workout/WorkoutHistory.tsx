@@ -71,7 +71,10 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
   };
 
   const thisMonthCount = filteredSessions.filter((s) => {
-    const date = new Date(s.date);
+    // Use parseSessionDate to avoid the UTC-rolling bug: raw `new Date('2026-04-30')`
+    // parses as UTC midnight, which shifts to Apr 29 in west-of-UTC timezones and
+    // attributes last-of-month sessions to the previous month (review N1).
+    const date = parseSessionDate(s.date);
     const now = new Date();
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   }).length;

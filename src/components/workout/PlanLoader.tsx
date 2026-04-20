@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { TrainerPlan } from '@/lib/types';
 import { savePlan, clearPlan } from '@/lib/storage';
+import { validateAndNormalizePlan } from '@/lib/plan-validation';
 
 interface PlanLoaderProps {
   currentPlan: TrainerPlan | null;
@@ -17,30 +18,38 @@ interface PlanLoaderProps {
 export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoaderProps) {
   const [showInput, setShowInput] = useState(false);
   const [pastedText, setPastedText] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // errors is a list so every problem in the pasted plan is visible at
+  // once — Dylan can copy them back to the trainer in one pass instead of
+  // discovering one at a time. Empty array = no errors.
+  const [errors, setErrors] = useState<string[]>([]);
   const [showDetails, setShowDetails] = useState(false);
 
   const handleLoad = () => {
-    setError(null);
+    setErrors([]);
+
+    // Extract JSON from a markdown code block if present, then parse.
+    const jsonMatch = pastedText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const jsonText = (jsonMatch ? jsonMatch[1] : pastedText).trim();
+
+    let raw: unknown;
     try {
-      // Extract JSON from a markdown code block if present
-      const jsonMatch = pastedText.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonText = jsonMatch ? jsonMatch[1] : pastedText;
-      const parsed = JSON.parse(jsonText.trim()) as TrainerPlan;
-
-      // Basic validation
-      if (!parsed.planId || !parsed.sessions?.length) {
-        setError('Invalid plan format. Make sure you copied the full JSON from your trainer.');
-        return;
-      }
-
-      savePlan(parsed);
-      onPlanLoaded(parsed);
-      setPastedText('');
-      setShowInput(false);
-    } catch {
-      setError('Could not parse plan. Copy just the JSON block from your trainer and try again.');
+      raw = JSON.parse(jsonText);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Unknown parse error.';
+      setErrors([`JSON parse error: ${msg}`, 'Make sure you copied the complete JSON block including braces.']);
+      return;
     }
+
+    const { plan, errors: validationErrors } = validateAndNormalizePlan(raw);
+    if (!plan) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    savePlan(plan);
+    onPlanLoaded(plan);
+    setPastedText('');
+    setShowInput(false);
   };
 
   const handleClear = () => {
@@ -71,15 +80,25 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
               </p>
               <Textarea
                 value={pastedText}
-                onChange={e => { setPastedText(e.target.value); setError(null); }}
+                onChange={e => { setPastedText(e.target.value); setErrors([]); }}
                 placeholder="Paste the JSON plan your trainer generated..."
                 className="min-h-[140px] font-mono text-sm bg-background/50"
                 autoFocus
               />
-              {error && (
-                <div className="flex items-start gap-2 text-destructive text-sm">
-                  <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                  <span>{error}</span>
+              {errors.length > 0 && (
+                <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                  <div className="flex items-center gap-2 text-destructive text-xs font-display tracking-wider">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>PLAN WON&rsquo;T LOAD — {errors.length} {errors.length === 1 ? 'ISSUE' : 'ISSUES'}</span>
+                  </div>
+                  <ul className="space-y-1 text-sm text-destructive/90 list-disc pl-4">
+                    {errors.map((msg, i) => (
+                      <li key={i}>{msg}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Copy these back to the trainer — they know what to fix.
+                  </p>
                 </div>
               )}
               <div className="flex gap-2">
@@ -93,7 +112,7 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => { setShowInput(false); setError(null); setPastedText(''); }}
+                  onClick={() => { setShowInput(false); setErrors([]); setPastedText(''); }}
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -223,15 +242,22 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                   >
                     <Textarea
                       value={pastedText}
-                      onChange={e => { setPastedText(e.target.value); setError(null); }}
+                      onChange={e => { setPastedText(e.target.value); setErrors([]); }}
                       placeholder="Paste updated plan JSON from trainer..."
                       className="min-h-[120px] font-mono text-sm bg-background/50"
                       autoFocus
                     />
-                    {error && (
-                      <div className="flex items-start gap-2 text-destructive text-sm">
-                        <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                        <span>{error}</span>
+                    {errors.length > 0 && (
+                      <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                        <div className="flex items-center gap-2 text-destructive text-xs font-display tracking-wider">
+                          <AlertCircle className="w-4 h-4 shrink-0" />
+                          <span>PLAN WON&rsquo;T LOAD — {errors.length} {errors.length === 1 ? 'ISSUE' : 'ISSUES'}</span>
+                        </div>
+                        <ul className="space-y-1 text-sm text-destructive/90 list-disc pl-4">
+                          {errors.map((msg, i) => (
+                            <li key={i}>{msg}</li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                     <Button onClick={handleLoad} disabled={!pastedText.trim()} className="w-full font-display tracking-wider">

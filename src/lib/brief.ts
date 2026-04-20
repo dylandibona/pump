@@ -1,6 +1,24 @@
-import { WorkoutSession, TrainerPlan } from './types';
+import { WorkoutSession, TrainerPlan, ExerciseStatus, ExerciseStatusReason } from './types';
 import { getPRForExercise, isWorkingSet, MIN_PR_REPS } from './storage';
 import { parseSessionDate } from './utils';
+
+// Human-readable status labels for the BRIEF. Trainer parses these, so
+// stable + short. Keep in sync with the summary-screen picker copy.
+const STATUS_LABEL: Record<ExerciseStatus, string> = {
+  completed: 'COMPLETED',
+  partial: 'PARTIAL',
+  skipped: 'SKIPPED',
+  substituted: 'SUBSTITUTED',
+};
+
+const REASON_LABEL: Record<ExerciseStatusReason, string> = {
+  crowded_gym: 'crowded gym',
+  equipment_unavailable: 'equipment unavailable',
+  form_issue: 'form issue',
+  pain: 'pain / discomfort',
+  out_of_time: 'out of time',
+  other: 'other',
+};
 
 export function generateBrief(
   session: WorkoutSession,
@@ -30,7 +48,15 @@ export function generateBrief(
         : null;
       const superset = ex.supersetGroupId ? ' ⚡SUPERSET' : '';
       const equipStr = ex.equipment ? ` [${ex.equipment}]` : '';
-      brief += `${ex.name.toUpperCase()}${equipStr}${superset}${target ? ` (${target})` : ''}\n`;
+      const prFlag = newPRs.includes(ex.name) ? ' 🏆PR' : '';
+      brief += `${ex.name.toUpperCase()}${equipStr}${superset}${prFlag}${target ? ` (${target})` : ''}\n`;
+
+      // Emit explicit status line per trainer request — no more inferring
+      // skipped from empty set lists. Reason appended when present so the
+      // trainer doesn't have to ask "why" on every anomaly.
+      const status = ex.status ?? 'completed';
+      const reasonPart = ex.statusReason ? ` — ${REASON_LABEL[ex.statusReason]}` : '';
+      brief += `  STATUS: ${STATUS_LABEL[status]}${reasonPart}\n`;
 
       // Identify the PR-candidate set for annotation: heaviest working set
       // with reps >= MIN_PR_REPS, tiebreak on reps. Matches the PR selection
@@ -65,7 +91,7 @@ export function generateBrief(
             const prev = storedPR?.previousWeight != null
               ? `, prev: ${storedPR.previousWeight}lbs × ${storedPR.previousReps ?? '?'}`
               : '';
-            mark = ` ⚡PR${prev}`;
+            mark = ` 🏆 PR${prev}`;
           } else if (isBaseline) {
             mark = ' ★Baseline';
           }

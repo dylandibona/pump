@@ -16,6 +16,7 @@ import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet, CardioActivity, CardioEntry } from '@/lib/types';
 import { getExerciseHistory, getPRForExercise } from '@/lib/storage';
 import { playSetCompleteFeedback, playPRFeedback, preloadSound } from '@/lib/sounds';
+import { parseSessionDate } from '@/lib/utils';
 
 interface GymWorkoutProps {
   sessionId?: string;
@@ -95,6 +96,11 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
         supersetGroupId: groupIds.get(nameKey(planEx.name)),
         equipment: planEx.equipment,
         weightType: planEx.weightType,
+        // Persist plan targets onto the logged exercise so status
+        // auto-derivation and BRIEF display are self-contained.
+        plannedSets: setCount,
+        plannedWeight: planEx.isBodyweight ? undefined : planEx.targetWeight,
+        plannedReps: planEx.targetReps,
       };
     });
     bulkAddExercises(items);
@@ -543,6 +549,24 @@ function ExerciseCard({
             )}
           </div>
           <div className="flex gap-1">
+            {/* Notes toggle — surfaced in the header so leaving a note is
+                a single visible tap instead of buried at the bottom of the
+                card (trainer C5). Icon fills in primary when a note exists
+                so at-a-glance it's obvious which exercises have context. */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowNotes(!showNotes)}
+              className={`${exercise.notes?.trim() ? 'text-primary' : 'text-muted-foreground'} hover:text-primary`}
+              aria-label={exercise.notes?.trim() ? 'Edit exercise notes' : 'Add exercise notes'}
+              aria-expanded={showNotes}
+              title={exercise.notes?.trim() ? 'Edit notes' : 'Add notes'}
+            >
+              <FileText className="w-4 h-4" />
+              {exercise.notes?.trim() && (
+                <span className="ml-1 w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -591,7 +615,7 @@ function ExerciseCard({
                 {history.map((entry, i) => (
                   <div key={i} className="flex justify-between text-sm">
                     <span className="text-muted-foreground">
-                      {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {parseSessionDate(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                     <span className="font-mono text-primary">
                       {entry.sets.filter(s => !s.isWarmup).map((s, j) => (
@@ -802,9 +826,12 @@ function ExerciseCard({
         {/* Rest Timer */}
         <RestTimerInline defaultDuration={90} />
 
-        {/* Notes */}
+        {/* Notes — expansion is toggled by the notes icon in the card
+            header (set next to HIST/remove). The standalone ADD NOTES
+            button at the bottom was retired because the header toggle is
+            more discoverable and always in the same spot across cards. */}
         <AnimatePresence>
-          {showNotes ? (
+          {showNotes && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
@@ -813,19 +840,11 @@ function ExerciseCard({
               <Textarea
                 value={exercise.notes || ''}
                 onChange={(e) => onUpdateNotes(e.target.value)}
-                placeholder="Add notes about form, feeling, etc..."
+                placeholder="Crowded rack? Form off? Anything the trainer should know…"
                 className="min-h-[80px] bg-background/50"
+                autoFocus
               />
             </motion.div>
-          ) : (
-            <motion.button
-              onClick={() => setShowNotes(true)}
-              className="flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group"
-              whileHover={{ x: 4 }}
-            >
-              <FileText className="w-4 h-4" />
-              <span className="text-sm font-display tracking-wider">ADD NOTES</span>
-            </motion.button>
           )}
         </AnimatePresence>
       </div>

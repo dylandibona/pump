@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dumbbell, Flame, Trophy, Send, Check } from 'lucide-react';
+import { Dumbbell, Flame, Trophy, Send, Check, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { WorkoutSession } from '@/lib/types';
+import { WorkoutSession, ExerciseStatus, ExerciseStatusReason, GymExercise } from '@/lib/types';
 import { getPRs, getPlan, patchSession } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { parseSessionDate } from '@/lib/utils';
@@ -17,11 +17,76 @@ interface SessionSummaryProps {
   newBaselines?: string[];
 }
 
-export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [] }: SessionSummaryProps) {
+const STATUS_OPTIONS: { value: ExerciseStatus; label: string; tone: 'good' | 'warn' | 'bad' | 'info' }[] = [
+  { value: 'completed',   label: 'COMPLETED',   tone: 'good' },
+  { value: 'partial',     label: 'PARTIAL',     tone: 'warn' },
+  { value: 'skipped',     label: 'SKIPPED',     tone: 'bad' },
+  { value: 'substituted', label: 'SUBSTITUTED', tone: 'info' },
+];
+
+const REASON_OPTIONS: { value: ExerciseStatusReason; label: string }[] = [
+  { value: 'crowded_gym',           label: 'Crowded gym' },
+  { value: 'equipment_unavailable', label: 'Equipment unavailable' },
+  { value: 'form_issue',            label: 'Form issue' },
+  { value: 'pain',                  label: 'Pain / discomfort' },
+  { value: 'out_of_time',           label: 'Out of time' },
+  { value: 'other',                 label: 'Other' },
+];
+
+function statusChipClass(tone: 'good' | 'warn' | 'bad' | 'info', active: boolean): string {
+  const base = 'px-2.5 py-1 rounded-full text-[10px] font-display tracking-widest transition-colors border';
+  if (active) {
+    switch (tone) {
+      case 'good': return `${base} bg-primary/20 text-primary border-primary/50`;
+      case 'warn': return `${base} bg-accent/20 text-accent border-accent/50`;
+      case 'bad':  return `${base} bg-destructive/20 text-destructive border-destructive/50`;
+      case 'info': return `${base} bg-secondary/60 text-foreground border-border`;
+    }
+  }
+  return `${base} bg-secondary/20 text-muted-foreground border-border/50 hover:border-primary/30`;
+}
+
+export function SessionSummary({ session: initialSession, onClose, newPRs = [], newBaselines = [] }: SessionSummaryProps) {
+  // Local copy so status / reason overrides render immediately. patchSession
+  // mirrors every write to storage so the BRIEF reflects the latest state.
+  const [session, setSession] = useState<WorkoutSession>(initialSession);
   const prs = getPRs();
   const plan = getPlan();
   const [briefCopied, setBriefCopied] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
+  // Track which exercise rows have their status editor open. Anomalies
+  // (skipped / partial) auto-expand so the reason picker is one tap away
+  // (trainer's "make leaving a note take less cognitive effort than not"
+  // principle).
+  const [expandedEditors, setExpandedEditors] = useState<Set<string>>(() => {
+    const s = new Set<string>();
+    initialSession.exercises?.forEach(ex => {
+      if (ex.status === 'skipped' || ex.status === 'partial') s.add(ex.id);
+    });
+    return s;
+  });
+
+  // Apply a per-exercise patch — status / reason / notes — to both local
+  // state and localStorage. patchSession writes through; storage is the
+  // source of truth the BRIEF generator reads.
+  const updateExercise = (exerciseId: string, patch: Partial<GymExercise>) => {
+    const updated = {
+      ...session,
+      exercises: session.exercises?.map(ex =>
+        ex.id === exerciseId ? { ...ex, ...patch } : ex
+      ),
+    };
+    setSession(updated);
+    patchSession(session.id, { exercises: updated.exercises });
+  };
+
+  const toggleEditor = (exerciseId: string) => {
+    setExpandedEditors(prev => {
+      const next = new Set(prev);
+      if (next.has(exerciseId)) next.delete(exerciseId); else next.add(exerciseId);
+      return next;
+    });
+  };
 
   // Session notes are captured HERE (post-workout) — this is the only UI
   // that writes to `session.notes`. Local state keeps the textarea snappy;
@@ -292,6 +357,10 @@ export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [
                 );
                 const isNewPR = newPRs.includes(exercise.name);
                 const isBaseline = !isNewPR && newBaselines.includes(exercise.name);
+                const currentStatus: ExerciseStatus = exercise.status ?? 'completed';
+                const statusOption = STATUS_OPTIONS.find(o => o.value === currentStatus)!;
+                const isEditorOpen = expandedEditors.has(exercise.id);
+                const needsReason = currentStatus === 'partial' || currentStatus === 'skipped';
 
                 return (
                   <motion.div
@@ -301,35 +370,107 @@ export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.9 + index * 0.05 }}
                   >
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-2 gap-2">
                       <span className="font-display text-lg">
                         {exercise.name.toUpperCase()}
                       </span>
-                      {isNewPR && (
-                        <span className="pr-badge">
-                          NEW PR
-                        </span>
-                      )}
-                      {isBaseline && (
-                        <span className="tag tag--warmup">
-                          BASELINE
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {workingSets.map((set, i) => (
-                        <span
-                          key={i}
-                          className="px-3 py-1 rounded-lg bg-background/50 font-mono text-sm text-primary"
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {isNewPR && <span className="pr-badge">NEW PR</span>}
+                        {isBaseline && <span className="tag tag--warmup">BASELINE</span>}
+                        <button
+                          onClick={() => toggleEditor(exercise.id)}
+                          className={`${statusChipClass(statusOption.tone, true)} flex items-center gap-1`}
+                          aria-label={`Status: ${statusOption.label}. Tap to change.`}
+                          aria-expanded={isEditorOpen}
                         >
-                          {set.weight}×{set.reps}
-                        </span>
-                      ))}
+                          {statusOption.label}
+                          <ChevronDown className={`w-3 h-3 transition-transform ${isEditorOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
                     </div>
+                    {workingSets.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {workingSets.map((set, i) => (
+                          <span
+                            key={i}
+                            className="px-3 py-1 rounded-lg bg-background/50 font-mono text-sm text-primary"
+                          >
+                            {set.weight}×{set.reps}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {exercisePR && !isNewPR && (
                       <p className="text-xs text-muted-foreground mt-2">
                         PR: {exercisePR.weight}lbs × {exercisePR.reps}
                       </p>
+                    )}
+                    {/* Inline reason badge when not editing — trainer needs
+                        to see "why" at a glance on non-completed rows. */}
+                    {!isEditorOpen && needsReason && exercise.statusReason && (
+                      <p className="text-xs text-muted-foreground mt-2 italic">
+                        {REASON_OPTIONS.find(r => r.value === exercise.statusReason)?.label}
+                      </p>
+                    )}
+                    {/* Status editor — status + reason + per-exercise note,
+                        auto-expanded for anomalies. */}
+                    {isEditorOpen && (
+                      <div className="mt-3 pt-3 border-t border-[color:var(--pump-border-card)] space-y-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {STATUS_OPTIONS.map(opt => (
+                            <button
+                              key={opt.value}
+                              onClick={() => updateExercise(exercise.id, { status: opt.value })}
+                              className={statusChipClass(opt.tone, currentStatus === opt.value)}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                        {needsReason && (
+                          <div className="space-y-1.5">
+                            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase font-mono">
+                              Reason
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {REASON_OPTIONS.map(opt => (
+                                <button
+                                  key={opt.value}
+                                  onClick={() => updateExercise(exercise.id, { statusReason: opt.value })}
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-display tracking-widest transition-colors border ${
+                                    exercise.statusReason === opt.value
+                                      ? 'bg-accent/20 text-accent border-accent/50'
+                                      : 'bg-secondary/20 text-muted-foreground border-border/50 hover:border-accent/30'
+                                  }`}
+                                >
+                                  {opt.label.toUpperCase()}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        <div className="space-y-1.5">
+                          <label
+                            htmlFor={`note-${exercise.id}`}
+                            className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase font-mono block"
+                          >
+                            Quick note
+                          </label>
+                          <textarea
+                            id={`note-${exercise.id}`}
+                            defaultValue={exercise.notes ?? ''}
+                            onBlur={(e) => {
+                              const trimmed = e.target.value.trim();
+                              if (trimmed !== (exercise.notes?.trim() ?? '')) {
+                                updateExercise(exercise.id, { notes: trimmed });
+                              }
+                            }}
+                            placeholder={needsReason ? 'What happened?' : 'Anything worth flagging?'}
+                            className="w-full min-h-[60px] rounded-lg p-2 text-sm bg-[color:var(--pump-bg-input)] border border-[color:var(--pump-border-card)] text-[color:var(--pump-text)] placeholder:text-[color:var(--pump-text-dim)] focus:outline-none focus:border-[color:var(--pump-hot)]/40 resize-none"
+                            rows={2}
+                          />
+                        </div>
+                      </div>
                     )}
                   </motion.div>
                 );

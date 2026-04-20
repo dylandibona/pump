@@ -19,6 +19,7 @@ import {
   finalizePRs,
   isWorkingSet,
   MIN_PR_REPS,
+  deriveExerciseStatus,
 } from '@/lib/storage';
 
 interface UseWorkoutOptions {
@@ -138,11 +139,22 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   }, [mutate]);
 
   // Bulk-add multiple exercises atomically. Used by plan preload so the
-  // entire programmed workout shows up in one write. Accepts optional
-  // supersetGroupId per item so pairings from the plan survive into the
-  // running session (review M7).
+  // entire programmed workout shows up in one write. Accepts plan targets
+  // (plannedSets/Weight/Reps) so per-exercise status auto-derivation and
+  // BRIEF display work from the logged session alone — no need for the
+  // plan to still be loaded or matchable later. Also accepts optional
+  // supersetGroupId so plan pairings survive into the running session (M7).
   const bulkAddExercises = useCallback((
-    items: { name: string; sets: GymSet[]; supersetGroupId?: string; equipment?: GymExercise['equipment']; weightType?: GymExercise['weightType'] }[]
+    items: {
+      name: string;
+      sets: GymSet[];
+      supersetGroupId?: string;
+      equipment?: GymExercise['equipment'];
+      weightType?: GymExercise['weightType'];
+      plannedSets?: number;
+      plannedWeight?: number;
+      plannedReps?: string;
+    }[]
   ) => {
     if (items.length === 0) return;
     const newExercises: GymExercise[] = items.map(item => ({
@@ -152,6 +164,9 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       ...(item.supersetGroupId && { supersetGroupId: item.supersetGroupId }),
       ...(item.equipment && { equipment: item.equipment }),
       ...(item.weightType && { weightType: item.weightType }),
+      ...(item.plannedSets !== undefined && { plannedSets: item.plannedSets }),
+      ...(item.plannedWeight !== undefined && { plannedWeight: item.plannedWeight }),
+      ...(item.plannedReps !== undefined && { plannedReps: item.plannedReps }),
     }));
     mutate(current => ({
       ...current,
@@ -348,22 +363,30 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     }));
   }, [mutate]);
 
-  // Complete the session. This is the one and only PR commit point —
-  // finalizePRs re-derives each exercise's best qualifying set from the
-  // just-saved session and upgrades the stored record when weight is
-  // strictly greater. Safe to re-run on edit-complete; never downgrades.
-  //
-  // Plan-preloaded placeholder sets that the user never filled in
-  // (isPlanned still true) are stripped here. They're a UX scaffold, not
-  // actual data; leaving them in inflates set counts in stats and pollutes
-  // the BRIEF with "Set N: 0lbs × 0" rows (review N7).
+  // Complete the session. Three things happen, in this order:
+  //   1. Auto-derive per-exercise status (while isPlanned placeholders are
+  //      still present — deriveExerciseStatus needs the original planned
+  //      count to compute the completion ratio).
+  //   2. Strip isPlanned placeholders. They're a UX scaffold, not data —
+  //      leaving them in pollutes stats and the BRIEF (review N7).
+  //   3. Commit PRs via finalizePRs — the one and only PR write point,
+  //      safe to re-run on edit-complete; never downgrades.
+  // Status is only pre-set here (auto). User can override from the summary
+  // screen; the override path writes back via patchSession and doesn't need
+  // to re-run this flow.
   const completeSession = useCallback(() => {
     let completed: WorkoutSession | null = null;
     mutate(current => {
-      const cleanedExercises = current.exercises?.map(ex => ({
-        ...ex,
-        sets: ex.sets.filter(s => !s.isPlanned),
-      }));
+      const cleanedExercises = current.exercises?.map(ex => {
+        const autoStatus = deriveExerciseStatus(ex);
+        return {
+          ...ex,
+          // Respect an existing status (e.g. mid-session 'substituted'
+          // marker from a future wave) — only fill in when unset.
+          status: ex.status ?? autoStatus,
+          sets: ex.sets.filter(s => !s.isPlanned),
+        };
+      });
       completed = {
         ...current,
         exercises: cleanedExercises,

@@ -21,6 +21,25 @@ export interface GymSet {
   isPlanned?: boolean; // true = placeholder slot from plan, not yet logged
 }
 
+// Per-exercise completion status. Auto-derived at session completion using
+// trainer thresholds (see storage.deriveExerciseStatus): skipped if no sets
+// logged, completed if ≥75% of planned sets AND load ≥70% of target,
+// partial otherwise. User can override from the summary screen.
+// 'substituted' is manual-only (mid-session swap — tracked via plannedName
+// in a later wave).
+export type ExerciseStatus = 'completed' | 'partial' | 'skipped' | 'substituted';
+
+// Optional structured reason for partial/skipped status, captured via a
+// one-tap picker on the summary screen. Gives the trainer signal without
+// requiring post-workout typing.
+export type ExerciseStatusReason =
+  | 'crowded_gym'
+  | 'equipment_unavailable'
+  | 'form_issue'
+  | 'pain'
+  | 'out_of_time'
+  | 'other';
+
 export interface GymExercise {
   id: string;
   name: string;
@@ -30,6 +49,16 @@ export interface GymExercise {
   supersetGroupId?: string; // exercises sharing this ID are displayed/done as a superset
   equipment?: 'barbell' | 'dumbbell' | 'cable' | 'machine' | 'bodyweight' | 'other';
   weightType?: 'total' | 'per_side'; // 'total' is default
+  // Plan targets, captured at plan-preload time onto the logged exercise so
+  // status auto-derivation and BRIEF display don't depend on the plan still
+  // existing or being matchable. Absent for free-form exercises.
+  plannedSets?: number;
+  plannedWeight?: number;
+  plannedReps?: string;
+  // Completion status — set by deriveExerciseStatus at session completion,
+  // optionally overridden on the summary screen.
+  status?: ExerciseStatus;
+  statusReason?: ExerciseStatusReason;
 }
 
 export interface WorkoutSession {
