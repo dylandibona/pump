@@ -40,8 +40,41 @@ export interface WorkoutSession {
   endTime?: string; // ISO timestamp
   cardio?: CardioEntry[];
   exercises?: GymExercise[];
+  intervals?: CompletedInterval[]; // timed conditioning blocks (battle ropes, Tabata, EMOM)
   notes?: string;
   completed: boolean;
+}
+
+// Interval builder — timed conditioning sequences.
+//
+// A sequence is an ordered list of blocks. Each block is a step sequence
+// repeated `rounds` times. This shape supports single work/rest pairs,
+// Tabata (1 block with 2 steps × 8 rounds), EMOM (1 block, 1 step × N
+// rounds with rest implied by cycle), and compound programs (multiple
+// blocks — e.g. warmup + Tabata + cooldown).
+export interface IntervalStep {
+  id: string;
+  label: string;    // "Work" | "Rest" | user-provided
+  duration: number; // seconds
+}
+
+export interface IntervalBlock {
+  id: string;
+  steps: IntervalStep[];
+  rounds: number;   // steps[] repeat this many times
+}
+
+export interface IntervalSequence {
+  name?: string;
+  blocks: IntervalBlock[];
+}
+
+export interface CompletedInterval {
+  id: string;
+  name: string;
+  sequence: IntervalSequence;
+  totalDuration: number; // programmed duration in seconds (sum of step × rounds × blocks)
+  completedAt: string;   // ISO timestamp
 }
 
 export interface PersonalRecord {

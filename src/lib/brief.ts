@@ -74,6 +74,18 @@ export function generateBrief(
     });
   }
 
+  if (session.intervals?.length) {
+    brief += '\nINTERVALS:\n';
+    session.intervals.forEach(iv => {
+      const shape = iv.sequence.blocks
+        .map(b => `[${b.steps.map(s => `${s.label} ${s.duration}s`).join(' / ')}] × ${b.rounds}`)
+        .join(' + ');
+      const mins = Math.floor(iv.totalDuration / 60);
+      const secs = iv.totalDuration % 60;
+      brief += `  ${iv.name.toUpperCase()} — ${shape} (${mins}:${String(secs).padStart(2, '0')})\n`;
+    });
+  }
+
   if (session.cardio?.length) {
     brief += '\nCARDIO:\n';
     session.cardio.forEach(c => {

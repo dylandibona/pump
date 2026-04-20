@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ExerciseAutocomplete } from './ExerciseAutocomplete';
 import { RestTimerInline } from './Timer';
 import { WorkoutTimerBar } from './WorkoutTimerBar';
+import { IntervalFlow } from './IntervalFlow';
+import { Timer as TimerIcon, Zap } from 'lucide-react';
 import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet, CardioActivity, CardioEntry } from '@/lib/types';
 import { getExerciseHistory, getPRForExercise } from '@/lib/storage';
@@ -35,6 +37,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
     duplicateLastSet,
     addCardioEntry,
     removeCardioEntry,
+    logInterval,
     linkSuperset,
     unlinkSuperset,
     completeSession,
@@ -45,6 +48,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
   const [newExerciseName, setNewExerciseName] = useState('');
   const [showAddExercise, setShowAddExercise] = useState(!planSession);
   const [showCardioSection, setShowCardioSection] = useState(false);
+  const [showIntervalFlow, setShowIntervalFlow] = useState(false);
   const [linkingExerciseId, setLinkingExerciseId] = useState<string | null>(null);
   const planLoadedRef = useRef(false);
   const prevPRCountRef = useRef(newPRs.length);
@@ -289,6 +293,49 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
         </AnimatePresence>
       </motion.div>
 
+      {/* Intervals — timed conditioning blocks (Tabata, EMOM, battle ropes) */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.27 }}
+        className="space-y-2"
+      >
+        {session.intervals && session.intervals.length > 0 && (
+          <div className="space-y-2">
+            {session.intervals.map((iv) => (
+              <div
+                key={iv.id}
+                className="pump-card pump-card--superset p-3 flex items-center gap-3"
+              >
+                <div className="w-10 h-10 rounded-lg bg-[color:var(--pump-purple)]/14 flex items-center justify-center text-[color:var(--pump-purple)]">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display text-sm tracking-wider truncate">
+                    {iv.name.toUpperCase()}
+                  </p>
+                  <p className="text-[10px] font-mono tracking-wider text-[color:var(--pump-text-dim)]">
+                    {iv.sequence.blocks.map(b => `[${b.steps.map(s => s.duration + 's').join(' / ')}] × ${b.rounds}`).join(' + ')}
+                    {' · '}
+                    {Math.floor(iv.totalDuration / 60)}:{String(iv.totalDuration % 60).padStart(2, '0')}
+                  </p>
+                </div>
+                <Check className="w-4 h-4 text-[color:var(--pump-purple)] shrink-0" />
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          onClick={() => setShowIntervalFlow(true)}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 glass border-l-2 border-[color:var(--pump-purple)]/50"
+        >
+          <Zap className="w-4 h-4 text-[color:var(--pump-purple)]" />
+          <span className="font-display tracking-wider text-[color:var(--pump-purple)] text-sm">
+            ADD INTERVAL
+          </span>
+        </button>
+      </motion.div>
+
       {/* Session Stats */}
       {stats && 'totalVolume' in stats && (
         <motion.div
@@ -340,6 +387,16 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
           <div className="absolute inset-0 glow-neon opacity-50 group-hover:opacity-100 transition-opacity" />
         </Button>
       </motion.div>
+
+      {/* Interval builder + runner. Mounts when opened; state resets on each open. */}
+      <IntervalFlow
+        open={showIntervalFlow}
+        onClose={() => setShowIntervalFlow(false)}
+        onComplete={(completed) => {
+          logInterval(completed);
+          setShowIntervalFlow(false);
+        }}
+      />
     </div>
   );
 }

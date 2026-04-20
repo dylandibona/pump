@@ -8,6 +8,7 @@ import {
   GymSet,
   CardioEntry,
   CardioActivity,
+  CompletedInterval,
 } from '@/lib/types';
 import {
   saveSession,
@@ -345,6 +346,19 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     saveSession(updatedSession);
   }, [session]);
 
+  // Append a completed interval run to the session. Intervals are timed
+  // conditioning blocks logged alongside exercises/cardio; they don't
+  // participate in PR evaluation.
+  const logInterval = useCallback((completed: CompletedInterval) => {
+    if (!session) return;
+    const updatedSession: WorkoutSession = {
+      ...session,
+      intervals: [...(session.intervals ?? []), completed],
+    };
+    setSession(updatedSession);
+    saveSession(updatedSession);
+  }, [session]);
+
   // Update session notes
   const updateSessionNotes = useCallback((notes: string) => {
     if (!session) return;
@@ -430,6 +444,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     addCardioEntry,
     updateCardioEntry,
     removeCardioEntry,
+    logInterval,
     completeSession,
     updateSessionNotes,
     getHistory,
