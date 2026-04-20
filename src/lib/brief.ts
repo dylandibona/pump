@@ -64,6 +64,13 @@ export function generateBrief(
 
         brief += `  Set ${i + 1}: ${label} × ${set.reps}${indicator}${mark}\n`;
       });
+
+      // Exercise-level notes (user-typed during the session) — trainer needs
+      // to see these. Plan notes stay in the plan itself so we don't echo
+      // them back; this is the user's own commentary.
+      if (ex.notes && ex.notes.trim()) {
+        brief += `  NOTE: ${ex.notes.trim()}\n`;
+      }
     });
   }
 

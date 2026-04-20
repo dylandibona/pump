@@ -6,7 +6,7 @@ import { Dumbbell, Flame, Trophy, Send, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { WorkoutSession } from '@/lib/types';
-import { getPRs, getPlan } from '@/lib/storage';
+import { getPRs, getPlan, patchSession } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 
 interface SessionSummaryProps {
@@ -21,9 +21,29 @@ export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [
   const plan = getPlan();
   const [briefCopied, setBriefCopied] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
-  const brief = generateBrief(session, plan, newPRs, newBaselines);
+
+  // Session notes are captured HERE (post-workout) — this is the only UI
+  // that writes to `session.notes`. Local state keeps the textarea snappy;
+  // we persist to storage on blur so the BRIEF + session-detail view see
+  // the latest copy. The brief itself is regenerated at copy time using
+  // the live notes value so the user always gets what they just typed.
+  const [notes, setNotes] = useState(session.notes ?? '');
+
+  const handleNotesBlur = () => {
+    const trimmed = notes.trim();
+    // Only persist if it actually changed — avoids unnecessary writes.
+    if (trimmed !== (session.notes?.trim() ?? '')) {
+      patchSession(session.id, { notes: trimmed });
+    }
+  };
+
+  const buildBrief = () =>
+    generateBrief({ ...session, notes: notes.trim() }, plan, newPRs, newBaselines);
 
   const handleSendToTrainer = () => {
+    // Persist any un-blurred notes, then rebuild the brief from fresh state.
+    handleNotesBlur();
+    const brief = buildBrief();
     // Show feedback immediately — don't wait for async clipboard
     setBriefCopied(true);
     setShowBrief(true);
@@ -32,6 +52,10 @@ export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [
       // Clipboard failed — text panel is visible for manual copy
     });
   };
+
+  // Live preview uses the current notes so the on-screen text matches
+  // what just got copied.
+  const brief = buildBrief();
 
   // Calculate gym stats (show whenever exercises exist)
   const gymStats = session.exercises && session.exercises.length > 0 ? {
@@ -312,6 +336,30 @@ export function SessionSummary({ session, onClose, newPRs = [], newBaselines = [
             </div>
           </motion.div>
         )}
+
+        {/* Session Notes — captured here so they flow into the BRIEF */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.92 }}
+          className="space-y-2"
+        >
+          <label
+            htmlFor="session-notes"
+            className="text-xs tracking-[0.2em] uppercase text-[color:var(--pump-cyan-deep)] font-mono"
+          >
+            Session notes for trainer
+          </label>
+          <textarea
+            id="session-notes"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            onBlur={handleNotesBlur}
+            placeholder="How did it feel? Energy, form, soreness, anything worth flagging…"
+            className="w-full min-h-[96px] rounded-xl p-3 bg-[color:var(--pump-bg-input)] border border-[color:var(--pump-border-card)] text-sm text-[color:var(--pump-text)] placeholder:text-[color:var(--pump-text-dim)] focus:outline-none focus:border-[color:var(--pump-hot)]/40 focus:bg-[color:var(--pump-bg-tinted)] resize-none transition-colors"
+            rows={3}
+          />
+        </motion.div>
 
         {/* Send to Trainer */}
         <motion.div

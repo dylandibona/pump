@@ -94,6 +94,17 @@ export function getSession(id: string): WorkoutSession | undefined {
   return data.sessions.find(s => s.id === id);
 }
 
+// Narrow patch helper — used by components that read sessions via props/
+// storage rather than the useWorkout hook (e.g. SessionSummary). Writes
+// through to localStorage without rerunning PR evaluation.
+export function patchSession(id: string, patch: Partial<WorkoutSession>): void {
+  const data = getWorkoutData();
+  const idx = data.sessions.findIndex(s => s.id === id);
+  if (idx < 0) return;
+  data.sessions[idx] = { ...data.sessions[idx], ...patch };
+  saveWorkoutData(data);
+}
+
 export function deleteSession(id: string): void {
   const data = getWorkoutData();
   data.sessions = data.sessions.filter(s => s.id !== id);
