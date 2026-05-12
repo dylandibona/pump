@@ -528,7 +528,6 @@
   width: 100%;
   height: 200px;
   overflow: hidden;
-  border-radius: var(--radius);
   /* Sky gradient: near-black through purple, magenta, hot pink, orange, gold,
      abrupt cut to pink/maroon/dark below the horizon. */
   background: linear-gradient(180deg,
