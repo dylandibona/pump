@@ -4,6 +4,11 @@
 
 ## Completed
 
+### May 21–22 2026 session
+- [x] **Neon Pump wordmark** — replaced the Monoton/RetrowaveScene hero with the `pump-header.png` banner (full-bleed, flush to top); regenerated favicon + apple-touch + PWA icons from the new mark; brand kit saved as `public/pump-*.png`.
+- [x] **Stale duplicate cleanup** — a 662 MB untracked `app/` copy was shadowing `src/app/` and breaking local build/dev (404s). Archived to `_Code Projects/_archive/`. All app code lives under `src/`.
+- [x] **Cloud sync / multi-device** — offline-first sync to Upstash Redis. localStorage stays primary; full snapshot pushed to `/api/data`, server merges (union sessions, heavier PRs, LWW settings/plan) and returns the union. Bearer-token auth (`SYNC_TOKEN`). Survives a browser cache wipe; converges across devices.
+
 ### Apr 15 2026 session
 - [x] **PR system rewrite** — per-set Epley e1RM, silent baselines for first-ever exercises, `previousE1rm` tracking, BRIEF annotation. Fixes the "90×15 frankenstein" bug.
 - [x] **Session Preview screen** — plan sessions route through preview with editable target weight/reps before starting; freeform bypasses.
@@ -47,7 +52,11 @@
 - [ ] Superset auto-detection from plan (when `supersetWith` is set, auto-link on pre-fill)
 
 ### Core UX
-- [ ] Drag to reorder exercises within a session
+- [ ] **Reorder exercises + edit supersets mid-workout** — let the user shuffle exercise order in an active session (to superset by equipment availability/feel) and link/unlink supersets on the fly.
+  - **Recommended approach:** a dedicated "reorder" sheet/view (not inline drag). The live exercise cards are full of number inputs, so inline drag-and-drop fights with typing/scrolling on mobile. A focused surface shows compact cards (name + set count + superset badge) with drag handles.
+  - **Why it's data-safe:** reordering only changes the order of `session.exercises[]`; each exercise object carries its own `sets[]`, so logged data travels with the card — nothing is lost on the round trip. Write back via the existing `saveSession`/`patchSession` path; GymWorkout re-reads on return. The rest timer / active-session state is untouched.
+  - **Tooling:** use framer-motion `Reorder.Group`/`Reorder.Item` (already a dependency) for touch-friendly DnD — no new lib.
+  - **Supersets:** modeled via `GymExercise.supersetGroupId`. Unlink = clear the id; link = assign a shared id to adjacent exercises. Open question to settle: when a superset member is moved, move the whole group together (keep members adjacent) or auto-unlink it.
 - [ ] Swipe to delete sets
 - [ ] Auto-start rest timer after logging a set (opt-in)
 - [ ] Recently used exercises at top of search
@@ -84,7 +93,6 @@
 - [ ] Tempo notation
 - [ ] Calorie estimate for cardio
 - [ ] Heart rate zone (manual)
-- [ ] Cloud sync / multi-device
 - [ ] Apple Watch companion
 
 ---
