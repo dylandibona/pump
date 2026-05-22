@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Timer as TimerIcon, Dumbbell, Activity, Pencil, Send, Check } from 'lucide-react';
 import { Dashboard } from '@/components/workout/Dashboard';
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 import { useWorkout } from '@/hooks/useWorkout';
+import { useCloudSync } from '@/hooks/useCloudSync';
 import { getSession, getPlan, getNextPlanSession, getPRs } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { parseSessionDate } from '@/lib/utils';
@@ -48,6 +49,15 @@ export default function Home() {
   const { session, startSession, newPRs, newBaselines, clearNewPRs } = useWorkout({
     sessionId: activeSessionId || undefined,
   });
+
+  // App-wide cloud sync (offline-first; no-op until a token is connected).
+  const cloudSync = useCloudSync();
+
+  // A sync that pulled in remote changes may have replaced the stored plan;
+  // refresh the React copy so the dashboard reflects it.
+  useEffect(() => {
+    setPlan(getPlan());
+  }, [cloudSync.dataVersion]);
 
   const suggestedSessionId = plan ? getNextPlanSession(plan) : null;
 
@@ -236,11 +246,13 @@ export default function Home() {
               transition={{ duration: 0.3 }}
             >
               <Dashboard
+                key={`dash-${cloudSync.dataVersion}`}
                 onStartWorkout={() => setView('start')}
                 onViewHistory={() => setView('history')}
                 onViewSession={handleViewSession}
                 onOpenPlan={() => setView('plan')}
                 plan={plan}
+                sync={cloudSync}
               />
             </motion.div>
           )}

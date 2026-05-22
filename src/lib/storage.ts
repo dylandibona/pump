@@ -2,6 +2,18 @@ import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSetti
 
 const STORAGE_KEY = 'dylan-workout-tracker';
 
+// When true, writes skip the 'pump:changed' notification. Set while applying
+// data pulled from the cloud so the merge result doesn't echo back as a push.
+let silentWrite = false;
+
+// Broadcast that local data changed so the cloud-sync layer can schedule a
+// push. No-op on the server and during silent (remote-applied) writes.
+function emitChanged(): void {
+  if (typeof window !== 'undefined' && !silentWrite) {
+    window.dispatchEvent(new Event('pump:changed'));
+  }
+}
+
 // Default settings
 const defaultSettings: UserSettings = {
   defaultRestTime: 90,
@@ -140,9 +152,29 @@ export function saveWorkoutData(data: WorkoutData): void {
 
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    emitChanged();
   } catch (error) {
     console.error('Error saving workout data:', error);
   }
+}
+
+// Write cloud-merged data back to localStorage WITHOUT emitting a change event
+// (avoids an infinite pull→apply→push loop). Returns true if anything actually
+// changed, so the UI can decide whether to refresh.
+export function applyRemote(data: WorkoutData, plan: TrainerPlan | null): boolean {
+  if (typeof window === 'undefined') return false;
+  const before = localStorage.getItem(STORAGE_KEY) ?? '';
+  const beforePlan = localStorage.getItem(PLAN_KEY) ?? '';
+  silentWrite = true;
+  try {
+    saveWorkoutData(data);
+    if (plan) savePlan(plan); else clearPlan();
+  } finally {
+    silentWrite = false;
+  }
+  const after = localStorage.getItem(STORAGE_KEY) ?? '';
+  const afterPlan = localStorage.getItem(PLAN_KEY) ?? '';
+  return before !== after || beforePlan !== afterPlan;
 }
 
 // Session operations
@@ -404,6 +436,7 @@ const PLAN_KEY = 'dylan-workout-plan';
 export function savePlan(plan: TrainerPlan): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(PLAN_KEY, JSON.stringify(plan));
+  emitChanged();
 }
 
 export function getPlan(): TrainerPlan | null {
@@ -419,6 +452,7 @@ export function getPlan(): TrainerPlan | null {
 export function clearPlan(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(PLAN_KEY);
+  emitChanged();
 }
 
 // Returns the next plan session to run based on what was last completed

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { parseSessionDate } from '@/lib/utils';
+import { CloudSyncCard } from './CloudSyncCard';
+import type { CloudSync } from '@/hooks/useCloudSync';
 
 interface DashboardProps {
   onStartWorkout: () => void;
@@ -14,9 +16,10 @@ interface DashboardProps {
   onViewSession: (session: WorkoutSession) => void;
   onOpenPlan: () => void;
   plan: TrainerPlan | null;
+  sync: CloudSync;
 }
 
-export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpenPlan, plan }: DashboardProps) {
+export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpenPlan, plan, sync }: DashboardProps) {
   const stats = useMemo(() => getWorkoutStats(), []);
   const recentSessions = useMemo(() => getRecentSessions(5), []);
   const prs = useMemo(() => getPRs(), []);
@@ -267,6 +270,15 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
             </div>
           </motion.div>
         )}
+
+        {/* Cloud Sync */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.85 }}
+        >
+          <CloudSyncCard sync={sync} />
+        </motion.div>
 
         {/* Export / Backup */}
         <motion.div
