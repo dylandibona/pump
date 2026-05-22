@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { parseSessionDate } from '@/lib/utils';
-import { RetrowaveScene } from './RetrowaveScene';
 
 interface DashboardProps {
   onStartWorkout: () => void;
@@ -74,15 +73,21 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[color:var(--pump-hot)]/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative z-10 space-y-6">
-        {/* Retrowave hero — Monoton brand + 1987 sunset. The only place the
-            Monoton mark appears. Dashboard-only (see april 15/README.md). */}
+        {/* Brand hero — neon "Pump" header treatment. The single brand moment,
+            dashboard-only. */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
           className="-mx-4 -mt-6"
         >
-          <RetrowaveScene />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/pump-header.png"
+            alt="PUMP"
+            className="w-full h-auto block select-none"
+            draggable={false}
+          />
         </motion.div>
 
         {/* Plan status bar — tap to open Plan tab */}
