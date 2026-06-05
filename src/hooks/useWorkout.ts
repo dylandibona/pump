@@ -19,7 +19,8 @@ import {
   finalizePRs,
   isWorkingSet,
   MIN_PR_REPS,
-  deriveExerciseStatus,
+  finalizeSession,
+  dissolveBrokenSupersets,
 } from '@/lib/storage';
 
 interface UseWorkoutOptions {
@@ -310,6 +311,24 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     });
   }, [mutate]);
 
+  // Reorder exercises to match a new id order (from the reorder sheet). Any id
+  // not present is appended unchanged (defensive — never drop an exercise).
+  // Each exercise carries its own sets[], so logged data travels with the card.
+  // Supersets that are no longer adjacent after the move are auto-unlinked
+  // (dissolveBrokenSupersets) per spec §4b.
+  const reorderExercises = useCallback((orderedIds: string[]) => {
+    mutate(current => {
+      const existing = current.exercises ?? [];
+      const byId = new Map(existing.map(e => [e.id, e]));
+      const reordered = orderedIds
+        .map(id => byId.get(id))
+        .filter((e): e is GymExercise => !!e);
+      const appended = existing.filter(e => !orderedIds.includes(e.id));
+      const next = dissolveBrokenSupersets([...reordered, ...appended]);
+      return { ...current, exercises: next };
+    });
+  }, [mutate]);
+
   // Quick duplicate last set
   const duplicateLastSet = useCallback((exerciseId: string) => {
     const current = sessionRef.current;
@@ -375,30 +394,29 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
   // screen; the override path writes back via patchSession and doesn't need
   // to re-run this flow.
   const completeSession = useCallback(() => {
-    let completed: WorkoutSession | null = null;
-    mutate(current => {
-      const cleanedExercises = current.exercises?.map(ex => {
-        const autoStatus = deriveExerciseStatus(ex);
-        return {
-          ...ex,
-          // Respect an existing status (e.g. mid-session 'substituted'
-          // marker from a future wave) — only fill in when unset.
-          status: ex.status ?? autoStatus,
-          sets: ex.sets.filter(s => !s.isPlanned),
-        };
-      });
-      completed = {
-        ...current,
-        exercises: cleanedExercises,
-        endTime: new Date().toISOString(),
-        completed: true,
-      };
-      return completed;
-    });
-    if (completed && (completed as WorkoutSession).type === 'gym') {
-      finalizePRs(completed);
-    }
-  }, [mutate]);
+    // Read fresh from storage rather than the ref: every mutation persists
+    // synchronously, so storage is the authoritative latest state, and this
+    // can't silently no-op the way the old mutate() path did when the ref was
+    // null (which left sessions stuck "In Progress" with no endTime). Falls
+    // back to the ref only if storage somehow lacks the row.
+    const id = sessionRef.current?.id ?? options.sessionId;
+    if (!id) return;
+    const fresh = getSession(id) ?? sessionRef.current;
+    if (!fresh) return;
+    const completed: WorkoutSession = {
+      ...finalizeSession(fresh, { stampEnd: true }),
+      // Snapshot the live-detected PR/baseline names so the Supabase sweep can
+      // rebuild the BRIEF with highlights later (newPRs/newBaselines are hook
+      // state and gone by then).
+      ...((newPRs.length || newBaselines.length)
+        ? { prSummary: { prs: newPRs, baselines: newBaselines } }
+        : {}),
+    };
+    sessionRef.current = completed;
+    setSession(completed);
+    saveSession(completed);
+    if (completed.type === 'gym') finalizePRs(completed);
+  }, [options.sessionId, newPRs, newBaselines]);
 
   // Append a completed interval run to the session. Intervals are timed
   // conditioning blocks logged alongside exercises/cardio; they don't
@@ -496,5 +514,6 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     clearNewPRs,
     linkSuperset,
     unlinkSuperset,
+    reorderExercises,
   };
 }

@@ -140,6 +140,7 @@ export function generateBrief(
   if (totalVolume > 0) brief += `\nVOLUME: ${totalVolume.toLocaleString()} lbs\n`;
   if (newPRs.length) brief += `NEW PRs: ${newPRs.join(', ')}\n`;
   if (newBaselines.length) brief += `BASELINES: ${newBaselines.join(', ')}\n`;
+  if (session.feelScore) brief += `FEEL: ${session.feelScore}/5\n`;
   if (session.notes) brief += `\nNOTES: ${session.notes}\n`;
 
   return brief.trim();

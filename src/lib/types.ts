@@ -72,6 +72,16 @@ export interface WorkoutSession {
   intervals?: CompletedInterval[]; // timed conditioning blocks (battle ropes, Tabata, EMOM)
   notes?: string;
   completed: boolean;
+  // Post-workout "how did it feel" rating, 1 (terrible) – 5 (great). Set on
+  // the summary screen; feeds the Supabase session row (feel_score) and the
+  // BRIEF. Optional — absent until the user rates it.
+  feelScore?: number;
+  // Names of exercises that set a new PR / first baseline this session, as
+  // detected live by useWorkout. Persisted (small — just names) so the
+  // Supabase reconciliation sweep can regenerate the BRIEF with PR highlights
+  // without the live hook state. Absent for sessions finished outside the
+  // normal flow (e.g. Back-button auto-finish).
+  prSummary?: { prs: string[]; baselines: string[] };
   // ID of the PlanSession this session was launched from. Captured at
   // startSession time so plan rotation (getNextPlanSession) can match
   // deterministically instead of heuristically comparing exercise names.
@@ -205,4 +215,20 @@ export interface UserSettings {
   defaultRestTime: number; // in seconds
   weightUnit: 'lbs' | 'kg';
   distanceUnit: 'miles' | 'km';
+}
+
+// ── Health: blood pressure (non-workout) ─────────────────────────────────
+// How recently BP meds were taken, captured as quick-tap buckets (no typing).
+export type BPMedTimingBucket = 'lt1h' | '1to3h' | '3to6h' | '6to12h' | 'gt12h' | 'not_today';
+
+export interface BPReading {
+  id: string;
+  measuredAt: string;   // ISO timestamp (time of day + date)
+  systolic: number;     // mmHg
+  diastolic: number;    // mmHg
+  pulse?: number;       // bpm (optional)
+  onMeds: boolean;      // on BP meds when measured
+  medName?: string;     // e.g. 'lisinopril 10mg'
+  medTakenAgo?: BPMedTimingBucket; // only when onMeds
+  notes?: string;
 }

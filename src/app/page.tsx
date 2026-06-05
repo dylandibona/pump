@@ -17,8 +17,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 import { useWorkout } from '@/hooks/useWorkout';
 import { useCloudSync } from '@/hooks/useCloudSync';
-import { getSession, getPlan, getNextPlanSession, getPRs } from '@/lib/storage';
+import { getSession, getPlan, getNextPlanSession, getPRs, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
+import { fetchActivePlan } from '@/lib/plan-sync';
+import { pushUnsyncedSessions } from '@/lib/session-sync';
+import { pushUnsyncedBP } from '@/lib/bp-sync';
 import { parseSessionDate } from '@/lib/utils';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
@@ -45,6 +48,9 @@ export default function Home() {
   const [sessionBriefText, setSessionBriefText] = useState('');
   const [isEditingExisting, setIsEditingExisting] = useState(false);
   const [pendingPreview, setPendingPreview] = useState<{ planSession: PlanSession; date: string } | null>(null);
+  // Bumped after a cold-start cleanup so the dashboard remounts and reflects
+  // any orphaned in-progress sessions that were just finalized.
+  const [bootRefresh, setBootRefresh] = useState(0);
 
   const { session, startSession, newPRs, newBaselines, clearNewPRs } = useWorkout({
     sessionId: activeSessionId || undefined,
@@ -58,6 +64,47 @@ export default function Home() {
   useEffect(() => {
     setPlan(getPlan());
   }, [cloudSync.dataVersion]);
+
+  // Cold start: no session is active, so any in-progress session is abandoned.
+  // Finalize the ones with logged data (so they show in history with a real
+  // status instead of a permanent "In Progress" row) and drop empty shells.
+  useEffect(() => {
+    if (finalizeAbandonedSessions()) setBootRefresh(v => v + 1);
+  }, []);
+
+  // Pull the coach's active plan from Supabase (the primary plan path; paste
+  // stays as a fallback). Inert when Supabase is unconfigured. Runs on load
+  // and whenever the Plan tab is opened, so a freshly published plan version
+  // is picked up. Never touches an in-progress session — the plan lives in its
+  // own storage key.
+  const syncActivePlan = useCallback(async () => {
+    const res = await fetchActivePlan();
+    if (res.changed && res.plan) setPlan(res.plan);
+  }, []);
+
+  // Once on app load.
+  useEffect(() => {
+    syncActivePlan();
+  }, [syncActivePlan]);
+
+  // And each time the Plan tab is opened (catch a plan published mid-session).
+  useEffect(() => {
+    if (view === 'plan') syncActivePlan();
+  }, [view, syncActivePlan]);
+
+  // Push finished sessions to Supabase. Fires on load + every return to the
+  // dashboard (covers both the summary "Done" and the Back-button auto-finish,
+  // which both land on the dashboard) and on window focus. Cheap when there's
+  // nothing unsynced; inert until signed in.
+  useEffect(() => {
+    if (view === 'dashboard') { pushUnsyncedSessions(); pushUnsyncedBP(); }
+  }, [view]);
+
+  useEffect(() => {
+    const onFocus = () => { pushUnsyncedSessions(); pushUnsyncedBP(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, []);
 
   const suggestedSessionId = plan ? getNextPlanSession(plan) : null;
 
@@ -136,17 +183,27 @@ export default function Home() {
       setPendingPreview(null);
       setView('start');
     } else if (view === 'gym' || view === 'cardio') {
-      if (confirm('Leave current workout? Your progress is saved.')) {
-        setActiveSessionId(null);
-        setView('dashboard');
+      // Leaving an active session finishes it (if anything was logged) so it
+      // lands in history with a real duration instead of lingering as "In
+      // Progress"; an untouched session is discarded silently. Confirm only
+      // when there's logged work to commit. Editing an existing completed
+      // session just returns without re-finalizing.
+      const id = activeSessionId;
+      const current = id ? getSession(id) : null;
+      if (!isEditingExisting && current && hasLoggedData(current)) {
+        if (!confirm('Finish this workout and leave? It will be saved to your history.')) return;
       }
+      if (id && !isEditingExisting) finishOrDiscardSession(id);
+      setActiveSessionId(null);
+      setIsEditingExisting(false);
+      setView('dashboard');
     } else if (view === 'history' || view === 'session-detail') {
       setViewingSession(null);
       setView(view === 'session-detail' ? 'history' : 'dashboard');
     } else {
       setView('dashboard');
     }
-  }, [view]);
+  }, [view, activeSessionId, isEditingExisting]);
 
   const handleTabChange = useCallback((tab: TabKey) => {
     if (tab === 'workout') setView('dashboard');
@@ -246,7 +303,7 @@ export default function Home() {
               transition={{ duration: 0.3 }}
             >
               <Dashboard
-                key={`dash-${cloudSync.dataVersion}`}
+                key={`dash-${cloudSync.dataVersion}-${bootRefresh}`}
                 onStartWorkout={() => setView('start')}
                 onViewHistory={() => setView('history')}
                 onViewSession={handleViewSession}

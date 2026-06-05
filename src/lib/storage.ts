@@ -1,4 +1,4 @@
-import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet, TrainerPlan, ExerciseStatus } from './types';
+import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet, TrainerPlan, ExerciseStatus, BPReading } from './types';
 
 const STORAGE_KEY = 'dylan-workout-tracker';
 
@@ -228,6 +228,172 @@ export function getRecentSessions(limit: number = 10): WorkoutSession[] {
   return [...data.sessions]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, limit);
+}
+
+// ── Session completion + abandonment ─────────────────────────────────────
+// A session has "logged data" if anything real was recorded: a logged set,
+// a cardio entry, or a completed interval. Planned placeholders (isPlanned)
+// and empty rows don't count — an untouched plan preload is not logged data.
+export function hasLoggedData(session: WorkoutSession): boolean {
+  const hasSets = !!session.exercises?.some(ex =>
+    ex.sets.some(s => !s.isPlanned && (s.reps > 0 || s.weight > 0 || s.isBodyweight))
+  );
+  const hasCardio = !!session.cardio?.length;
+  const hasIntervals = !!session.intervals?.length;
+  return hasSets || hasCardio || hasIntervals;
+}
+
+// Finalize a session: derive per-exercise status (before stripping isPlanned
+// placeholders, which deriveExerciseStatus needs to compute the ratio), drop
+// those scaffold rows, mark completed. `stampEnd` controls endTime: true when
+// the session is finishing NOW (normal completion or on-exit auto-finish, so
+// endTime = now gives a real duration); false when retroactively closing an
+// already-abandoned session whose true end is unknown (leave endTime as-is so
+// we don't fabricate a multi-day duration). Pure — does not persist.
+export function finalizeSession(
+  session: WorkoutSession,
+  opts: { stampEnd?: boolean } = {},
+): WorkoutSession {
+  const exercises = session.exercises?.map(ex => ({
+    ...ex,
+    status: ex.status ?? deriveExerciseStatus(ex),
+    sets: ex.sets.filter(s => !s.isPlanned),
+  }));
+  return {
+    ...session,
+    exercises,
+    endTime: opts.stampEnd ? session.endTime ?? new Date().toISOString() : session.endTime,
+    completed: true,
+  };
+}
+
+// On leaving an active session (Back button): if anything was logged, finish
+// it for real (stamp endTime = now, derive status, commit PRs) so it lands in
+// history with a duration instead of lingering as "In Progress". If nothing
+// was logged, discard the empty shell. Reads the session FRESH from storage
+// by id so it picks up sets written by another useWorkout instance — never
+// finalize a stale in-memory copy, which would clobber logged sets.
+export function finishOrDiscardSession(id: string): 'finished' | 'discarded' | 'missing' {
+  const session = getSession(id);
+  if (!session) return 'missing';
+  if (!hasLoggedData(session)) {
+    deleteSession(id);
+    return 'discarded';
+  }
+  const finalized = finalizeSession(session, { stampEnd: true });
+  saveSession(finalized);
+  if (finalized.type === 'gym') finalizePRs(finalized);
+  return 'finished';
+}
+
+// One-time cleanup of orphaned in-progress sessions. An app cold-start has no
+// active session, so any completed:false session is abandoned: close the ones
+// with logged data (without fabricating an endTime — true end unknown) and
+// drop empty shells. Call only when nothing is mid-session. Returns true if it
+// changed anything, so the caller can refresh.
+export function finalizeAbandonedSessions(): boolean {
+  const data = getWorkoutData();
+  let changed = false;
+  const kept: WorkoutSession[] = [];
+  const newlyFinalized: WorkoutSession[] = [];
+  for (const s of data.sessions) {
+    if (s.completed) { kept.push(s); continue; }
+    if (!hasLoggedData(s)) { changed = true; continue; } // drop empty shell
+    const finalized = finalizeSession(s, { stampEnd: false });
+    kept.push(finalized);
+    newlyFinalized.push(finalized);
+    changed = true;
+  }
+  if (changed) {
+    data.sessions = kept;
+    saveWorkoutData(data);
+    newlyFinalized.forEach(s => { if (s.type === 'gym') finalizePRs(s); });
+  }
+  return changed;
+}
+
+// After a reorder, a superset only holds if its members stay adjacent. Clear
+// the supersetGroupId of any exercise no longer next to a group-mate, then
+// dissolve any group reduced to a single member (a lone member isn't a
+// superset). Pure — returns a new array. Matches pump_build_spec_v2.md §4b:
+// "moving a superset member out of adjacency auto-unlinks it."
+export function dissolveBrokenSupersets(exercises: GymExercise[]): GymExercise[] {
+  // Pass 1: unlink members with no same-group neighbor.
+  const adjacencyChecked = exercises.map((ex, i) => {
+    if (!ex.supersetGroupId) return ex;
+    const prev = exercises[i - 1];
+    const next = exercises[i + 1];
+    const adjacent =
+      prev?.supersetGroupId === ex.supersetGroupId || next?.supersetGroupId === ex.supersetGroupId;
+    return adjacent ? ex : { ...ex, supersetGroupId: undefined };
+  });
+  // Pass 2: dissolve groups now down to one member.
+  const counts = new Map<string, number>();
+  for (const ex of adjacencyChecked) {
+    if (ex.supersetGroupId) counts.set(ex.supersetGroupId, (counts.get(ex.supersetGroupId) ?? 0) + 1);
+  }
+  return adjacencyChecked.map(ex =>
+    ex.supersetGroupId && (counts.get(ex.supersetGroupId) ?? 0) <= 1
+      ? { ...ex, supersetGroupId: undefined }
+      : ex,
+  );
+}
+
+// Computed session duration in whole minutes, or null when the end is unknown.
+// Single source of truth for display and the Supabase session write (step 4).
+export function sessionDurationMin(session: WorkoutSession): number | null {
+  if (!session.endTime) return null;
+  const ms = new Date(session.endTime).getTime() - new Date(session.startTime).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  return Math.round(ms / 1000 / 60);
+}
+
+// ── Blood pressure readings ──────────────────────────────────────────────
+// Local store, separate key from workout data (the Upstash envelope only
+// carries WorkoutData, so BP readings sync to Supabase only — see bp-sync.ts).
+const BP_KEY = 'pump-bp-readings';
+
+export function getBPReadings(): BPReading[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(BP_KEY);
+    const list = raw ? (JSON.parse(raw) as BPReading[]) : [];
+    return [...list].sort((a, b) => new Date(b.measuredAt).getTime() - new Date(a.measuredAt).getTime());
+  } catch {
+    return [];
+  }
+}
+
+export function saveBPReading(reading: BPReading): void {
+  if (typeof window === 'undefined') return;
+  const all = getBPReadings();
+  const idx = all.findIndex(r => r.id === reading.id);
+  if (idx >= 0) all[idx] = reading;
+  else all.push(reading);
+  try {
+    localStorage.setItem(BP_KEY, JSON.stringify(all));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function deleteBPReading(id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(BP_KEY, JSON.stringify(getBPReadings().filter(r => r.id !== id)));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+// AHA blood-pressure category (highest applicable). Used for instant feedback.
+export type BPCategory = 'normal' | 'elevated' | 'stage1' | 'stage2' | 'crisis';
+export function classifyBP(systolic: number, diastolic: number): BPCategory {
+  if (systolic > 180 || diastolic > 120) return 'crisis';
+  if (systolic >= 140 || diastolic >= 90) return 'stage2';
+  if (systolic >= 130 || diastolic >= 80) return 'stage1';
+  if (systolic >= 120) return 'elevated';
+  return 'normal';
 }
 
 // PR operations

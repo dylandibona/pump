@@ -103,6 +103,17 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
     }
   };
 
+  // Session feel — 1 (rough) to 5 (great). Writes through to storage and the
+  // local session copy so the BRIEF (and the Supabase session row) pick it up.
+  // Tapping the active value again clears it.
+  const [feelScore, setFeelScore] = useState<number | undefined>(session.feelScore);
+  const handleSetFeel = (n: number) => {
+    const next = feelScore === n ? undefined : n;
+    setFeelScore(next);
+    setSession(s => ({ ...s, feelScore: next }));
+    patchSession(session.id, { feelScore: next });
+  };
+
   const buildBrief = () =>
     generateBrief({ ...session, notes: notes.trim() }, plan, newPRs, newBaselines);
 
@@ -480,6 +491,52 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
         )}
 
         {/* Session Notes — captured here so they flow into the BRIEF */}
+        {/* Session feel — 1 (rough) to 5 (great), feeds feel_score + BRIEF */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.9 }}
+          className="space-y-2"
+        >
+          <p className="text-xs tracking-[0.2em] uppercase text-[color:var(--pump-cyan-deep)] font-mono">
+            How did it feel?
+          </p>
+          <div className="grid grid-cols-5 gap-2">
+            {[1, 2, 3, 4, 5].map((n) => {
+              const active = feelScore === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => handleSetFeel(n)}
+                  aria-pressed={active}
+                  aria-label={`Feel ${n} of 5`}
+                  className="touch-target rounded-xl font-display text-lg transition-all active:scale-95"
+                  style={
+                    active
+                      ? {
+                          background: 'var(--pump-grad-hot)',
+                          color: '#fff',
+                          boxShadow: '0 6px 18px -8px rgba(255,0,128,0.6)',
+                        }
+                      : {
+                          background: 'var(--pump-bg-input)',
+                          color: 'var(--pump-text-mid)',
+                          border: '1px solid var(--pump-border-card)',
+                        }
+                  }
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-[10px] uppercase tracking-wider text-[color:var(--pump-text-dim)] font-mono px-1">
+            <span>Rough</span>
+            <span>Great</span>
+          </div>
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

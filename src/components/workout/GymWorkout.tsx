@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, X, Plus, Copy, FileText, Check, Activity, Bike, Waves, Ship, Footprints, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trophy, X, Plus, Copy, FileText, Check, Activity, Bike, Waves, Ship, Footprints, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ import { ExerciseAutocomplete } from './ExerciseAutocomplete';
 import { RestTimerInline } from './Timer';
 import { WorkoutTimerBar } from './WorkoutTimerBar';
 import { IntervalFlow } from './IntervalFlow';
+import { ReorderExercisesSheet } from './ReorderExercisesSheet';
 import { Timer as TimerIcon, Zap } from 'lucide-react';
 import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet, CardioActivity, CardioEntry } from '@/lib/types';
@@ -42,6 +43,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
     logInterval,
     linkSuperset,
     unlinkSuperset,
+    reorderExercises,
     completeSession,
     getSessionStats,
     clearNewPRs,
@@ -52,6 +54,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
   const [showCardioSection, setShowCardioSection] = useState(false);
   const [showIntervalFlow, setShowIntervalFlow] = useState(false);
   const [linkingExerciseId, setLinkingExerciseId] = useState<string | null>(null);
+  const [showReorder, setShowReorder] = useState(false);
   const planLoadedRef = useRef(false);
   const prevPRCountRef = useRef(newPRs.length);
 
@@ -181,6 +184,19 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Reorder entry — only meaningful with 2+ exercises */}
+      {session.exercises && session.exercises.length >= 2 && (
+        <div className="flex justify-end -mb-2">
+          <button
+            onClick={() => setShowReorder(true)}
+            className="text-xs font-display tracking-wider text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 py-1 touch-target"
+          >
+            <ArrowUpDown className="w-3.5 h-3.5" />
+            REORDER
+          </button>
+        </div>
+      )}
 
       {/* Exercise List */}
       {session.exercises?.map((exercise, index) => {
@@ -430,6 +446,14 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
           logInterval(completed);
           setShowIntervalFlow(false);
         }}
+      />
+
+      {/* Reorder exercises + auto-unlink supersets moved apart (§4b) */}
+      <ReorderExercisesSheet
+        open={showReorder}
+        onOpenChange={setShowReorder}
+        exercises={session.exercises ?? []}
+        onReorder={reorderExercises}
       />
     </div>
   );

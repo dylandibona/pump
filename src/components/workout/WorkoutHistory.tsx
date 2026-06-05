@@ -210,7 +210,8 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
                                   {session.type.toUpperCase()}
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                  {formatDate(session.date)} · {formatDuration(session.startTime, session.endTime)}
+                                  {formatDate(session.date)}
+                                  {session.endTime ? ` · ${formatDuration(session.startTime, session.endTime)}` : ''}
                                 </p>
                               </div>
                             </div>
