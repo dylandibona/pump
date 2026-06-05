@@ -4,6 +4,17 @@
 
 ## Completed
 
+### Jun 5 2026 session — Supabase cutover (Phase 1) + UI fixes
+- [x] **Supabase auth** — magic-link sign-in gate (`AuthGate`), session persists to localStorage. App hard-gates when configured.
+- [x] **Active-plan fetch** — pulls the coach's active plan from Supabase on load / Plan tab (`plan-sync.ts`); PlanLoader paste is now the fallback.
+- [x] **Session write on finish** — reconciliation sweep writes finished sessions to Supabase `sessions` (`session-sync.ts`); dedup + offline retry; forward-only baseline.
+- [x] **Session feel field** — 1–5 rating on the summary → `feel_score` + BRIEF.
+- [x] **"In Progress" status bug (4a)** — root cause was Back-button abandonment; auto-finish-on-exit + cold-mount cleanup + hardened `completeSession`.
+- [x] **Reorder exercises + edit supersets mid-workout (4b)** — dedicated reorder sheet (framer `Reorder`); superset members moved apart auto-unlink.
+- [x] **Partial-set audit (4c)** — confirmed the local set-completion path persists through save + reload.
+- [x] **Blood pressure recorder** — dashboard "Log BP" card + entry sheet (SYS/DIA/pulse, time, lisinopril toggle + how-long-ago buckets, notes, live AHA category). Local-first, swept to Supabase `bp_readings`.
+- _Pending Phase 2:_ retire Upstash (gated on second-device verification). See `pump_build_spec_v2.md`.
+
 ### May 21–22 2026 session
 - [x] **Neon Pump wordmark** — replaced the Monoton/RetrowaveScene hero with the `pump-header.png` banner (full-bleed, flush to top); regenerated favicon + apple-touch + PWA icons from the new mark; brand kit saved as `public/pump-*.png`.
 - [x] **Stale duplicate cleanup** — a 662 MB untracked `app/` copy was shadowing `src/app/` and breaking local build/dev (404s). Archived to `_Code Projects/_archive/`. All app code lives under `src/`.
@@ -44,19 +55,17 @@
 
 ## High Priority
 
+### Health (non-workout)
+- [ ] **BP history / trend view** — the recorder shipped Jun 5 (entry only). Add a category-colored list of past readings + a 7-day average / simple trend; fits the History tab or a dedicated mini-view.
+- [ ] **BP reading edit/delete** — tap a past reading to correct or remove it (storage + sweep already support delete).
+
 ### PUMP OS
-- [ ] Session feel / notes field on summary screen (feeds into BRIEF)
 - [ ] Plan progress indicator — "Session 3 of 12" style tracking
 - [ ] Next session preview on dashboard — show what's coming up
 - [ ] BRIEF share sheet — native iOS share instead of clipboard + open tab
 - [ ] Superset auto-detection from plan (when `supersetWith` is set, auto-link on pre-fill)
 
 ### Core UX
-- [ ] **Reorder exercises + edit supersets mid-workout** — let the user shuffle exercise order in an active session (to superset by equipment availability/feel) and link/unlink supersets on the fly.
-  - **Recommended approach:** a dedicated "reorder" sheet/view (not inline drag). The live exercise cards are full of number inputs, so inline drag-and-drop fights with typing/scrolling on mobile. A focused surface shows compact cards (name + set count + superset badge) with drag handles.
-  - **Why it's data-safe:** reordering only changes the order of `session.exercises[]`; each exercise object carries its own `sets[]`, so logged data travels with the card — nothing is lost on the round trip. Write back via the existing `saveSession`/`patchSession` path; GymWorkout re-reads on return. The rest timer / active-session state is untouched.
-  - **Tooling:** use framer-motion `Reorder.Group`/`Reorder.Item` (already a dependency) for touch-friendly DnD — no new lib.
-  - **Supersets:** modeled via `GymExercise.supersetGroupId`. Unlink = clear the id; link = assign a shared id to adjacent exercises. Open question to settle: when a superset member is moved, move the whole group together (keep members adjacent) or auto-unlink it.
 - [ ] Swipe to delete sets
 - [ ] Auto-start rest timer after logging a set (opt-in)
 - [ ] Recently used exercises at top of search

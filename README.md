@@ -31,10 +31,11 @@ Part of the **PUMP OS** — a training system where a Claude Health Project acts
 - Standalone or mixed into a gym session
 
 ### General
-- Session summary with full stats
+- Session summary with full stats + 1–5 feel rating
+- Reorder exercises + edit supersets mid-workout
 - Workout history browser
 - Personal records dashboard
-- All data local — no account, no server
+- Local-first: all data in localStorage, with cloud sync + magic-link login (Supabase; Upstash legacy)
 - PWA — install to home screen
 
 ---
@@ -46,7 +47,8 @@ Part of the **PUMP OS** — a training system where a Claude Health Project acts
 - **shadcn/ui** — base-ui components
 - **Framer Motion** — animations
 - **Lucide React** — icons
-- **localStorage** — all persistence
+- **localStorage** — primary persistence (local-first)
+- **Supabase** — auth (magic link) + plan/session cloud sync (mid-migration off Upstash Redis)
 
 ---
 
@@ -96,7 +98,9 @@ src/
 
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | Context for Claude Code — architecture, decisions, gotchas |
-| `TECH_SPECS.md` | Full technical reference — schema, components, styling |
+| `CLAUDE.md` | Context for Claude Code — architecture, decisions, gotchas (the living reference) |
+| `pump_build_spec_v2.md` | Supabase cutover spec — Phase 1 done, Phase 2 (retire Upstash) pending |
 | `BACKLOG.md` | Prioritized feature backlog |
+| `april 15/` | Design package — DESIGN_SYSTEM.md (theme source of truth), retrowave reference |
+| `_archive/` | Historical docs (old TECH_SPECS, audits, session notes) — see `_archive/README.md` |
 | `../trainer-os/` | PUMP OS system docs — trainer setup, formats, user guide |
