@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Heart } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Heart, X } from 'lucide-react';
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { getBPReadings, saveBPReading, classifyBP, generateId, type BPCategory } from '@/lib/storage';
 import { pushUnsyncedBP } from '@/lib/bp-sync';
 import type { BPMedTimingBucket, BPReading } from '@/lib/types';
@@ -103,15 +103,23 @@ export function BloodPressureSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[88vh] glass-strong border-t-2 border-primary/30 overflow-y-auto">
-        <SheetHeader>
+      <SheetContent side="bottom" showCloseButton={false} className="h-[90dvh] glass-strong border-t-2 border-primary/30 flex flex-col p-0 gap-0">
+        <SheetHeader className="shrink-0 px-4 pt-4 pb-2 relative">
           <SheetTitle className="font-display text-2xl tracking-wider text-gradient text-center flex items-center justify-center gap-2">
             <Heart className="w-5 h-5 text-[color:var(--pump-hot)]" />
             BLOOD PRESSURE
           </SheetTitle>
+          <SheetClose
+            aria-label="Close"
+            render={
+              <button className="absolute top-1 right-1 touch-target flex items-center justify-center rounded-full text-[color:var(--pump-text-dim)] hover:text-[color:var(--pump-text)] active:scale-95 transition" />
+            }
+          >
+            <X className="w-6 h-6" />
+          </SheetClose>
         </SheetHeader>
 
-        <div className="px-4 pb-28 space-y-5 mt-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2 space-y-5">
           {/* SYS / DIA */}
           <div className="pump-card p-4">
             <div className="flex items-center justify-center gap-3">
@@ -245,8 +253,8 @@ export function BloodPressureSheet({
           />
         </div>
 
-        {/* Save */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-[color:var(--pump-bg-card)] border-t border-[color:var(--pump-border-card)]">
+        {/* Save — pinned footer (does not scroll) */}
+        <div className="shrink-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] bg-[color:var(--pump-bg-card)] border-t border-[color:var(--pump-border-card)]">
           <motion.button
             type="button"
             onClick={handleSave}
