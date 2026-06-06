@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import type { Session } from '@supabase/supabase-js';
 import { motion } from 'framer-motion';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -12,8 +13,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 // auto-restores on every subsequent launch.
 //
 // If Supabase env vars are absent (e.g. a build where they were never set), we
-// fall through to the app ungated rather than brick it — Phase 1 stays additive
-// and the app still runs localStorage-only.
+// fall through to the app ungated rather than brick it.
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
@@ -44,17 +44,23 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   return <SignIn />;
 }
 
+// Brief loading state. Uses the same dark scene as SignIn so the transition
+// into the form is seamless (no flash of light-theme bg).
 function Splash() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <motion.img
-        src="/pump-header.png"
-        alt="Pump"
-        className="w-48 max-w-[60vw]"
-        initial={{ opacity: 0.4 }}
-        animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-      />
+    <div className="min-h-screen relative overflow-hidden" style={{ background: '#0A0020' }}>
+      <Image src="/pump-scene-empty.png" alt="" fill className="object-cover opacity-90" priority />
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(10,0,32,0.25) 0%, rgba(10,0,32,0.0) 50%, rgba(10,0,32,0.55) 100%)' }} />
+      <div className="absolute inset-0 flex items-center justify-center px-6">
+        <motion.div
+          initial={{ opacity: 0.5, scale: 0.98 }}
+          animate={{ opacity: [0.6, 1, 0.6], scale: [0.98, 1, 0.98] }}
+          transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          style={{ filter: 'drop-shadow(0 8px 28px rgba(255,0,128,0.5)) drop-shadow(0 0 18px rgba(0,255,238,0.2))' }}
+        >
+          <Image src="/lets-pump.png" alt="Let's Pump!" width={1200} height={800} priority className="w-[78vw] max-w-[480px] h-auto" />
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -83,88 +89,163 @@ function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background relative">
-      <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
-      <div className="fixed inset-0 bg-grid pointer-events-none opacity-30" />
+    <div className="min-h-screen relative overflow-hidden" style={{ background: '#0A0020' }}>
+      {/* Full-bleed empty-state scene — chrome dumbbell floating over a night-sky
+          sunset, palm silhouettes flanking. Different brand moment from the
+          dashboard's energetic neon banner (calm arrival energy). */}
+      <Image
+        src="/pump-scene-empty.png"
+        alt=""
+        fill
+        priority
+        className="object-cover"
+        style={{ objectPosition: 'center center' }}
+      />
+      {/* Vignette only where it's needed — top is left bright so the wordmark
+          glows, bottom darkens so the form has guaranteed contrast. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(10,0,32,0.0) 0%, rgba(10,0,32,0.0) 50%, rgba(10,0,32,0.45) 80%, rgba(10,0,32,0.85) 100%)',
+        }}
+      />
 
-      <motion.div
-        className="w-full max-w-sm relative z-10"
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <img src="/pump-header.png" alt="Pump" className="w-44 mx-auto mb-8" />
+      <div className="absolute inset-0 flex flex-col">
+        {/* Let's Pump! brushy script logo as the brand moment. Transparent PNG so
+            it composites cleanly over the scene. Soft drop-shadow rather than
+            text-shadow because text-shadow on a raster image would be ignored. */}
+        <motion.div
+          className="px-6 pt-10 flex justify-center"
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Image
+            src="/lets-pump.png"
+            alt="Let's Pump!"
+            width={1200}
+            height={800}
+            priority
+            className="w-[78%] max-w-[420px] h-auto"
+            style={{
+              filter:
+                'drop-shadow(0 8px 28px rgba(255,0,128,0.45)) drop-shadow(0 0 18px rgba(0,255,238,0.18))',
+            }}
+          />
+        </motion.div>
 
-        {status === 'sent' ? (
-          <div className="pump-card pump-card--active p-6 text-center">
-            <p
-              className="text-2xl mb-2 text-[color:var(--pump-hot)] text-glow-hot"
-              style={{ fontFamily: 'var(--font-pacifico), cursive' }}
-            >
-              Check your email
-            </p>
-            <p className="text-sm text-muted-foreground">
-              We sent a sign-in link to{' '}
-              <span className="text-foreground font-medium">{email.trim()}</span>. Tap it on this
-              device to log in.
-            </p>
-            <button
-              type="button"
-              onClick={() => setStatus('idle')}
-              className="mt-5 text-xs tracking-wider text-muted-foreground hover:text-foreground transition-colors uppercase"
-            >
-              Use a different email
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="pump-card p-6 space-y-4">
-            <div className="space-y-1">
-              <label
-                htmlFor="auth-email"
-                className="text-xs tracking-[0.18em] uppercase text-muted-foreground"
-              >
-                Sign in to Pump
-              </label>
-              <input
-                id="auth-email"
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                autoFocus
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="touch-target w-full rounded-lg border border-[color:var(--pump-border-card)] bg-[color:var(--pump-bg-input)] px-4 text-base text-foreground placeholder:text-muted-foreground outline-none focus:border-[color:var(--pump-hot)] transition-colors"
-              />
-            </div>
+        <div className="flex-1" />
 
-            {status === 'error' && (
-              <p className="text-sm text-destructive" aria-live="polite">
-                {error || 'Something went wrong. Try again.'}
-              </p>
-            )}
-
-            <motion.button
-              type="submit"
-              disabled={status === 'sending'}
-              whileTap={{ scale: 0.98 }}
-              className="touch-target w-full rounded-xl text-white text-xl disabled:opacity-60 transition-opacity"
+        {/* Dark-glass form — floats over the sunset, doesn't compete with it. */}
+        <motion.div
+          className="px-6 pb-10"
+          style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+        >
+          <div
+            className="rounded-3xl p-6 relative overflow-hidden"
+            style={{
+              background: 'rgba(10, 0, 32, 0.55)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              boxShadow:
+                '0 16px 40px -16px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,255,238,0.06)',
+            }}
+          >
+            <div
+              className="absolute inset-x-0 top-0 h-[2px]"
               style={{
-                fontFamily: 'var(--font-pacifico), cursive',
-                background: 'var(--pump-grad-hot)',
-                boxShadow: '0 8px 24px -8px rgba(255,0,128,0.6)',
+                background:
+                  'linear-gradient(90deg, transparent, rgba(0,255,238,0.6), rgba(255,0,128,0.6), transparent)',
+                boxShadow: '0 0 8px rgba(0,255,238,0.4)',
               }}
-            >
-              {status === 'sending' ? 'Sending…' : 'Send magic link'}
-            </motion.button>
+            />
 
-            <p className="text-[11px] leading-relaxed text-muted-foreground text-center">
-              A one-time link will be emailed to you. No password.
-            </p>
-          </form>
-        )}
-      </motion.div>
+            {status === 'sent' ? (
+              <div className="text-center">
+                <p
+                  className="text-[10px] tracking-[0.3em] uppercase font-bold mb-3"
+                  style={{ color: 'rgba(0,255,238,0.95)' }}
+                >
+                  Check your email
+                </p>
+                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                  We sent a sign-in link to{' '}
+                  <span className="font-medium text-white">{email.trim()}</span>. Tap it on this device to log in.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setStatus('idle')}
+                  className="mt-5 text-[10px] tracking-[0.18em] uppercase font-semibold transition-colors"
+                  style={{ color: 'rgba(255,255,255,0.55)' }}
+                >
+                  Use a different email
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit}>
+                <label
+                  htmlFor="auth-email"
+                  className="text-[10px] tracking-[0.3em] uppercase font-bold block mb-3"
+                  style={{ color: 'rgba(0,255,238,0.95)' }}
+                >
+                  Welcome back
+                </label>
+
+                <input
+                  id="auth-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  autoFocus
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="touch-target w-full rounded-xl px-4 text-base outline-none transition-colors"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                  }}
+                />
+
+                {status === 'error' && (
+                  <p className="text-sm mt-3" style={{ color: '#FF6B95' }} aria-live="polite">
+                    {error || 'Something went wrong. Try again.'}
+                  </p>
+                )}
+
+                <motion.button
+                  type="submit"
+                  disabled={status === 'sending'}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full mt-3 rounded-xl py-4 text-white text-2xl active:scale-[0.98] transition disabled:opacity-60"
+                  style={{
+                    fontFamily: 'var(--font-pacifico), cursive',
+                    background: 'var(--pump-grad-hot)',
+                    boxShadow:
+                      '0 12px 32px -8px rgba(255,0,128,0.7), 0 0 24px rgba(255,0,128,0.25)',
+                  }}
+                >
+                  {status === 'sending' ? 'Sending…' : 'Send magic link'}
+                </motion.button>
+
+                <p
+                  className="text-[10px] tracking-[0.15em] uppercase font-semibold text-center mt-4"
+                  style={{ color: 'rgba(255,255,255,0.55)' }}
+                >
+                  One-time link · No password
+                </p>
+              </form>
+            )}
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 }

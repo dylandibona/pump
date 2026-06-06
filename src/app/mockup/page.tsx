@@ -40,7 +40,10 @@ export default function Mockup() {
         <SectionLabel>07 · Blood pressure sheet (refreshed)</SectionLabel>
         <BPSheetMock />
 
-        <SectionLabel>08 · App icon refresh</SectionLabel>
+        <SectionLabel>08 · Sign-in (refreshed)</SectionLabel>
+        <SignInMock />
+
+        <SectionLabel>09 · App icon refresh</SectionLabel>
         <IconMock />
       </div>
     </main>
@@ -690,6 +693,87 @@ function BPSheetMock() {
           style={{ fontFamily: 'var(--font-pacifico), cursive', background: 'var(--pump-grad-hot)', boxShadow: '0 8px 24px -8px rgba(255,0,128,0.55)' }}>
           Save Reading
         </button>
+      </div>
+    </div>
+  );
+}
+
+function SignInMock() {
+  return (
+    <div className="mx-4 rounded-3xl overflow-hidden relative" style={{ aspectRatio: '9/16', boxShadow: '0 16px 48px -16px rgba(139,0,255,0.45)' }}>
+      {/* Empty-state scene is vertical 3:4 and built for portrait — atmospheric
+          night sky at top (room for wordmark), sunset + palm silhouettes at the
+          bottom (atmosphere for the form). Different brand moment from the
+          dashboard's energetic neon banner. */}
+      <Image src="/pump-scene-empty.png" alt="" fill className="object-cover" style={{ objectPosition: 'center center' }} />
+      {/* Gentle vignette only at the bottom so the form has guaranteed contrast */}
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(10,0,32,0.0) 0%, rgba(10,0,32,0.0) 50%, rgba(10,0,32,0.45) 80%, rgba(10,0,32,0.8) 100%)' }} />
+
+      <div className="absolute inset-0 flex flex-col">
+        {/* Wordmark — the brushy hot-pink + cyan Let's Pump! mark. Its OWN brand
+            moment, distinct from the dashboard's banner asset. Soft drop-shadow
+            so it sits cleanly over the scene without competing for glow. */}
+        <div className="px-6 pt-10 flex justify-center">
+          <Image
+            src="/lets-pump.png"
+            alt="Let's Pump!"
+            width={1200}
+            height={800}
+            priority
+            className="w-[78%] h-auto"
+            style={{ filter: 'drop-shadow(0 8px 28px rgba(255,0,128,0.45)) drop-shadow(0 0 18px rgba(0,255,238,0.18))' }}
+          />
+        </div>
+
+        <div className="flex-1" />
+
+        {/* Dark-glass form — floats over the sunset, doesn't compete with it */}
+        <div className="px-6 pb-10">
+          <div className="rounded-3xl p-6 relative overflow-hidden"
+            style={{
+              background: 'rgba(10, 0, 32, 0.55)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              boxShadow: '0 16px 40px -16px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,255,238,0.06)',
+            }}>
+            <div className="absolute inset-x-0 top-0 h-[2px]" style={{
+              background: 'linear-gradient(90deg, transparent, rgba(0,255,238,0.6), rgba(255,0,128,0.6), transparent)',
+              boxShadow: '0 0 8px rgba(0,255,238,0.4)',
+            }} />
+
+            <p className="text-[10px] tracking-[0.3em] uppercase font-bold mb-3"
+              style={{ color: 'rgba(0,255,238,0.95)' }}>
+              Welcome back
+            </p>
+
+            <input
+              type="email"
+              placeholder="you@example.com"
+              defaultValue="dylan@dylandibona.com"
+              className="w-full rounded-xl px-4 py-3 text-base outline-none"
+              style={{
+                background: 'rgba(255,255,255,0.06)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.12)',
+              }}
+            />
+
+            <button className="w-full mt-3 rounded-xl py-4 text-white text-2xl active:scale-[0.98] transition"
+              style={{
+                fontFamily: 'var(--font-pacifico), cursive',
+                background: 'var(--pump-grad-hot)',
+                boxShadow: '0 12px 32px -8px rgba(255,0,128,0.7), 0 0 24px rgba(255,0,128,0.25)',
+              }}>
+              Send magic link
+            </button>
+
+            <p className="text-[10px] tracking-[0.15em] uppercase font-semibold text-center mt-4"
+              style={{ color: 'rgba(255,255,255,0.55)' }}>
+              One-time link · No password
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
