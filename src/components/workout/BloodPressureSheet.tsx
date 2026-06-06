@@ -103,7 +103,16 @@ export function BloodPressureSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" showCloseButton={false} className="h-[90dvh] glass-strong border-t-2 border-primary/30 flex flex-col p-0 gap-0">
+      <SheetContent
+        side="bottom"
+        showCloseButton={false}
+        // Inline height beats the base primitive's `data-[side=bottom]:h-auto`
+        // variant (higher specificity than a plain h-[90dvh] class), which was
+        // letting the sheet size to its content and push its header above the
+        // viewport with no way to reach the close button.
+        style={{ height: '90dvh', maxHeight: '90dvh' }}
+        className="glass-strong border-t-2 border-primary/30 flex flex-col p-0 gap-0"
+      >
         <SheetHeader className="shrink-0 px-4 pt-4 pb-2 relative">
           <SheetTitle className="font-display text-2xl tracking-wider text-gradient text-center flex items-center justify-center gap-2">
             <Heart className="w-5 h-5 text-[color:var(--pump-hot)]" />
