@@ -50,6 +50,14 @@
   catch.
 - [x] **Pacifico moment CTA universal** — Let's Go, Save Reading, Done, Open
   with trainer, Send magic link, Finish Workout.
+- [x] **Pass 5 — closed the mockup-vs-live audit** (see `MOCKUP_AUDIT.md`):
+  - Gym cockpit atmospheric header (`WorkoutTimerBar` rebuilt on
+    `pump-scene-gym.png` + Pacifico up-next exercise + `glow-state--urgent`
+    rest pulse + inline pink note panel); timer logic unchanged.
+  - Workout-complete hero scene band (`pump-scene-complete.png`).
+  - First-run empty state → `pump-scene-beach.png` scene card.
+  - BP heart safe-area overflow fix.
+  - `font-mono` className swept to `tabular-nums` across components.
 
 ### Jun 5 2026 session — Supabase cutover (Phase 1) + UI fixes
 - [x] **Supabase auth** — magic-link sign-in gate (`AuthGate`), session persists to localStorage. App hard-gates when configured.
@@ -101,6 +109,14 @@
 ---
 
 ## High Priority
+
+### Queued — scoped passes (deferred from Pass 5, by decision)
+- [ ] **Fused superset block** — one cockpit card with a single shared input
+  toggling between the two exercises (mockup §02). A logging-UX change that
+  needs its own testing scope; not bundled with the Pass 5 visual refresh.
+- [ ] **Cardio cinematic splash** — the atmospheric `pump-scene-cardio.png`
+  moment (mockup §05) belongs on a dedicated "start cardio" screen, not the
+  multi-activity logger (which stays as-is).
 
 ### Health (non-workout)
 - [ ] **BP history / trend view** — the recorder shipped Jun 5 (entry only). Add a category-colored list of past readings + a 7-day average / simple trend; fits the History tab or a dedicated mini-view.
