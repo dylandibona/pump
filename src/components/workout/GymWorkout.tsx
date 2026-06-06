@@ -169,7 +169,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
                   <Trophy className="w-6 h-6 text-accent" />
                 </motion.div>
                 <div>
-                  <p className="font-display text-2xl tracking-wider text-accent text-glow-hot">
+                  <p className="font-display text-2xl tracking-wider" style={{ color: 'var(--pump-cyan-deep)' }}>
                     NEW BEST!
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -399,22 +399,22 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
           </p>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="font-display text-4xl text-primary text-glow-neon">
+              <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-text)' }}>
                 {stats.exerciseCount}
               </p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Exercises</p>
+              <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>Exercises</p>
             </div>
             <div>
-              <p className="font-display text-4xl text-primary text-glow-neon">
+              <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-text)' }}>
                 {stats.totalSets}
               </p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">Sets</p>
+              <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>Sets</p>
             </div>
             <div>
-              <p className="font-display text-4xl text-primary text-glow-neon">
+              <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-hot)' }}>
                 {(stats.totalVolume as number).toLocaleString()}
               </p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wider">lbs</p>
+              <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>lbs</p>
             </div>
           </div>
         </motion.div>

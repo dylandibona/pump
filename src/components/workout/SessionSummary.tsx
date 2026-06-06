@@ -560,31 +560,79 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
           />
         </motion.div>
 
-        {/* Send to Trainer */}
+        {/* Sync reassurance — the most important thing on this screen.
+            The session is ALREADY in Supabase (one row, idempotent) before the
+            user taps anything. The honest framing prevents "Send recap" from
+            implying that the data hasn't been sent. */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.95 }}
+          transition={{ delay: 0.94 }}
+          className="flex items-center gap-2 rounded-2xl px-3 py-2.5"
+          style={{ background: 'rgba(0,168,158,0.08)', border: '1px solid rgba(0,168,158,0.18)' }}
+        >
+          <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+            style={{ background: 'var(--pump-cyan-deep)' }}>
+            <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] tracking-[0.2em] uppercase font-bold" style={{ color: 'var(--pump-cyan-deep)' }}>Synced to trainer</p>
+            <p className="text-xs" style={{ color: 'var(--pump-text-mid)' }}>Your trainer sees this in their dashboard. No paste needed.</p>
+          </div>
+        </motion.div>
+
+        {/* Primary action — "Done" is honest now (the data is already where it
+            belongs). Pacifico on hot gradient = V3 moment. */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.97 }}
+        >
+          <motion.button
+            type="button"
+            onClick={onClose}
+            whileTap={{ scale: 0.98 }}
+            className="w-full rounded-2xl py-4 text-white text-2xl"
+            style={{
+              fontFamily: 'var(--font-pacifico), cursive',
+              background: 'var(--pump-grad-hot)',
+              boxShadow: '0 8px 24px -8px rgba(255,0,128,0.55)',
+            }}
+          >
+            Done
+          </motion.button>
+        </motion.div>
+
+        {/* Secondary — opens a conversation with the trainer (still copies the
+            brief; users who want immediate chat in claude.ai can use this). */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.0 }}
           className="space-y-3"
         >
-          <Button
+          <button
+            type="button"
             onClick={handleSendToTrainer}
-            variant="outline"
-            className="w-full h-14 font-display text-lg tracking-widest border-2 hover:border-primary/50 hover:bg-primary/5 transition-all group"
-            size="lg"
+            className="w-full rounded-2xl py-3.5 flex items-center justify-center gap-2 text-sm tracking-[0.18em] uppercase font-bold transition-all"
+            style={{
+              background: 'transparent',
+              color: 'var(--pump-text-mid)',
+              border: '1px solid var(--pump-border-card)',
+            }}
           >
             {briefCopied ? (
               <>
-                <Check className="w-5 h-5 mr-2 text-primary" />
-                <span>COPIED! PASTE INTO HEALTH PROJECT</span>
+                <Check className="w-4 h-4" />
+                Brief copied — paste in chat
               </>
             ) : (
               <>
-                <Send className="w-5 h-5 mr-2" />
-                COPY WORKOUT SUMMARY FOR TRAINER
+                <Send className="w-4 h-4" />
+                Open with trainer
               </>
             )}
-          </Button>
+          </button>
 
           {showBrief && (
             <motion.div
@@ -592,40 +640,24 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
               animate={{ opacity: 1, height: 'auto' }}
               className="overflow-hidden"
             >
-              <div className="glass rounded-2xl p-4 space-y-2">
-                <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
-                  YOUR BRIEF — paste into Health Project
+              <div className="rounded-2xl p-4 space-y-2" style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)' }}>
+                <p className="text-[10px] tracking-[0.2em] uppercase font-bold" style={{ color: 'var(--pump-cyan-deep)' }}>
+                  Brief copy — paste in your Health Project chat
                 </p>
                 <textarea
                   readOnly
                   value={brief}
-                  className="w-full min-h-[200px] bg-background/50 border border-white/10 rounded-xl p-3 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-primary/50"
+                  className="w-full min-h-[200px] rounded-xl p-3 text-xs resize-none focus:outline-none"
+                  style={{
+                    background: 'var(--pump-bg-input)',
+                    color: 'var(--pump-text)',
+                    border: '1px solid var(--pump-border-card)',
+                  }}
                   onFocus={(e) => e.target.select()}
                 />
               </div>
             </motion.div>
           )}
-        </motion.div>
-
-        {/* Done Button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
-        >
-          <Button
-            onClick={onClose}
-            className={`w-full h-16 font-display text-xl tracking-widest relative overflow-hidden group touch-target`}
-            size="lg"
-          >
-            <span className="relative z-10">DONE</span>
-            <div className={`absolute inset-0 bg-gradient-to-r ${
-              isGym
-                ? 'from-primary via-accent to-primary'
-                : 'from-accent via-primary to-accent'
-            } bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity`} />
-            <div className={`absolute inset-0 ${isGym ? 'glow-neon' : 'glow-hot'} opacity-50 group-hover:opacity-100 transition-opacity`} />
-          </Button>
         </motion.div>
       </div>
     </div>
