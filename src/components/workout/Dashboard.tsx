@@ -2,12 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart, Plus } from 'lucide-react';
+import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { parseSessionDate } from '@/lib/utils';
-import { CloudSyncCard } from './CloudSyncCard';
 import { BloodPressureSheet } from './BloodPressureSheet';
 import { fetchPRs, getCachedPRs, currentBestPerExercise, type CuratedPR } from '@/lib/prs-sync';
 import type { CloudSync } from '@/hooks/useCloudSync';
@@ -36,6 +35,19 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
   const prs = useMemo(() => currentBestPerExercise(prsAll), [prsAll]);
 
   const [showBP, setShowBP] = useState(false);
+
+  // Display name for a session in the Recent rows. Prefer the plan-session
+  // name (e.g. "Push Day" / "Lower + Core") when this session was launched
+  // from a plan; fall back to a capitalized type for free-form sessions. Match
+  // is by planSessionId — that's the stable id we store at start, not a name
+  // overlap heuristic.
+  const sessionLabel = (s: WorkoutSession): string => {
+    if (s.planSessionId && plan) {
+      const ps = plan.sessions.find(p => p.id === s.planSessionId);
+      if (ps) return ps.name;
+    }
+    return s.type === 'gym' ? 'Gym' : 'Cardio';
+  };
 
   const handleExport = () => {
     const json = exportData();
@@ -106,28 +118,50 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           />
         </motion.div>
 
-        {/* Plan status bar — tap to open Plan tab */}
-        <motion.button
-          onClick={onOpenPlan}
-          className="w-full glass rounded-xl p-3 flex items-center gap-3 text-left group"
+        {/* Plan chip + inline BP heart button — one row, per mockup §01.
+            Plan chip expands; BP is a compact hot-gradient heart so the BP
+            log is one tap from anywhere but doesn't take a full row. */}
+        <motion.div
+          className="flex items-center gap-2"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
-          whileTap={{ scale: 0.99 }}
         >
-          <div className="w-10 h-10 rounded-lg bg-[color:var(--pump-cyan-deep)]/14 flex items-center justify-center text-[color:var(--pump-cyan-deep)] shrink-0">
-            <ClipboardList className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-mono tracking-[0.2em] text-muted-foreground uppercase">
-              {plan ? 'ACTIVE PLAN' : 'NO PLAN LOADED'}
-            </p>
-            <p className="text-sm font-semibold truncate">
-              {plan ? `${plan.name} · v${plan.version}` : 'Paste a trainer plan →'}
-            </p>
-          </div>
-          <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-[color:var(--pump-hot)] transition-colors shrink-0" />
-        </motion.button>
+          <motion.button
+            onClick={onOpenPlan}
+            className="flex-1 flex items-center gap-3 rounded-2xl px-4 py-3 text-left"
+            style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.06)' }}
+            whileTap={{ scale: 0.99 }}
+          >
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: 'rgba(0,168,158,0.10)', color: 'var(--pump-cyan-deep)' }}>
+              <ClipboardList className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] tracking-[0.2em] uppercase font-bold" style={{ color: 'var(--pump-text-dim)' }}>
+                {plan ? 'Active plan' : 'No plan loaded'}
+              </p>
+              <p className="text-sm font-semibold truncate" style={{ color: 'var(--pump-text)' }}>
+                {plan ? `${plan.name} · v${plan.version}` : 'Paste a trainer plan →'}
+              </p>
+            </div>
+            <ChevronRight className="w-4 h-4 shrink-0" style={{ color: 'var(--pump-text-dim)' }} />
+          </motion.button>
+          <motion.button
+            type="button"
+            onClick={() => setShowBP(true)}
+            aria-label="Log blood pressure"
+            whileTap={{ scale: 0.96 }}
+            className="shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{
+              background: 'var(--pump-grad-hot)',
+              boxShadow: '0 6px 16px -8px rgba(255,0,128,0.55)',
+              color: '#fff',
+            }}
+          >
+            <Heart className="w-5 h-5" />
+          </motion.button>
+        </motion.div>
 
         {/* Start Workout CTA */}
         <motion.div
@@ -175,31 +209,10 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           />
         </motion.div>
 
-        {/* Blood pressure — quick log + last reading */}
-        <motion.button
-          type="button"
-          onClick={() => setShowBP(true)}
-          aria-label="Log blood pressure"
-          className="pump-card w-full p-4 flex items-center gap-3 text-left hover:border-primary/30 transition-all"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <div className="w-11 h-11 rounded-xl flex items-center justify-center bg-[color:var(--pump-hot)]/10 shrink-0">
-            <Heart className="w-5 h-5 text-[color:var(--pump-hot)]" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Blood Pressure</p>
-            <p className="text-base font-semibold" style={{ color: 'var(--pump-text)' }}>Log a reading</p>
-          </div>
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white"
-            style={{ background: 'var(--pump-grad-hot)', boxShadow: '0 4px 12px -4px rgba(255,0,128,0.6)' }}
-          >
-            <Plus className="w-5 h-5" />
-          </div>
-        </motion.button>
+        {/* BP entry lives inline with the plan chip above (mockup §01).
+            The full-width "Log a reading" card was an interim layout — removed
+            so the BP affordance stays compact and the dashboard flows hero →
+            chip+BP → CTA → stats → recent → PR, matching the mockup. */}
 
         {/* Recent Workouts */}
         <motion.div
@@ -245,9 +258,9 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold capitalize" style={{ color: 'var(--pump-text)' }}>{session.type}</span>
+                      <span className="font-semibold truncate" style={{ color: 'var(--pump-text)' }}>{sessionLabel(session)}</span>
                       {!session.completed && (
-                        <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full font-bold"
+                        <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full font-bold shrink-0"
                           style={{ background: 'rgba(0,168,158,0.12)', color: 'var(--pump-cyan-deep)' }}>
                           In Progress
                         </span>
