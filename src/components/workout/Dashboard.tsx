@@ -19,6 +19,14 @@ const BP_CATEGORY_COLOR: Record<BPCategory, string> = {
   crisis: '#C20000',
 };
 
+const BP_CATEGORY_LABEL: Record<BPCategory, string> = {
+  normal: 'Normal',
+  elevated: 'Elevated',
+  stage1: 'Stage 1',
+  stage2: 'Stage 2',
+  crisis: 'Crisis',
+};
+
 function relativeTime(iso: string): string {
   const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (diffMin < 1) return 'just now';
@@ -207,7 +215,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
                   className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white"
                   style={{ background: BP_CATEGORY_COLOR[classifyBP(lastBP.systolic, lastBP.diastolic)] }}
                 >
-                  {classifyBP(lastBP.systolic, lastBP.diastolic)}
+                  {BP_CATEGORY_LABEL[classifyBP(lastBP.systolic, lastBP.diastolic)]}
                 </span>
                 <span className="text-xs text-muted-foreground font-normal">{relativeTime(lastBP.measuredAt)}</span>
               </p>
