@@ -1,4 +1,5 @@
 import { TrainerPlan, PlanSession, PlanExercise } from './types';
+import { normalizeExerciseName } from './exercises';
 
 // Validate and normalize a pasted trainer plan JSON. Returns the normalized
 // plan (hyphen-only dashes in targetReps, preserved fields otherwise) or
@@ -135,7 +136,7 @@ export function validateAndNormalizePlan(raw: unknown): PlanValidationResult {
       }
 
       normalizedExercises.push({
-        name: String(rawEx.name ?? ''),
+        name: normalizeExerciseName(String(rawEx.name ?? '')),
         sets: typeof rawEx.sets === 'number' ? rawEx.sets : 0,
         targetReps: normalizeTargetReps(rawEx.targetReps),
         targetWeight: typeof rawEx.targetWeight === 'number' ? rawEx.targetWeight : undefined,

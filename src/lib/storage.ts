@@ -1,4 +1,5 @@
 import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet, TrainerPlan, ExerciseStatus, BPReading } from './types';
+import { normalizeExerciseName } from './exercises';
 
 const STORAGE_KEY = 'dylan-workout-tracker';
 
@@ -128,12 +129,35 @@ export function getWorkoutData(): WorkoutData {
     };
 
     // Backfill e1rm on legacy PR records (per-set Epley from stored weight/reps).
-    // Preserves existing weight/reps; does not mutate storage until next save.
+    // Also normalize exercise names everywhere they live (sessions, PRs) so the
+    // "Curl standing curl" class of bug heals on next load. Preserves all other
+    // fields; only renames + adds e1rm. Persists if anything changed.
     let mutated = false;
     data.personalRecords = data.personalRecords.map(pr => {
-      if (typeof pr.e1rm === 'number' && pr.e1rm > 0) return pr;
+      const normalized = normalizeExerciseName(pr.exerciseName);
+      let next = pr;
+      if (normalized !== pr.exerciseName) {
+        mutated = true;
+        next = { ...next, exerciseName: normalized };
+      }
+      if (!(typeof next.e1rm === 'number' && next.e1rm > 0)) {
+        mutated = true;
+        next = { ...next, e1rm: computeE1RM(next.weight, next.reps) };
+      }
+      return next;
+    });
+    data.sessions = data.sessions.map(s => {
+      if (!s.exercises?.length) return s;
+      let touched = false;
+      const exercises = s.exercises.map(ex => {
+        const normalized = normalizeExerciseName(ex.name);
+        if (normalized === ex.name) return ex;
+        touched = true;
+        return { ...ex, name: normalized };
+      });
+      if (!touched) return s;
       mutated = true;
-      return { ...pr, e1rm: computeE1RM(pr.weight, pr.reps) };
+      return { ...s, exercises };
     });
     if (mutated) {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
@@ -420,15 +444,19 @@ export function finalizePRs(session: WorkoutSession): void {
     const best = bestPRCandidate(exercise.sets);
     if (!best) return;
 
+    // Normalize at the write boundary so PR labels are canonical even if a
+    // legacy session in storage still carries a malformed name.
+    const exerciseName = normalizeExerciseName(exercise.name);
+
     const idx = data.personalRecords.findIndex(
-      pr => pr.exerciseName.toLowerCase() === exercise.name.toLowerCase()
+      pr => pr.exerciseName.toLowerCase() === exerciseName.toLowerCase()
     );
     const e1rm = computeE1RM(best.weight, best.reps);
 
     if (idx < 0) {
       // Silent baseline — first qualifying set for this exercise.
       data.personalRecords.push({
-        exerciseName: exercise.name,
+        exerciseName,
         weight: best.weight,
         reps: best.reps,
         e1rm,

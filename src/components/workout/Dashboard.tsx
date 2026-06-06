@@ -1,14 +1,15 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
+import { getRecentSessions, getWorkoutStats, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { parseSessionDate } from '@/lib/utils';
 import { CloudSyncCard } from './CloudSyncCard';
 import { BloodPressureSheet } from './BloodPressureSheet';
+import { fetchPRs, getCachedPRs, currentBestPerExercise, type CuratedPR } from '@/lib/prs-sync';
 import type { CloudSync } from '@/hooks/useCloudSync';
 
 interface DashboardProps {
@@ -23,7 +24,16 @@ interface DashboardProps {
 export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpenPlan, plan, sync }: DashboardProps) {
   const stats = useMemo(() => getWorkoutStats(), []);
   const recentSessions = useMemo(() => getRecentSessions(5), []);
-  const prs = useMemo(() => getPRs(), []);
+  // Records come from the curated Supabase `prs` table (cached locally for
+  // instant first paint). The local PersonalRecord store is no longer read
+  // here — it stays only for the in-session "new best" badge.
+  const [prsAll, setPrsAll] = useState<CuratedPR[]>(() => getCachedPRs());
+  useEffect(() => {
+    let cancelled = false;
+    fetchPRs().then(fresh => { if (!cancelled) setPrsAll(fresh); });
+    return () => { cancelled = true; };
+  }, []);
+  const prs = useMemo(() => currentBestPerExercise(prsAll), [prsAll]);
 
   const [showBP, setShowBP] = useState(false);
 
@@ -280,19 +290,28 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
             <div className="glass rounded-xl p-4 space-y-2 max-h-64 overflow-y-auto hide-scrollbar">
               {prs.slice(0, 8).map((pr, index) => (
                 <motion.div
-                  key={pr.exerciseName}
+                  key={`${pr.exercise}-${pr.kind}`}
                   className="flex items-center justify-between py-2 border-b border-white/5 last:border-0"
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.8 + index * 0.05 }}
                 >
-                  <span className="text-sm font-medium truncate mr-4">{pr.exerciseName}</span>
+                  <span className="text-sm font-medium truncate mr-4">{pr.exercise}</span>
                   <div className="flex items-center gap-2">
                     <span className="tag tag--pr">
                       {pr.weight}×{pr.reps}
                     </span>
-                    <span className="text-[10px] font-mono tracking-wider text-muted-foreground">
-                      {parseSessionDate(pr.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    <span
+                      className="text-[9px] tracking-wider uppercase font-bold rounded-full px-1.5 py-0.5"
+                      style={{
+                        background: pr.kind === 'load' ? 'rgba(255,0,128,0.10)' : 'rgba(0,168,158,0.12)',
+                        color: pr.kind === 'load' ? 'var(--pump-hot)' : 'var(--pump-cyan-deep)',
+                      }}
+                    >
+                      {pr.kind}
+                    </span>
+                    <span className="text-[10px] tracking-wider text-muted-foreground">
+                      {parseSessionDate(pr.achievedOn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
                 </motion.div>

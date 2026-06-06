@@ -386,7 +386,7 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
                         {exercise.name.toUpperCase()}
                       </span>
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {isNewPR && <span className="pr-badge">NEW PR</span>}
+                        {isNewPR && <span className="pr-badge">NEW BEST</span>}
                         {isBaseline && <span className="tag tag--warmup">BASELINE</span>}
                         <button
                           onClick={() => toggleEditor(exercise.id)}

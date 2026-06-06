@@ -170,7 +170,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
                 </motion.div>
                 <div>
                   <p className="font-display text-2xl tracking-wider text-accent text-glow-hot">
-                    NEW PR!
+                    NEW BEST!
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {newPRs.join(', ')}
@@ -547,7 +547,7 @@ function ExerciseCard({
               )}
               {pr && (
                 <span className="tag tag--pr">
-                  PR {pr.weight}×{pr.reps}
+                  Best {pr.weight}×{pr.reps}
                 </span>
               )}
               {isSuperset && (

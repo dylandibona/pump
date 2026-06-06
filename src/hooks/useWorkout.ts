@@ -10,6 +10,7 @@ import {
   CardioActivity,
   CompletedInterval,
 } from '@/lib/types';
+import { normalizeExerciseName } from '@/lib/exercises';
 import {
   saveSession,
   getSession,
@@ -131,11 +132,12 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     return newSession;
   }, []);
 
-  // Add a gym exercise
+  // Add a gym exercise. Name is normalized at the entry point so the canonical
+  // form reaches every downstream surface (picker, log, PR labels, brief).
   const addExercise = useCallback((name: string, initialSets?: GymSet[]) => {
     const newExercise: GymExercise = {
       id: generateId(),
-      name,
+      name: normalizeExerciseName(name),
       sets: initialSets ?? [],
     };
     mutate(current => ({
@@ -166,7 +168,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     if (items.length === 0) return;
     const newExercises: GymExercise[] = items.map(item => ({
       id: generateId(),
-      name: item.name,
+      name: normalizeExerciseName(item.name),
       sets: item.sets,
       ...(item.supersetGroupId && { supersetGroupId: item.supersetGroupId }),
       ...(item.equipment && { equipment: item.equipment }),

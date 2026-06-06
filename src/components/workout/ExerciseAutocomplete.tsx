@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { getExerciseSuggestions } from '@/lib/exercises';
+import { getExerciseSuggestions, normalizeExerciseName } from '@/lib/exercises';
 import { ExerciseInfo } from '@/lib/types';
 
 interface ExerciseAutocompleteProps {
@@ -54,8 +54,9 @@ export function ExerciseAutocomplete({
   }, [onChange, onSelect]);
 
   const handleCustomSubmit = useCallback(() => {
-    if (value.trim()) {
-      onSelect(value.trim());
+    const cleaned = normalizeExerciseName(value);
+    if (cleaned) {
+      onSelect(cleaned);
       setIsOpen(false);
       setSuggestions([]);
     }

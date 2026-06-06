@@ -147,7 +147,7 @@ export function generateBrief(
     sum + ex.sets.filter(isWorkingSet).reduce((s2, set) => s2 + set.weight * set.reps, 0), 0) ?? 0;
 
   if (totalVolume > 0) brief += `\nVOLUME: ${totalVolume.toLocaleString()} lbs\n`;
-  if (newPRs.length) brief += `NEW PRs: ${newPRs.join(', ')}\n`;
+  if (newPRs.length) brief += `NEW BESTS: ${newPRs.join(', ')}\n`;
   if (newBaselines.length) brief += `BASELINES: ${newBaselines.join(', ')}\n`;
   if (session.feelScore) brief += `FEEL: ${session.feelScore}/5\n`;
   if (session.notes) brief += `\nNOTES: ${session.notes}\n`;

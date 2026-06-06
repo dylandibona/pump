@@ -160,3 +160,73 @@ export function getExercisesByMuscleGroup(muscleGroup: string): ExerciseInfo[] {
     ex.muscleGroups.some(g => g.toLowerCase() === muscleGroup.toLowerCase())
   );
 }
+
+// ─── Name normalization ────────────────────────────────────────────────
+// One source of truth. Applied at every entry point (storage writes, plan
+// import, autocomplete commit) so the same canonical name reaches every
+// surface (picker, log, PR labels, brief).
+//
+// Fixes seen in the wild:
+//   "Curl standing curl"  → "Standing Curl"   (autocomplete prefix orphan)
+//   "incline bench Row"   → "Incline Bench Row" (mixed case)
+//   "  Bench   Press "    → "Bench Press"     (whitespace)
+//   "Barbell barbell Curl"→ "Barbell Curl"    (duplicated equipment prefix)
+//
+// Strategy:
+//   1. Trim + collapse internal whitespace
+//   2. Dedupe repeated *tokens* (case-insensitive) preserving last occurrence
+//   3. Snap to a library name if a case-insensitive exact match exists (so
+//      "BENCH PRESS" becomes the canonical "Bench Press")
+//   4. Title-case the result with small-word + hyphen handling
+const SMALL_WORDS = new Set(['a', 'an', 'and', 'at', 'but', 'by', 'for', 'in', 'nor', 'of', 'on', 'or', 'the', 'to', 'up', 'with']);
+
+function dedupeRepeatedTokens(name: string): string {
+  const tokens = name.split(/\s+/).filter(Boolean);
+  if (tokens.length < 2) return name;
+  // Walk RIGHT-TO-LEFT keeping the last occurrence of each token (lowercased).
+  // "curl standing curl" → keep the second "curl", drop the first → "standing curl".
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  for (let i = tokens.length - 1; i >= 0; i--) {
+    const key = tokens[i].toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    kept.unshift(tokens[i]);
+  }
+  return kept.join(' ');
+}
+
+function titleCaseWord(word: string, isFirst: boolean): string {
+  // Preserve known acronyms / very-short uppercase tokens (e.g. EZ, T).
+  if (word === word.toUpperCase() && word.length <= 2) return word;
+  if (word.includes('-')) {
+    return word
+      .split('-')
+      .map((p, i) => titleCaseWord(p, i === 0 && isFirst))
+      .join('-');
+  }
+  const lower = word.toLowerCase();
+  if (!isFirst && SMALL_WORDS.has(lower)) return lower;
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+function titleCase(name: string): string {
+  const tokens = name.split(/\s+/).filter(Boolean);
+  return tokens.map((t, i) => titleCaseWord(t, i === 0)).join(' ');
+}
+
+// Library lookup map — built once, case-insensitive snap to canonical names.
+const LIBRARY_BY_LOWER = new Map<string, string>(
+  exerciseLibrary.map(ex => [ex.name.toLowerCase(), ex.name]),
+);
+
+export function normalizeExerciseName(raw: string): string {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.replace(/\s+/g, ' ').trim();
+  if (!trimmed) return '';
+  const deduped = dedupeRepeatedTokens(trimmed);
+  // Snap to canonical library name if we have an exact (case-insensitive) match.
+  const canonical = LIBRARY_BY_LOWER.get(deduped.toLowerCase());
+  if (canonical) return canonical;
+  return titleCase(deduped);
+}
