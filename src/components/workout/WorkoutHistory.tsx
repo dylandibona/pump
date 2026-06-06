@@ -119,19 +119,19 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="glass rounded-xl p-4 text-center">
-            <p className="font-display text-4xl text-primary text-glow-neon">
+          <div className="surface-warm rounded-2xl p-4 text-center">
+            <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-text)' }}>
               {filteredSessions.length}
             </p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+            <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>
               Total Workouts
             </p>
           </div>
-          <div className="glass rounded-xl p-4 text-center">
-            <p className="font-display text-4xl text-accent text-glow-hot">
+          <div className="surface-warm--hot rounded-2xl p-4 text-center">
+            <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-hot)' }}>
               {thisMonthCount}
             </p>
-            <p className="text-xs text-muted-foreground uppercase tracking-wider">
+            <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>
               This Month
             </p>
           </div>
@@ -154,8 +154,8 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
               >
                 <Inbox className="w-10 h-10 text-muted-foreground" />
               </motion.div>
-              <p className="font-display text-2xl tracking-wider text-muted-foreground">
-                NO WORKOUTS FOUND
+              <p className="font-display text-xl tracking-[0.18em] uppercase" style={{ color: 'var(--pump-text-mid)' }}>
+                No workouts found
               </p>
               <p className="text-sm text-muted-foreground/60 mt-2">
                 Time to start lifting!
@@ -189,27 +189,25 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
                       >
                         <motion.button
                           onClick={() => onViewSession(session)}
-                          className="w-full text-left glass rounded-xl p-4 hover:border-primary/30 transition-all group"
-                          whileHover={{ scale: 1.01, x: 4 }}
+                          className="w-full text-left rounded-2xl p-3 transition-all"
+                          style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)' }}
                           whileTap={{ scale: 0.99 }}
                         >
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                              <motion.div
-                                className={`w-12 h-12 flex items-center justify-center rounded-xl ${
-                                  session.type === 'gym'
-                                    ? 'bg-primary/20 group-hover:bg-primary/30 text-primary'
-                                    : 'bg-accent/20 group-hover:bg-accent/30 text-accent'
-                                } transition-colors`}
-                                whileHover={{ scale: 1.1, rotate: 5 }}
-                              >
-                                {session.type === 'gym' ? <Dumbbell className="w-6 h-6" /> : <Activity className="w-6 h-6" />}
-                              </motion.div>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 flex items-center justify-center rounded-xl shrink-0 ${
+                                session.type === 'gym'
+                                  ? 'text-[color:var(--pump-hot)]'
+                                  : 'text-[color:var(--pump-cyan-deep)]'
+                              }`}
+                                style={{ background: session.type === 'gym' ? 'rgba(255,0,128,0.08)' : 'rgba(0,168,158,0.10)' }}>
+                                {session.type === 'gym' ? <Dumbbell className="w-5 h-5" /> : <Activity className="w-5 h-5" />}
+                              </div>
                               <div>
-                                <p className="font-display text-xl tracking-wider">
-                                  {session.type.toUpperCase()}
+                                <p className="font-semibold capitalize" style={{ color: 'var(--pump-text)' }}>
+                                  {session.type}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <p className="text-xs" style={{ color: 'var(--pump-text-dim)' }}>
                                   {formatDate(session.date)}
                                   {session.endTime ? ` · ${formatDuration(session.startTime, session.endTime)}` : ''}
                                 </p>
@@ -217,12 +215,12 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
                             </div>
                             <div className="text-right">
                               {session.type === 'gym' && session.exercises && (
-                                <p className="font-mono text-primary">
+                                <p className="text-sm tabular-nums" style={{ color: 'var(--pump-text-mid)' }}>
                                   {session.exercises.length} exercises
                                 </p>
                               )}
                               {session.type === 'cardio' && session.cardio && (
-                                <p className="font-mono text-accent">
+                                <p className="text-sm tabular-nums" style={{ color: 'var(--pump-cyan-deep)' }}>
                                   {session.cardio.reduce((sum, c) => sum + (c.distance ?? 0), 0).toFixed(2)} mi
                                 </p>
                               )}
@@ -231,37 +229,37 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
 
                           {/* Exercise preview badges */}
                           {session.type === 'gym' && session.exercises && session.exercises.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-3 ml-16">
+                            <div className="flex flex-wrap gap-1.5 mt-3 ml-[52px]">
                               {session.exercises.slice(0, 4).map((ex) => (
-                                <Badge
-                                  key={ex.id}
-                                  variant="secondary"
-                                  className="text-xs bg-secondary/50"
-                                >
+                                <span key={ex.id} className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                  style={{ background: 'var(--pump-bg-input)', color: 'var(--pump-text-mid)' }}>
                                   {ex.name}
-                                </Badge>
+                                </span>
                               ))}
                               {session.exercises.length > 4 && (
-                                <Badge variant="outline" className="text-xs">
+                                <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums"
+                                  style={{ background: 'transparent', color: 'var(--pump-text-dim)', border: '1px solid var(--pump-border-card)' }}>
                                   +{session.exercises.length - 4}
-                                </Badge>
+                                </span>
                               )}
                             </div>
                           )}
                         </motion.button>
 
+                        {/* Delete — demoted to a tiny low-contrast affordance so a
+                            mis-tap can't easily nuke a session. */}
                         <div className="flex justify-end mt-1 pr-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
+                          <button
+                            type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDelete(session.id);
                             }}
-                            className="text-destructive text-xs hover:bg-destructive/10"
+                            className="text-[10px] tracking-[0.18em] uppercase font-semibold px-2 py-1 rounded-md transition-colors"
+                            style={{ color: 'var(--pump-text-dim)' }}
                           >
                             Delete
-                          </Button>
+                          </button>
                         </div>
                       </motion.div>
                     ))}

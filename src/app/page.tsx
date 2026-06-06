@@ -309,10 +309,12 @@ export default function Home() {
               <motion.h1
                 className={
                   isScriptTitle
-                    ? 'text-3xl text-[color:var(--pump-hot)] text-glow-hot'
-                    : 'font-display text-xl tracking-wider text-gradient'
+                    ? 'text-3xl'
+                    : 'font-display text-lg tracking-[0.18em] uppercase'
                 }
-                style={isScriptTitle ? { fontFamily: 'var(--font-pacifico), cursive' } : undefined}
+                style={isScriptTitle
+                  ? { fontFamily: 'var(--font-pacifico), cursive', color: 'var(--pump-hot)' }
+                  : { color: 'var(--pump-text)' }}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
@@ -601,12 +603,10 @@ function SessionDetailView({
         >
           {isGym ? <Dumbbell className="w-10 h-10" /> : <Activity className="w-10 h-10" />}
         </motion.div>
-        <h1 className={`font-display text-4xl tracking-wider ${
-          isGym ? 'text-primary text-glow-neon' : 'text-accent text-glow-hot'
-        }`}>
-          {session.type.toUpperCase()} WORKOUT
+        <h1 className="font-display text-3xl tracking-[0.12em] uppercase" style={{ color: 'var(--pump-text)' }}>
+          {session.type === 'gym' ? 'Gym' : 'Cardio'} Workout
         </h1>
-        <p className="text-muted-foreground mt-2">{formatDate(session.date)}</p>
+        <p className="text-sm mt-2" style={{ color: 'var(--pump-text-dim)' }}>{formatDate(session.date)}</p>
       </motion.div>
 
       {/* Gym Exercises */}
@@ -620,26 +620,26 @@ function SessionDetailView({
           {session.exercises.map((exercise, index) => (
             <motion.div
               key={exercise.id}
-              className="glass rounded-xl p-4"
+              className="rounded-2xl p-4"
+              style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)' }}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 + index * 0.05 }}
             >
-              <h3 className="font-display text-xl tracking-wider text-foreground mb-3">
-                {exercise.name.toUpperCase()}
+              <h3 className="font-display text-lg tracking-[0.05em] mb-3" style={{ color: 'var(--pump-text)' }}>
+                {exercise.name}
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 {exercise.sets.map((set, i) => (
                   <div
                     key={i}
-                    className={`flex justify-between items-center py-2 px-3 rounded-lg ${
-                      set.isWarmup ? 'bg-secondary/20 text-muted-foreground' : 'bg-secondary/40'
-                    }`}
+                    className="flex justify-between items-center py-2 px-3 rounded-lg"
+                    style={{ background: set.isWarmup ? 'rgba(10,0,32,0.04)' : 'var(--pump-bg-input)' }}
                   >
-                    <span className="font-display">
-                      {set.isWarmup ? 'WARMUP' : `SET ${i + 1}`}
+                    <span className="text-[10px] tracking-[0.18em] uppercase font-bold" style={{ color: 'var(--pump-text-dim)' }}>
+                      {set.isWarmup ? 'Warmup' : `Set ${i + 1}`}
                     </span>
-                    <span className="font-mono text-primary">
+                    <span className="tabular-nums font-display" style={{ color: 'var(--pump-text)' }}>
                       {set.weight} lbs × {set.reps}
                     </span>
                   </div>
