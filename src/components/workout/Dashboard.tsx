@@ -4,38 +4,12 @@ import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getRecentSessions, getWorkoutStats, getPRs, exportData, getBPReadings, classifyBP, type BPCategory } from '@/lib/storage';
+import { getRecentSessions, getWorkoutStats, getPRs, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { parseSessionDate } from '@/lib/utils';
 import { CloudSyncCard } from './CloudSyncCard';
 import { BloodPressureSheet } from './BloodPressureSheet';
 import type { CloudSync } from '@/hooks/useCloudSync';
-
-const BP_CATEGORY_COLOR: Record<BPCategory, string> = {
-  normal: '#00A89E',
-  elevated: '#D98C00',
-  stage1: '#FF6B00',
-  stage2: '#FF0080',
-  crisis: '#C20000',
-};
-
-const BP_CATEGORY_LABEL: Record<BPCategory, string> = {
-  normal: 'Normal',
-  elevated: 'Elevated',
-  stage1: 'Stage 1',
-  stage2: 'Stage 2',
-  crisis: 'Crisis',
-};
-
-function relativeTime(iso: string): string {
-  const diffMin = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  if (diffMin < 1) return 'just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const h = Math.round(diffMin / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.round(h / 24);
-  return d === 1 ? 'yesterday' : `${d}d ago`;
-}
 
 interface DashboardProps {
   onStartWorkout: () => void;
@@ -52,8 +26,6 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
   const prs = useMemo(() => getPRs(), []);
 
   const [showBP, setShowBP] = useState(false);
-  const [bpVersion, setBpVersion] = useState(0);
-  const lastBP = useMemo(() => getBPReadings()[0] ?? null, [bpVersion]);
 
   const handleExport = () => {
     const json = exportData();
@@ -209,20 +181,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Blood Pressure</p>
-            {lastBP ? (
-              <p className="font-display text-lg tracking-wide flex items-center gap-2">
-                <span className="tabular-nums">{lastBP.systolic}/{lastBP.diastolic}</span>
-                <span
-                  className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full text-white"
-                  style={{ background: BP_CATEGORY_COLOR[classifyBP(lastBP.systolic, lastBP.diastolic)] }}
-                >
-                  {BP_CATEGORY_LABEL[classifyBP(lastBP.systolic, lastBP.diastolic)]}
-                </span>
-                <span className="text-xs text-muted-foreground font-normal">{relativeTime(lastBP.measuredAt)}</span>
-              </p>
-            ) : (
-              <p className="font-display text-lg tracking-wide text-[color:var(--pump-text)]">Log a reading</p>
-            )}
+            <p className="font-display text-lg tracking-wide text-[color:var(--pump-text)]">Log a reading</p>
           </div>
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white"
@@ -368,11 +327,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
         </motion.div>
       </div>
 
-      <BloodPressureSheet
-        open={showBP}
-        onOpenChange={setShowBP}
-        onSaved={() => setBpVersion(v => v + 1)}
-      />
+      <BloodPressureSheet open={showBP} onOpenChange={setShowBP} />
     </div>
   );
 }
