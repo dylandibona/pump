@@ -52,6 +52,16 @@ export default function Home() {
   // any orphaned in-progress sessions that were just finalized.
   const [bootRefresh, setBootRefresh] = useState(0);
 
+  // True once the user has scrolled past the inline nav bar — drives a
+  // floating glass-pill back button so the back action is always reachable
+  // without resorting to the browser back button.
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 60);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const { session, startSession, newPRs, newBaselines, clearNewPRs } = useWorkout({
     sessionId: activeSessionId || undefined,
   });
@@ -234,6 +244,47 @@ export default function Home() {
       {/* Global Background Effects */}
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
       <div className="fixed inset-0 bg-grid pointer-events-none opacity-30" />
+
+      {/* Floating glass-pill back button — appears on scroll past the inline
+          nav so the back action is always reachable (no temptation to use the
+          browser back button mid-workout). Pointer-events-none on the wrapper
+          so it doesn't intercept clicks elsewhere. Aligned with the content
+          column via the same max-w-lg + px-4 wrapping. */}
+      {view !== 'dashboard' && view !== 'summary' && (
+        <div
+          className="fixed inset-x-0 z-50 pointer-events-none"
+          style={{ top: 'max(env(safe-area-inset-top), 0.75rem)' }}
+        >
+          <div className="max-w-lg mx-auto px-4">
+            <motion.button
+              type="button"
+              onClick={handleBack}
+              aria-label="Back"
+              initial={false}
+              animate={{
+                opacity: scrolled ? 1 : 0,
+                y: scrolled ? 0 : -8,
+                pointerEvents: scrolled ? 'auto' : 'none',
+              }}
+              transition={{ duration: 0.18 }}
+              whileTap={{ scale: 0.96 }}
+              className="pointer-events-auto inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-bold tracking-[0.18em] uppercase"
+              style={{
+                background: 'rgba(255, 255, 255, 0.78)',
+                color: 'var(--pump-text)',
+                backdropFilter: 'blur(14px) saturate(140%)',
+                WebkitBackdropFilter: 'blur(14px) saturate(140%)',
+                border: '1px solid rgba(255, 255, 255, 0.55)',
+                boxShadow:
+                  '0 6px 18px -6px rgba(10,0,32,0.18), 0 1px 3px rgba(10,0,32,0.06)',
+              }}
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Back
+            </motion.button>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-lg mx-auto px-4 py-6 relative z-10">
         {/* Navigation Bar */}
