@@ -191,7 +191,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Blood Pressure</p>
-            <p className="font-display text-lg tracking-wide text-[color:var(--pump-text)]">Log a reading</p>
+            <p className="text-base font-semibold" style={{ color: 'var(--pump-text)' }}>Log a reading</p>
           </div>
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white"
@@ -208,15 +208,16 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           transition={{ delay: 0.5 }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display text-2xl tracking-wider text-gradient-vertical">
-              RECENT
+            <h2 className="font-display text-xl tracking-[0.12em] uppercase" style={{ color: 'var(--pump-text)' }}>
+              Recent
             </h2>
             {recentSessions.length > 0 && (
               <button
                 onClick={onViewHistory}
-                className="text-sm text-muted-foreground hover:text-primary transition-colors tracking-wider uppercase"
+                className="text-xs tracking-[0.18em] uppercase font-bold transition-colors"
+                style={{ color: 'var(--pump-cyan-deep)' }}
               >
-                View All
+                View all
               </button>
             )}
           </div>
@@ -224,52 +225,50 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           {recentSessions.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {recentSessions.map((session, index) => (
                 <motion.button
                   key={session.id}
                   onClick={() => onViewSession(session)}
-                  className="w-full text-left glass rounded-xl p-4 hover:border-primary/30 transition-all duration-300 group"
+                  className="w-full text-left flex items-center gap-3 rounded-2xl p-3 transition-all"
+                  style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)' }}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.1 }}
-                  whileHover={{ scale: 1.02, x: 4 }}
-                  whileTap={{ scale: 0.98 }}
+                  transition={{ delay: 0.5 + index * 0.06 }}
+                  whileTap={{ scale: 0.99 }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                      session.type === 'gym'
-                        ? 'bg-primary/20 group-hover:bg-primary/30 text-primary'
-                        : 'bg-accent/20 group-hover:bg-accent/30 text-accent'
-                    } transition-colors`}>
-                      {session.type === 'gym' ? <Dumbbell className="w-6 h-6" /> : <Activity className="w-6 h-6" />}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    session.type === 'gym' ? 'text-[color:var(--pump-hot)]' : 'text-[color:var(--pump-cyan-deep)]'
+                  }`}
+                    style={{ background: session.type === 'gym' ? 'rgba(255,0,128,0.08)' : 'rgba(0,168,158,0.10)' }}>
+                    {session.type === 'gym' ? <Dumbbell className="w-5 h-5" /> : <Activity className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold capitalize" style={{ color: 'var(--pump-text)' }}>{session.type}</span>
+                      {!session.completed && (
+                        <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full font-bold"
+                          style={{ background: 'rgba(0,168,158,0.12)', color: 'var(--pump-cyan-deep)' }}>
+                          In Progress
+                        </span>
+                      )}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold capitalize">{session.type}</span>
-                        {!session.completed && (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-accent/20 text-accent">
-                            In Progress
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(session.date)}
-                        {session.endTime ? ` · ${formatDuration(session.startTime, session.endTime)}` : ''}
+                    <p className="text-xs" style={{ color: 'var(--pump-text-dim)' }}>
+                      {formatDate(session.date)}
+                      {session.endTime ? ` · ${formatDuration(session.startTime, session.endTime)}` : ''}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {session.type === 'gym' && session.exercises && (
+                      <p className="text-sm tabular-nums" style={{ color: 'var(--pump-text-mid)' }}>
+                        {session.exercises.length} exercises
                       </p>
-                    </div>
-                    <div className="text-right">
-                      {session.type === 'gym' && session.exercises && (
-                        <p className="text-sm font-medium text-primary">
-                          {session.exercises.length} exercises
-                        </p>
-                      )}
-                      {session.type === 'cardio' && session.cardio && (
-                        <p className="text-sm font-medium text-accent">
-                          {session.cardio.reduce((sum, c) => sum + (c.distance ?? 0), 0).toFixed(1)} mi
-                        </p>
-                      )}
-                    </div>
+                    )}
+                    {session.type === 'cardio' && session.cardio && (
+                      <p className="text-sm tabular-nums" style={{ color: 'var(--pump-cyan-deep)' }}>
+                        {session.cardio.reduce((sum, c) => sum + (c.distance ?? 0), 0).toFixed(1)} mi
+                      </p>
+                    )}
                   </div>
                 </motion.button>
               ))}
@@ -277,32 +276,64 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           )}
         </motion.div>
 
-        {/* PRs Section */}
+        {/* Personal Records — featured Latest PR on the darker motif, then a calm
+            list of the next-best below. */}
         {prs.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
           >
-            <h2 className="font-display text-2xl tracking-wider text-gradient-vertical mb-4">
-              PERSONAL RECORDS
+            <h2 className="font-display text-xl tracking-[0.12em] uppercase mb-3" style={{ color: 'var(--pump-text)' }}>
+              Personal Records
             </h2>
-            <div className="glass rounded-xl p-4 space-y-2 max-h-64 overflow-y-auto hide-scrollbar">
-              {prs.slice(0, 8).map((pr, index) => (
-                <motion.div
-                  key={`${pr.exercise}-${pr.kind}`}
-                  className="flex items-center justify-between py-2 border-b border-white/5 last:border-0"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 + index * 0.05 }}
-                >
-                  <span className="text-sm font-medium truncate mr-4">{pr.exercise}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="tag tag--pr">
-                      {pr.weight}×{pr.reps}
-                    </span>
+
+            {/* Featured: Latest PR — dark navy/purple motif */}
+            <div className="relative overflow-hidden rounded-2xl"
+              style={{
+                background: 'linear-gradient(135deg, #0A0020 0%, #180845 50%, #3a0868 100%)',
+                boxShadow: '0 6px 24px -8px rgba(139,0,255,0.5), inset 0 0 0 1px rgba(0,255,238,0.15)',
+              }}>
+              {/* Cyan horizon line — the one V2 accent */}
+              <div className="absolute inset-x-4 top-3 h-px" style={{
+                background: 'linear-gradient(90deg, transparent, rgba(0,255,238,0.6), transparent)',
+                boxShadow: '0 0 8px rgba(0,255,238,0.4)',
+              }} />
+              <div className="px-5 py-5 text-center relative">
+                <p className="text-[10px] tracking-[0.3em] uppercase font-bold"
+                  style={{ color: 'rgba(0,255,238,0.85)' }}>
+                  Latest Personal Record
+                </p>
+                <p className="text-white text-3xl mt-2 leading-tight"
+                  style={{ fontFamily: 'var(--font-pacifico), cursive', textShadow: '0 0 18px rgba(255,0,128,0.55), 0 0 36px rgba(139,0,255,0.4)' }}>
+                  {prs[0].exercise}
+                </p>
+                <p className="text-white font-display text-3xl tabular-nums mt-1"
+                  style={{ textShadow: '0 0 12px rgba(0,255,238,0.45)' }}>
+                  {prs[0].weight} × {prs[0].reps}
+                </p>
+                <p className="text-[11px] tracking-wider uppercase mt-2 font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  {parseSessionDate(prs[0].achievedOn).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                </p>
+              </div>
+            </div>
+
+            {/* Next-best PRs — calm list below the featured one */}
+            {prs.length > 1 && (
+              <div className="mt-3 space-y-2">
+                {prs.slice(1, 7).map((pr, index) => (
+                  <motion.div
+                    key={`${pr.exercise}-${pr.kind}`}
+                    className="flex items-center gap-3 rounded-2xl p-3"
+                    style={{ background: '#FFFFFF', boxShadow: '0 1px 2px rgba(10,0,32,0.05)' }}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.8 + index * 0.05 }}
+                  >
+                    <span className="flex-1 text-sm font-medium truncate" style={{ color: 'var(--pump-text)' }}>{pr.exercise}</span>
+                    <span className="tag tag--pr tabular-nums">{pr.weight}×{pr.reps}</span>
                     <span
-                      className="text-[9px] tracking-wider uppercase font-bold rounded-full px-1.5 py-0.5"
+                      className="text-[9px] tracking-[0.15em] uppercase font-bold rounded-full px-1.5 py-0.5"
                       style={{
                         background: pr.kind === 'load' ? 'rgba(255,0,128,0.10)' : 'rgba(0,168,158,0.12)',
                         color: pr.kind === 'load' ? 'var(--pump-hot)' : 'var(--pump-cyan-deep)',
@@ -310,24 +341,20 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
                     >
                       {pr.kind}
                     </span>
-                    <span className="text-[10px] tracking-wider text-muted-foreground">
+                    <span className="text-[10px] tracking-wider tabular-nums shrink-0" style={{ color: 'var(--pump-text-dim)' }}>
                       {parseSessionDate(pr.achievedOn).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 
-        {/* Cloud Sync */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.85 }}
-        >
-          <CloudSyncCard sync={sync} />
-        </motion.div>
+        {/* CloudSyncCard hidden in Pass 2 — the Upstash sync is being retired.
+            Sessions sync to Supabase automatically; status is surfaced on the
+            workout-complete screen ("Synced to trainer"). Component is kept in
+            the codebase for the Phase 2 cleanup. */}
 
         {/* Export / Backup */}
         <motion.div
@@ -367,35 +394,21 @@ function StatCard({
 }) {
   return (
     <motion.div
-      className={`glass rounded-xl p-4 text-center relative overflow-hidden group ${
-        accent ? 'border-accent/30' : ''
-      } ${onClick ? 'cursor-pointer' : ''}`}
-      initial={{ opacity: 0, scale: 0.9 }}
+      className={`${accent ? 'surface-warm--hot' : 'surface-warm'} rounded-2xl p-4 text-center ${onClick ? 'cursor-pointer' : ''}`}
+      initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 0.4 + delay * 0.1 }}
-      whileHover={{ scale: 1.05 }}
+      whileTap={onClick ? { scale: 0.97 } : undefined}
       onClick={onClick}
     >
-      <motion.p
-        className={`font-display text-4xl tracking-wide ${
-          accent ? 'text-accent text-glow-hot' : 'text-primary text-glow-neon'
-        }`}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 + delay * 0.1 }}
-      >
+      <p className="font-display text-3xl tabular-nums"
+        style={{ color: accent ? 'var(--pump-hot)' : 'var(--pump-text)' }}>
         {value}
-      </motion.p>
-      <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase mt-1">
+      </p>
+      <p className="text-[10px] tracking-[0.18em] uppercase mt-1 font-bold"
+        style={{ color: 'var(--pump-text-dim)' }}>
         {label}
       </p>
-
-      {/* Subtle gradient overlay on hover */}
-      <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none ${
-        accent
-          ? 'bg-gradient-to-t from-accent/10 to-transparent'
-          : 'bg-gradient-to-t from-primary/10 to-transparent'
-      }`} />
     </motion.div>
   );
 }
