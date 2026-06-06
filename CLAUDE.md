@@ -3,52 +3,169 @@
 # PUMP — Claude Code Context
 
 ## What this app is
-A mobile-first PWA workout tracker for Dylan's personal use, deployed at pump.dylandibona.com. It is one half of the **PUMP OS** — a training system where a Claude Health Project acts as a remote trainer and this app acts as the gym executor. See `../trainer-os/README.md` for the full system spec.
+A mobile-first PWA workout tracker for Dylan's personal use, deployed at
+**pump.dylandibona.com**. It is one half of the **PUMP OS** — a training system
+where a Claude Health Project acts as a remote trainer and this app acts as the
+gym executor. See `../trainer-os/README.md` for the full system spec.
 
 ## Architecture in one line
-Next.js 16 App Router, offline-first client (all data in localStorage), local-first with cloud sync — **mid-migration from Upstash Redis to Supabase** (DD Health project). Deployed via GitHub → Vercel. See `pump_build_spec_v2.md` for the cutover plan.
+Next.js 16 App Router, offline-first client (all data in localStorage),
+local-first with cloud sync — **mid-migration from Upstash Redis to Supabase**
+(DD Health project). Deployed via GitHub → Vercel. See `pump_build_spec_v2.md`
+for the cutover plan.
+
+## Design / look & feel
+See **`DESIGN.md`** at the project root for the Volume System (the current
+design philosophy). `MOCKUP_AUDIT.md` is the living punch list of what's
+shipped vs. open. The mockup gallery is at `/mockup` (dev route); the design
+token reference is at `/design` (dev route). v1 *Miami Heat Wave* is archived
+at `_archive/DESIGN_SYSTEM_v1.md`.
 
 ## Key files to know
-- `src/lib/types.ts` — all data types including PUMP OS types (TrainerPlan, PlanSession, PlanExercise). `PersonalRecord` carries `e1rm` + `previousWeight`/`previousReps`. `WorkoutSession` carries `feelScore` + `prSummary` (for the Supabase session write).
-- `src/lib/storage.ts` — localStorage operations + plan storage + next-session logic. Exports `computeE1RM` (Epley) and the canonical `isWorkingSet`. PRs commit once at completion via `finalizePRs`. Session finalization/abandonment helpers: `finalizeSession`, `finishOrDiscardSession`, `finalizeAbandonedSessions`, `dissolveBrokenSupersets`, `sessionDurationMin`.
-- `src/lib/sounds.ts` — Web Audio API playback so PR/set-complete sounds mix over music instead of ducking iOS audio session.
-- `src/hooks/useWorkout.ts` — central session hook. Tracks `newPRs[]` and `newBaselines[]` separately via pre-session e1RM snapshot.
-- `src/app/page.tsx` — view state machine, plan state, tab-bar routing (`'workout' | 'history' | 'plan'`), in-file `PlanView` + `SessionDetailView` subcomponents.
-- `src/components/workout/GymWorkout.tsx` — most complex component; handles exercises, supersets, bodyweight, inline cardio, plan pre-fill. Exercise cards use `.pump-card` / `--active` / `--superset`.
-- `src/components/workout/SessionPreview.tsx` — editable preview between plan-session tap and GymWorkout.
-- `src/components/workout/SessionSummary.tsx` — reads session from storage directly (not hook) to avoid stale state; generates BRIEF. Uses `.pr-badge`.
-- `src/components/workout/BottomTabBar.tsx` — persistent root nav (Workout / History / Plan).
-- `src/components/workout/RetrowaveScene.tsx` — **retired/orphaned.** The animated Monoton scene was the old brand hero; the dashboard now renders the neon `public/pump-header.png` banner directly (see `Dashboard.tsx`). Kept on disk in case we want to A/B it.
-- `src/components/workout/PlanLoader.tsx` — parses trainer JSON, saves plan, shows plan details. Mounted inside the Plan tab view. Now a manual fallback to the Supabase plan fetch.
-- `src/components/workout/ReorderExercisesSheet.tsx` — dedicated reorder surface (framer `Reorder`); commits new order via `useWorkout.reorderExercises`, which auto-unlinks supersets moved apart.
-- `april 15/` — design package (DESIGN_SYSTEM.md, RETROWAVE_SCENE.html, palm_*.svg). Source of truth for theme decisions. (BUG_FIXES.md shipped → `_archive/`.)
-- `_archive/` — historical docs (TECH_SPECS, REVIEW, UI-REVIEW, NOTES, original instructions, superseded fix specs). See `_archive/README.md`.
 
-### Supabase cutover (Phase 1, June 2026) — see `pump_build_spec_v2.md`
-- `src/lib/supabase.ts` — browser client (`@supabase/supabase-js`). `isSupabaseConfigured` gates everything; never constructs a client without env vars.
-- `src/components/auth/AuthGate.tsx` — wraps the app in `layout.tsx`. **Hard-gates** behind magic-link login when `NEXT_PUBLIC_SUPABASE_*` are set; falls through (ungated, localStorage-only) when unset.
-- `src/lib/plan-sync.ts` — `fetchActivePlan()` pulls the active plan (`plans` where `is_active`), validates, saves to the `dylan-workout-plan` key. Primary plan path; PlanLoader paste is the fallback.
-- `src/lib/session-sync.ts` — `pushUnsyncedSessions()` reconciliation sweep: writes completed-but-unsynced sessions to the `sessions` table (native `GymExercise[]`, `raw_brief`, `feel_score`). Client-side dedup via `pump-synced-sessions`; first run baselines existing history as synced (forward-only); offline-tolerant retry on load/dashboard/focus.
-- `src/components/workout/BloodPressureSheet.tsx` + `src/lib/bp-sync.ts` — **blood-pressure recorder** (non-workout). Dashboard "Log BP" card → bottom sheet (SYS/DIA/pulse, time, lisinopril toggle + how-long-ago buckets, notes, live AHA category). Local store (`pump-bp-readings`) via `storage.{getBPReadings,saveBPReading,classifyBP}`, swept to the Supabase `bp_readings` table by `pushUnsyncedBP()`.
+### Data + state
+- `src/lib/types.ts` — all data types incl. PUMP OS types. `PersonalRecord`
+  carries `e1rm` + `previousWeight`/`previousReps`. `WorkoutSession` carries
+  `feelScore` + `prSummary` (for the Supabase session write).
+- `src/lib/storage.ts` — localStorage operations + plan storage + PR commit
+  logic. Exports `computeE1RM` (Epley) and `isWorkingSet`. PRs commit once at
+  completion via `finalizePRs`. Session finalization helpers:
+  `finalizeSession`, `finishOrDiscardSession`, `finalizeAbandonedSessions`,
+  `dissolveBrokenSupersets`, `sessionDurationMin`.
+- `src/lib/utils.ts` — pure helpers including `parseSessionDate` (avoids the
+  UTC-rolling bug on YYYY-MM-DD strings) and **`sessionLabel(s, plan)`** — the
+  one canonical display name for a session (prefers plan-session name via
+  `planSessionId`, falls back to capitalized type). Used by Dashboard recent
+  rows, History list, and Session detail.
+- `src/lib/exercises.ts` — exercise library + `normalizeExerciseName()`. One
+  source of truth applied at every entry point so names like "Curl standing
+  curl" → "Standing Curl" canonicalize on write.
+- `src/lib/brief.ts` — generates the trainer BRIEF from a session (resolves
+  plan session by `planSessionId`).
+- `src/lib/sounds.ts` — Web Audio API playback (PR / set-complete sounds mix
+  over music instead of ducking iOS audio session).
+
+### Cloud / sync
+- `src/lib/supabase.ts` — browser client (`@supabase/supabase-js`).
+  `isSupabaseConfigured` gates everything; never constructs a client without
+  env vars.
+- `src/lib/plan-sync.ts` — `fetchActivePlan()` pulls the active plan from the
+  Supabase `plans` table (where `is_active`), validates, saves to the
+  `dylan-workout-plan` key. Primary plan path; PlanLoader paste is the
+  fallback.
+- `src/lib/session-sync.ts` — `pushUnsyncedSessions()` reconciliation sweep.
+  Single-flight guard prevents concurrent double-fires. `client_session_id`
+  (UUID minted on session start) is the idempotency key — duplicate writes
+  hit the partial unique index, caught as `23505` and marked synced (first
+  complete write wins, no second row). Native `GymExercise[]` shape preserved.
+- `src/lib/prs-sync.ts` — fetches the **curated `prs` Supabase table** (clean
+  exercise / weight / reps / unit / kind / achieved_on). Cached locally for
+  instant first paint. Dashboard Records read from here; local PersonalRecord
+  store is kept only for in-session "NEW BEST" detection (labeled "best",
+  not "PR", to avoid the offline latency gap).
+- `src/lib/bp-sync.ts` — `pushUnsyncedBP()` mirror for blood-pressure
+  readings → Supabase `bp_readings`.
+- `src/components/auth/AuthGate.tsx` — wraps the app in `layout.tsx`.
+  **Hard-gates** behind magic-link login when `NEXT_PUBLIC_SUPABASE_*` are
+  set; falls through (ungated, localStorage-only) when unset. Splash + sign-in
+  both use `pump-scene-empty.png` (dark dumbbell scene) + `letspump3.png`
+  (brushy "Let's Pump!" wordmark) so the loading→form transition is seamless.
 
 ### Cloud sync — Upstash Redis (legacy, Phase-2 removal pending)
-- `src/app/api/data/route.ts` — sync endpoint. GET/PUT, bearer-token auth (`SYNC_TOKEN`), reads/writes one Redis key `pump:data`. Returns 503 until env vars are set, so it's an inert no-op when unconfigured.
-- `src/lib/sync-merge.ts` — pure, isomorphic merge (shared by client + server). Union sessions by id, keep heavier PRs, last-writer-wins on settings/plan.
-- `src/lib/sync.ts` — client layer. PUTs the local snapshot; server returns the merged union, which is applied back via `storage.applyRemote` (one round trip = bidirectional sync).
-- `src/hooks/useCloudSync.ts` — app-wide bootstrap (initial sync, debounced push on `pump:changed`, throttled sync on focus). Mounted once in `page.tsx`; exposes `dataVersion` used as a remount key on the dashboard.
-- `src/components/workout/CloudSyncCard.tsx` — dashboard sync status + token entry.
+- `src/app/api/data/route.ts` — sync endpoint. Returns 503 until env vars set.
+- `src/lib/sync-merge.ts` — pure, isomorphic merge (union by id, heavier PRs,
+  LWW on settings/plan).
+- `src/lib/sync.ts` — client layer; one round trip = bidirectional sync.
+- `src/hooks/useCloudSync.ts` — app-wide bootstrap (initial sync, debounced
+  push, throttled focus refresh). Status surface (`CloudSyncCard`) is hidden
+  on the dashboard now; the component is still in the tree for cleanup.
+
+### View state + nav
+- `src/app/page.tsx` — view state machine, plan state, tab-bar routing
+  (`'workout' | 'history' | 'plan'`), in-file `PlanView` + `SessionDetailView`
+  subcomponents. **Floating glass-pill back button** (sticky, fades in on
+  scroll past 60px) lives here so the back action is always reachable
+  without resorting to the browser back button.
+- `src/app/layout.tsx` — root layout, font loading (Monoton + Pacifico +
+  Outfit; **Space Mono retired** — `--font-mono` resolves to Outfit).
+
+### Surfaces (components/workout/)
+- `Dashboard.tsx` — home. Hero banner → plan chip + inline BP heart button
+  → "Let's Go" CTA → 3 stat cards (warm-tint via `.surface-warm`, Records
+  tile gets `.surface-warm--hot`) → Recent rows (via `sessionLabel`) →
+  Latest PR dark-motif card (Pacifico + tabular weight + cyan horizon)
+  followed by next-best PRs list.
+- `GymWorkout.tsx` — most complex. Exercises, supersets, bodyweight, inline
+  cardio, plan pre-fill. Triggers `PRMomentScreen` when `newPRs` grows.
+- `SessionPreview.tsx` — editable preview between plan-session tap and
+  GymWorkout.
+- `SessionSummary.tsx` — post-workout. "Synced to trainer" reassurance band,
+  named feel rating (Brutal / Tough / OK / Good / Easy → `feel_score` +
+  BRIEF), primary Pacifico "Done" CTA (honest — data's already in Supabase),
+  secondary "Open with trainer" copies the brief.
+- `PRMomentScreen.tsx` — V3 full-screen PR reward: `pump-pr-burst.png`
+  backdrop + `new-PR.png` wordmark + Pacifico exercise name + Outfit-tabular
+  weight overlay.
+- `CardioWorkout.tsx` — multi-activity logger. Activity picker (run/bike/swim/
+  row/elliptical/walk) stays; styling adopted Volume System tokens.
+- `BottomTabBar.tsx` — persistent root nav. Hidden on workflow views (start,
+  preview, gym, cardio, summary, session-detail).
+- `BloodPressureSheet.tsx` + `src/lib/bp-sync.ts` — non-workout BP recorder.
+  Dashboard heart button → bottom sheet (LOG / RECENT toggle, SYS/DIA/pulse,
+  time, lisinopril toggle + how-long-ago buckets, notes, live AHA category;
+  "Copy last N for doctor" exports plain text for PCP).
+- `PlanLoader.tsx` — parses trainer JSON (manual fallback to the Supabase
+  plan fetch), shows plan details. Mounted inside the Plan tab view.
+- `ReorderExercisesSheet.tsx` — dedicated reorder surface (framer `Reorder`);
+  commits via `useWorkout.reorderExercises`, which auto-unlinks supersets
+  moved out of adjacency.
+- `WorkoutHistory.tsx` — month-grouped list. Calm white cards, sentence-case
+  via `sessionLabel`, demoted Delete affordance.
+- `WorkoutTimerBar.tsx` — session clock + rest presets + rest countdown,
+  sticky to top of the scroll container.
+- `Timer.tsx` — countdown + stopwatch. `RestTimerInline` exported for use
+  inside GymWorkout.
+- `IntervalFlow.tsx` — interval timer builder + runner.
+- `RetrowaveScene.tsx` — **retired/orphaned.** Was the old brand hero before
+  `pump-header.png`. Kept on disk for now. Asset references (palms +
+  reference HTML) live in `_archive/`.
+
+### UI primitives
+- `src/components/ui/sheet.tsx` — base Sheet. **Overlay Contract enforced
+  here:** bottom/top sheets inline-style height to `90dvh` so consumers
+  inherit a viewport-clamped sheet by default. Default close button is a
+  44px+ touch target at top-right (`z-10` above content).
+
+### Dev surfaces (behind auth gate; not linked from UI)
+- `src/app/mockup/page.tsx` — visual gallery of every designed screen.
+  Source of truth for design intent.
+- `src/app/design/page.tsx` — Volume System token reference (typography,
+  surfaces, glow-as-state, status colors).
 
 ## localStorage keys
 - `dylan-workout-tracker` — all sessions, PRs, templates, settings
-- `dylan-workout-plan` — active TrainerPlan JSON (separate key, replaced on plan update)
-- `pump-synced-sessions` / `pump-bp-synced` — ids already written to Supabase (sweep dedup)
-- `pump-bp-readings` — blood-pressure readings (local store; synced to `bp_readings`)
-- `pump-sync-token` / `pump-sync-last` — Upstash bearer token + last-sync timestamp (legacy)
-- Supabase auth session — stored by `supabase-js` under its own `sb-*` key (one-time magic-link login auto-restores)
+- `dylan-workout-plan` — active TrainerPlan JSON (separate key, replaced on
+  plan update)
+- `pump-prs-cache` — curated `prs` snapshot for instant first paint
+- `pump-synced-sessions` / `pump-bp-synced` — ids already written to Supabase
+  (sweep dedup)
+- `pump-bp-readings` — blood-pressure readings (local store; synced to
+  `bp_readings`)
+- `pump-sync-token` / `pump-sync-last` — Upstash bearer token + last-sync
+  timestamp (legacy)
+- Supabase auth session — stored by `supabase-js` under its own `sb-*` key
+  (one-time magic-link login auto-restores)
 
 ## Env vars (Vercel project)
-- **Supabase (Phase 1+):** `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — inlined at build time (set in Vercel + **redeploy**). ⚠️ Setting these turns on the AuthGate hard-gate, so configure the **Supabase Auth → URL redirect allowlist** (localhost + pump.dylandibona.com) *first* to avoid lockout. Tighten the placeholder RLS to `auth.uid()` after first login.
-- **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`). Removed in Phase 2.
+- **Supabase (Phase 1+):** `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY` — inlined at build time (set in Vercel +
+  **redeploy**).
+  ⚠️ Setting these turns on the AuthGate hard-gate, so configure the
+  **Supabase Auth → URL redirect allowlist** (localhost + pump.dylandibona.com)
+  *first* to avoid lockout. Tighten the placeholder RLS to `auth.uid()` after
+  first login.
+- **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
+  (or `UPSTASH_REDIS_REST_*`). Removed in Phase 2.
 
 ## PUMP OS data flow
 ```
@@ -56,41 +173,105 @@ TRAINER (Claude Health Project / coach via MCP)
   → publishes active plan to Supabase `plans` (is_active = true)
   → PUMP fetchActivePlan() pulls it on load → saves to dylan-workout-plan
     (PlanLoader paste still works as a manual fallback)
+  → maintains the curated `prs` table; PUMP's dashboard Records reads from it
 
-User taps session → GymWorkout pre-fills exercises from PlanSession
+User taps session → SessionPreview (plan sessions) → GymWorkout pre-fills
   → logs actual sets (weight overrideable) → completes session
+  → if newPRs > 0: PRMomentScreen full-screen reward
 
 On completion:
-  → SessionSummary generates BRIEF + captures feel (1–5)
-  → session-sync sweep writes a row to Supabase `sessions` (raw_brief, feel_score, exercises)
-  → BRIEF can still be copied to clipboard for manual paste into the Health Project
+  → SessionSummary generates BRIEF + captures named feel (Brutal/…/Easy)
+  → session-sync sweep writes a row to Supabase `sessions`
+     (raw_brief, feel_score, native GymExercise[], client_session_id UUID)
+  → idempotent — duplicate writes hit unique index, caught as 23505
+  → BRIEF copied to clipboard via "Open with trainer" (secondary action)
 ```
 
-## Active design decisions
-- **Miami Heat Wave theme** — light background (ice→warm gradient), hot-pink/cyan/purple accents, 14px card radius, spectrum-bar tops, card glow system. See `april 15/DESIGN_SYSTEM.md`. Replaced the earlier square-edge dark theme.
-- **Bottom tab bar is root navigation** — Workout / History / Plan. Hidden on workflow views (start, preview, gym, cardio, summary, session-detail). See `BottomTabBar.tsx`.
-- **Brand hero is the neon Pump banner** — the dashboard hero is `public/pump-header.png` (neon cursive "Pump" on a dark retrowave scene), rendered full-bleed and flush to the top. It replaced the CSS `RetrowaveScene` + Monoton mark. The same wordmark drives the app icon/favicon (`src/app/icon.png`, `apple-touch-icon.png`, `pump-icon-*.png`). Brand assets live in `public/pump-*.png`.
-- **Auth gate (Supabase)** — `AuthGate` hard-gates the whole app behind magic-link login when `NEXT_PUBLIC_SUPABASE_*` are set; ungated/localStorage-only when unset. Single user. Health data, so RLS + an authed session are the only protection (publishable key is public).
-- **Sessions finish reliably (4a)** — leaving an active session via Back **auto-finishes** it (endTime + completed) when anything was logged, else discards the empty shell; a cold-mount sweep (`finalizeAbandonedSessions`) cleans pre-existing orphans. `completeSession` reads fresh from storage so it never silently no-ops. Fixes the old "In Progress / --" rows (root cause was abandonment, not the finish path).
-- **Mid-workout reorder (4b)** — dedicated reorder sheet (not inline drag); each exercise carries its own `sets[]` so logged data travels with the card. Moving a superset member out of adjacency auto-unlinks it (`dissolveBrokenSupersets`).
-- **Session feel** — 1–5 rating on the summary; feeds `feel_score` (Supabase) and a `FEEL:` line in the BRIEF.
-- **Cloud sync is offline-first + additive** — localStorage stays the source of truth. Supabase (Phase 1) is additive: auth + plan fetch + session writes. Upstash sync still runs alongside (Phase 2 retires it). Upstash merge is union-based with no tombstones, so a deleted item can reappear from another device (acceptable until Phase 2). Both layers are inert when their env vars are unset.
-- **Script-font nav titles on root views** — Plan, History, New Workout render their nav title in Pacifico (title-case). Workflow views keep Outfit 800 uppercase.
-- **PR logic: per-set Epley e1RM** — `e1RM = weight × (1 + min(reps,30)/30)`. The best set of a session (highest e1RM) is the candidate PR. First-ever exercises store a silent baseline (no sound, no banner). Legacy PR records are backfilled with e1RM on load.
-- **No session type guard** — sessions have both `exercises[]` and `cardio[]` always initialized. Mixed sessions are supported.
-- **Autocomplete opens upward** — `bottom-full` positioning so it clears the fixed bottom bar.
-- **Session summary reads storage directly** — `getSession(activeSessionId)` at render time, not the hook's stale copy.
-- **Sound uses Web Audio API** — AudioContext + BufferSource so PR/set-complete sounds layer over music instead of claiming iOS audio session.
+## Active design decisions (current)
+
+- **Volume System (v2)** — every component belongs to a volume.
+  - **V3 (rare, earned, loud):** hero, primary CTAs, PR moment, workout-complete.
+  - **V2 (ambient chrome):** titles, labels, tab bar, tags, card trim — loud but flat.
+  - **V1 (the cockpit):** set rows, inputs, list rows — calm + neon-trimmed.
+  - **Glow is a state, not a texture.** Resting cards do not glow.
+  - Full doc: **`DESIGN.md`**.
+- **Type system: one family with three registers + two display fonts.**
+  Monoton (brand mark only), Pacifico (named moments), Outfit (everything
+  else: caps tracked for chrome, sentence-case for body, `tabular-nums` for
+  numbers). **Space Mono retired.** `font-mono` className auto-falls-through
+  to Outfit via `--font-mono`.
+- **Brand assets** — dashboard hero is `pump-header.png` (neon cursive on a
+  retrowave scene). Sign-in is `pump-scene-empty.png` + `letspump3.png`.
+  PR moment is `pump-pr-burst.png` + `new-PR.png`. Inventory in `DESIGN.md §7`.
+- **Auth gate (Supabase)** — `AuthGate` hard-gates the whole app behind
+  magic-link login when `NEXT_PUBLIC_SUPABASE_*` are set; ungated/
+  localStorage-only when unset. Single user. Health data, so RLS + an authed
+  session are the only protection (publishable key is public).
+- **Floating back-button pill** — sticky in the top-left, fades in on scroll
+  past 60px. Always reachable mid-workout so the user never reaches for the
+  browser back button.
+- **Bottom tab bar** — Workout / History / Plan. Hidden on workflow views.
+- **`sessionLabel` is the canonical display name** — prefer plan-session
+  name (matched by `planSessionId`), fall back to capitalized type. Applied
+  on Dashboard recent rows, History list, Session detail.
+- **Records read from curated Supabase `prs` table.** Local PRs are kept
+  only for in-session detection ("NEW BEST" badge).
+- **Sessions finish reliably (Pass 1 / "4a" fix)** — leaving an active
+  session via Back **auto-finishes** it when anything was logged; empty
+  shells are discarded; a cold-mount sweep cleans pre-existing orphans.
+  `completeSession` reads fresh from storage so it never silently no-ops.
+- **Mid-workout reorder** — dedicated reorder sheet (not inline drag); each
+  exercise carries its own `sets[]` so logged data travels with the card.
+  Moving a superset member out of adjacency auto-unlinks it
+  (`dissolveBrokenSupersets`).
+- **Session feel** — named 1–5 rating on the summary (Brutal / Tough / OK /
+  Good / Easy); feeds `feel_score` (Supabase) and a `FEEL:` line in the BRIEF.
+- **"Synced to trainer" reassurance** — workout-complete shows a band:
+  "Your trainer sees this in their dashboard. No paste needed." The primary
+  CTA is "Done" (honest — the Supabase write already happened); secondary
+  "Open with trainer" copies the BRIEF for explicit conversation.
+- **Cloud sync is offline-first + additive** — localStorage stays the source
+  of truth. Supabase (Phase 1) is additive: auth + plan fetch + session writes.
+  Upstash sync still runs alongside (Phase 2 retires it). Upstash merge is
+  union-based with no tombstones, so a deleted item can reappear from another
+  device (acceptable until Phase 2). Both layers are inert when their env
+  vars are unset.
+- **Script-font nav titles on root views** — Plan, History, New Workout render
+  their nav title in Pacifico (title-case). Workflow views keep Outfit 800
+  uppercase.
+- **PR logic: per-set Epley e1RM** — `e1RM = weight × (1 + min(reps,30)/30)`.
+  Local detection only powers the in-session "NEW BEST" badge; the trainer
+  curates the canonical PRs in the Supabase `prs` table.
+- **Exercise names are canonicalized at every write site.**
+  `normalizeExerciseName()` is applied to `addExercise`, `bulkAddExercises`,
+  plan import, autocomplete commit, and `finalizePRs`. A one-time backfill
+  on `getWorkoutData()` heals legacy malformed names on load.
+- **Sound uses Web Audio API** — AudioContext + BufferSource so PR / set-
+  complete sounds layer over music instead of claiming iOS audio session.
+- **Overlay Contract enforced at the `Sheet` primitive** — every bottom sheet
+  inherits a viewport-clamped height (`90dvh`), pinned header/footer, single
+  inner scroll region, and a ≥44px reachable close.
 
 ## How to deploy
-Push to `main` on GitHub. Vercel auto-deploys. No manual steps for code. Env-var changes (Upstash or Supabase keys) only take effect on a **fresh deploy** — redeploy after editing them. **Supabase rollout ordering:** configure the Auth redirect-URL allowlist *before* setting `NEXT_PUBLIC_SUPABASE_*` in Vercel, or the AuthGate locks you out. The Phase-1 work currently lives on branch `supabase-cutover` (not yet merged to `main`).
+Push to `main` on GitHub. Vercel auto-deploys. No manual steps for code.
+Env-var changes (Upstash or Supabase keys) only take effect on a **fresh
+deploy** — redeploy after editing them. **Supabase rollout ordering:**
+configure the Auth redirect-URL allowlist *before* setting
+`NEXT_PUBLIC_SUPABASE_*` in Vercel, or the AuthGate locks you out.
 
 ## Keeping docs current (standing directive)
-Docs are part of the change, not an afterthought. End every session with the docs matching reality:
-- Update **CLAUDE.md** in the same pass — architecture line, key files, active design decisions, localStorage keys, env vars.
-- Tick/raise items in **BACKLOG.md**; keep **README.md**'s feature list + tech stack honest.
-- Move shipped specs / superseded docs to **`_archive/`** with a one-line entry in `_archive/README.md`. Don't let stale docs sit in the root.
-- When a UI fix or feature ships, reflect it here and in BACKLOG before considering the work done.
+Docs are part of the change, not an afterthought. End every session with the
+docs matching reality:
+- Update **CLAUDE.md** in the same pass — architecture line, key files, active
+  design decisions, localStorage keys, env vars.
+- Tick/raise items in **BACKLOG.md**; keep **README.md**'s feature list +
+  tech stack honest.
+- Update **DESIGN.md** when a token, register, or volume rule changes.
+- Update **MOCKUP_AUDIT.md** as items ship — it's the living punch list, not
+  a one-time doc.
+- Move shipped specs / superseded docs to **`_archive/`** with a one-line
+  entry in `_archive/README.md`. Don't let stale docs sit in the root.
 
 ## Trainer OS docs
-All system documentation lives in `../trainer-os/`. Don't duplicate that context here.
+All system documentation lives in `../trainer-os/`. Don't duplicate that
+context here.

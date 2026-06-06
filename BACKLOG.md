@@ -4,6 +4,53 @@
 
 ## Completed
 
+### Jun 6 2026 session — Design elevation (Pass 1–4) + tech fixes
+- [x] **Volume System v2** — `DESIGN.md` ships as the design philosophy (three
+  volumes / type registers / glow-as-state / Overlay Contract). v1 Miami Heat
+  Wave moved to `_archive/DESIGN_SYSTEM_v1.md`.
+- [x] **Foundation tokens** in `globals.css` — `.surface-warm`,
+  `.surface-warm--hot`, `.text-body-quiet`, `.label-caps`, `.glow-state--*`,
+  `.status-bp-*`.
+- [x] **Space Mono retired** — `--font-mono` resolves to Outfit; existing
+  `font-mono` className auto-cascades.
+- [x] **Sheet primitive Overlay Contract** — viewport-clamped height +
+  reachable 44px close enforced once at `src/components/ui/sheet.tsx`.
+- [x] **`/design` dev route** — Volume System token reference.
+- [x] **`/mockup` dev gallery** — every designed screen, source of truth for
+  intent.
+- [x] **Sign-in / splash** — `pump-scene-empty.png` + `letspump3.png` brushy
+  logo + dark glass form.
+- [x] **Floating glass-pill back button** — sticky, fades in past 60px scroll,
+  always reachable mid-flow.
+- [x] **Dashboard refresh** — stat cards on `.surface-warm`, Latest PR
+  dark-motif card, plan chip + inline BP heart, calm Recent rows with
+  `sessionLabel` (plan name).
+- [x] **Workout complete** — "Synced to trainer" reassurance band, primary
+  Pacifico "Done", secondary "Open with trainer", named feel rating
+  (Brutal / Tough / OK / Good / Easy).
+- [x] **PR full-screen reward** — `PRMomentScreen` component using
+  `pump-pr-burst.png` backdrop + `new-PR.png` wordmark, triggered on
+  in-session NEW BEST.
+- [x] **BP sheet typography polish** + warm SYS/DIA card + Pacifico Save
+  Reading.
+- [x] **Cardio session token swap** — calmer stat numbers; activity picker
+  preserved.
+- [x] **History list refresh** — calm white cards, sentence-case via
+  `sessionLabel`, demoted Delete affordance.
+- [x] **Session detail refresh** — calmer header, white cards, `sessionLabel`.
+- [x] **PlanLoader refresh** — sentence-case, calm cards, clean error block.
+- [x] **MOCKUP_AUDIT.md** — living punch list, mockup vs. live.
+- [x] **Exercise name normalization** (tech) — `normalizeExerciseName()`
+  applied at 5 entry points + load-time backfill of legacy data.
+- [x] **Records from curated `prs` table** (tech) — `prs-sync.ts` fetches
+  Supabase, caches locally; dashboard reads from it; local PRs power only
+  the in-session "NEW BEST" badge.
+- [x] **Session-write idempotency** (tech) — `client_session_id` UUID minted
+  on session start + single-flight sweep guard + `23505` unique-violation
+  catch.
+- [x] **Pacifico moment CTA universal** — Let's Go, Save Reading, Done, Open
+  with trainer, Send magic link, Finish Workout.
+
 ### Jun 5 2026 session — Supabase cutover (Phase 1) + UI fixes
 - [x] **Supabase auth** — magic-link sign-in gate (`AuthGate`), session persists to localStorage. App hard-gates when configured.
 - [x] **Active-plan fetch** — pulls the coach's active plan from Supabase on load / Plan tab (`plan-sync.ts`); PlanLoader paste is now the fallback.

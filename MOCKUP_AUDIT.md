@@ -1,15 +1,49 @@
 # PUMP — Mockup vs Live Audit
 
-> Read-only audit comparing every `/mockup` section + every live screen against the
-> Volume System spec (`VOLUME_SYSTEM.md`). Documents drift, severity, and a
-> specific fix for each. **Nothing in this doc has been changed yet** — this is
-> the brief for the next thread.
+> **Living punch list** comparing every `/mockup` section + every live screen
+> against the Volume System spec (`DESIGN.md`). Updated as items ship. The body
+> of this doc was the original Pass-4-era audit; the **Status block** below
+> records what's resolved since.
 >
 > Severity legend:
 > - 🔴 **Bug** — broken/visibly wrong, fix first.
 > - 🟠 **Drift** — shipped diverged from mockup without explicit sign-off.
 > - 🟡 **Polish** — works but doesn't fully realize the system.
 > - 🟢 **Aligned** — matches the spec, no change needed.
+
+## Status (post-Pass-4, current)
+
+Shipped since the audit was written:
+- 🟢 **BP heart button overflow** — `pr-[max(0.25rem,env(safe-area-inset-right))]`
+  applied to the dashboard plan-chip row.
+- 🟢 **PR full-screen reward** — `PRMomentScreen.tsx` shipped; trigger wired
+  inside `GymWorkout` (uses `pump-pr-burst.png` + `new-PR.png`).
+- 🟢 **Named feel rating** — Brutal / Tough / OK / Good / Easy live on
+  `SessionSummary.tsx` (drives `feel_score` + the BRIEF).
+- 🟢 **`sessionLabel` propagation** — promoted to `src/lib/utils.ts`; now used
+  by Dashboard Recent, History list, and Session detail.
+- 🟢 **Sign-in logo refresh** — `letspump3.png` (tighter brushy wordmark).
+
+Direction confirmed (work to do under the agreed approach):
+- 🟡 **Cockpit (§02)** — atmospheric header polish (scene band + Pacifico
+  exercise name + animated `glow-state--urgent` rest timer + inline pink note
+  panel). **No fused-superset rewrite this pass** — queued separately.
+- 🟡 **Cardio (§05)** — keep multi-activity logger; adopt tokens + swap
+  "COMPLETE WORKOUT" → Pacifico "Finish Workout". No cinematic rebuild.
+- 🟡 **Empty state (§06)** — use `pump-scene-beach.png` (distinct from
+  sign-in's dumbbell).
+
+Still open (carried from the audit body):
+- 🟠 **Workout-complete hero scene band** — `pump-scene-complete.png` overlay
+  with cyan "WORKOUT COMPLETE" + Pacifico session name + inline stats caption.
+- 🟡 **BP sheet SYS/DIA card** — add `.surface-warm` + spectrum-bar trim
+  (typography already shipped).
+- 🟡 **`.glass` → `.pump-card` migration** + `.glow-state--*` adoption on the
+  cockpit active card + rest timer.
+- 🟡 **`font-mono` className cleanup sweep** (currently cascades to Outfit
+  via `--font-mono`, but the className still litters source).
+- 🔵 **Fused superset block** — queued as its own scoped pass (UX change, not
+  visual; needs explicit testing).
 
 ---
 

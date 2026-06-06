@@ -1,0 +1,317 @@
+<!-- PUMP Retrowave Header Scene - Reference Implementation -->
+<!-- This is a standalone HTML component. Integrate into your app framework as needed. -->
+<!-- Fonts must be loaded at the app level (see DESIGN_SYSTEM.md section 1). -->
+<!-- Palm SVGs are in assets/palm_1.svg through palm_4.svg. -->
+
+<style>
+.pump-scene {
+  width: 100%;
+  height: 200px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg,
+    #050818 0%,
+    #0a1028 12%,
+    #180845 28%,
+    #3a0868 40%,
+    #6a0080 48%,
+    #aa0077 56%,
+    #FF0080 63%,
+    #FF3366 67%,
+    #FF8844 71%,
+    #FFcc66 74%,
+    #FFee88 75.5%,
+    #FF0080 76%,
+    #aa0055 78%,
+    #440033 82%,
+    #0a0020 100%
+  );
+}
+
+/* Cyan corona - outer diffused halo */
+.pump-scene__corona-outer {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  top: 55px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle,
+    rgba(0,255,238,0.55) 0%,
+    rgba(0,255,238,0.25) 30%,
+    rgba(0,255,238,0.08) 50%,
+    transparent 65%);
+  filter: blur(8px);
+  z-index: 0;
+}
+
+/* Cyan corona - tight inner ring */
+.pump-scene__corona-inner {
+  position: absolute;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: radial-gradient(circle,
+    rgba(0,255,238,0.65) 0%,
+    rgba(0,255,238,0.3) 40%,
+    transparent 70%);
+  filter: blur(3px);
+  z-index: 0;
+}
+
+/* Sun - half circle clipped at horizon */
+.pump-scene__sun {
+  position: absolute;
+  width: 110px;
+  height: 55px;
+  border-radius: 110px 110px 0 0;
+  background: radial-gradient(circle at 50% 70%,
+    #FFee88,
+    #FFcc44 20%,
+    #FF8833 40%,
+    #FF3399 65%,
+    #FF0080 80%,
+    #cc0066 90%,
+    #880044);
+  top: 95px;
+  left: 50%;
+  transform: translateX(-50%);
+  box-shadow:
+    0 0 30px rgba(255,0,128,0.6),
+    0 0 60px rgba(255,0,128,0.3),
+    0 0 100px rgba(0,255,238,0.15);
+  z-index: 1;
+  overflow: hidden;
+}
+
+/* Sun horizontal band cuts */
+.pump-scene__sun-cut {
+  position: absolute;
+  width: 100%;
+  background: rgba(10,0,32,0.3);
+  left: 0;
+}
+
+/* Stars */
+.pump-scene__star {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  z-index: 0;
+}
+
+/* Mountains */
+.pump-scene__mountains {
+  position: absolute;
+  bottom: 52px;
+  left: 0;
+  width: 100%;
+  height: 35px;
+  z-index: 3;
+}
+
+.pump-scene__mountain {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+/* Palm trees - positioned via inline styles, content loaded from SVG assets */
+.pump-scene__palm {
+  position: absolute;
+  bottom: 35px;
+  z-index: 6;
+  color: #12001e;
+}
+
+.pump-scene__palm svg {
+  width: 100%;
+  height: 100%;
+  fill: currentColor;
+}
+
+/* Horizon line */
+.pump-scene__horizon {
+  position: absolute;
+  bottom: 52px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg,
+    transparent 5%,
+    rgba(0,255,238,0.5) 30%,
+    rgba(255,0,128,0.5) 50%,
+    rgba(0,255,238,0.5) 70%,
+    transparent 95%);
+  box-shadow:
+    0 0 12px rgba(0,255,238,0.4),
+    0 0 24px rgba(255,0,128,0.2);
+  z-index: 5;
+}
+
+/* Perspective grid */
+.pump-scene__grid-container {
+  position: absolute;
+  bottom: 0;
+  left: -15%;
+  width: 130%;
+  height: 54px;
+  perspective: 180px;
+  overflow: hidden;
+  z-index: 4;
+}
+
+.pump-scene__grid-plane {
+  position: absolute;
+  width: 100%;
+  height: 350%;
+  bottom: 0;
+  transform: rotateX(58deg);
+  transform-origin: bottom center;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(0,255,238,0.3) 0px,
+      rgba(0,255,238,0.3) 1px,
+      transparent 1px,
+      transparent 28px),
+    repeating-linear-gradient(0deg,
+      rgba(255,0,128,0.2) 0px,
+      rgba(255,0,128,0.2) 1px,
+      transparent 1px,
+      transparent 28px);
+  animation: pump-grid-scroll 1.8s linear infinite;
+}
+
+@keyframes pump-grid-scroll {
+  0%   { transform: rotateX(58deg) translateY(0); }
+  100% { transform: rotateX(58deg) translateY(28px); }
+}
+
+.pump-scene__grid-glow {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 12px;
+  background: linear-gradient(0deg, rgba(0,255,238,0.12), transparent);
+  z-index: 5;
+}
+
+/* Title overlay */
+.pump-scene__title-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 10px;
+  z-index: 7;
+}
+
+.pump-scene__title {
+  font-family: 'Monoton', cursive;
+  font-size: 54px;
+  background: linear-gradient(180deg,
+    #FFee88 0%, #FFaa44 20%, #FF3399 50%,
+    #FF0080 75%, #cc0066 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter:
+    drop-shadow(0 0 24px rgba(255,0,128,0.6))
+    drop-shadow(0 0 50px rgba(255,0,128,0.3))
+    drop-shadow(0 2px 0px rgba(0,255,238,0.4));
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+.pump-scene__tagline {
+  font-family: 'Space Mono', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(0,255,238,0.9);
+  text-shadow: 0 0 12px rgba(0,255,238,0.5);
+  margin-top: 5px;
+}
+
+/* CRT scanline overlay */
+.pump-scene__scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px);
+  pointer-events: none;
+  z-index: 8;
+}
+</style>
+
+<div class="pump-scene">
+  <!-- Stars -->
+  <div class="pump-scene__star" style="top:6%;left:10%;width:2px;height:2px;opacity:.5"></div>
+  <div class="pump-scene__star" style="top:12%;left:32%;width:1px;height:1px;opacity:.7"></div>
+  <div class="pump-scene__star" style="top:4%;left:55%;width:2px;height:2px;opacity:.4"></div>
+  <div class="pump-scene__star" style="top:18%;left:70%;width:1px;height:1px;opacity:.6"></div>
+  <div class="pump-scene__star" style="top:8%;left:88%;width:2px;height:2px;opacity:.5"></div>
+  <div class="pump-scene__star" style="top:3%;left:42%;width:1px;height:1px;opacity:.6"></div>
+
+  <!-- Cyan coronas -->
+  <div class="pump-scene__corona-outer"></div>
+  <div class="pump-scene__corona-inner"></div>
+
+  <!-- Sun (half-set, with band cuts) -->
+  <div class="pump-scene__sun">
+    <div class="pump-scene__sun-cut" style="bottom:10%;height:2px"></div>
+    <div class="pump-scene__sun-cut" style="bottom:22%;height:3px"></div>
+    <div class="pump-scene__sun-cut" style="bottom:34%;height:5px"></div>
+    <div class="pump-scene__sun-cut" style="bottom:48%;height:7px"></div>
+    <div class="pump-scene__sun-cut" style="bottom:62%;height:9px"></div>
+    <div class="pump-scene__sun-cut" style="bottom:78%;height:12px"></div>
+  </div>
+
+  <!-- Mountains -->
+  <div class="pump-scene__mountains">
+    <div class="pump-scene__mountain" style="left:-5%;border-width:0 80px 32px 60px;border-color:transparent transparent #2a0044 transparent"></div>
+    <div class="pump-scene__mountain" style="left:18%;border-width:0 60px 24px 70px;border-color:transparent transparent #220038 transparent"></div>
+    <div class="pump-scene__mountain" style="left:55%;border-width:0 90px 30px 50px;border-color:transparent transparent #2a0044 transparent"></div>
+    <div class="pump-scene__mountain" style="left:78%;border-width:0 50px 22px 80px;border-color:transparent transparent #1e0030 transparent"></div>
+  </div>
+
+  <!-- Palm trees (load SVG content via your framework) -->
+  <div class="pump-scene__palm" style="left:-8%;width:110px;height:160px;opacity:.85"></div>
+  <div class="pump-scene__palm" style="right:-10%;width:100px;height:140px;opacity:.85;transform:scaleX(-1)"></div>
+
+  <!-- Horizon line -->
+  <div class="pump-scene__horizon"></div>
+
+  <!-- Perspective grid -->
+  <div class="pump-scene__grid-container">
+    <div class="pump-scene__grid-plane"></div>
+    <div class="pump-scene__grid-glow"></div>
+  </div>
+
+  <!-- Title -->
+  <div class="pump-scene__title-overlay">
+    <div class="pump-scene__title">PUMP</div>
+    <div class="pump-scene__tagline">Train like it's 1987</div>
+  </div>
+
+  <!-- Scanlines -->
+  <div class="pump-scene__scanlines"></div>
+</div>
