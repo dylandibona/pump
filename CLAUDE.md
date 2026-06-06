@@ -94,7 +94,9 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   → "Let's Go" CTA → 3 stat cards (warm-tint via `.surface-warm`, Records
   tile gets `.surface-warm--hot`) → Recent rows (via `sessionLabel`) →
   Latest PR dark-motif card (Pacifico + tabular weight + cyan horizon)
-  followed by next-best PRs list.
+  followed by next-best PRs list. First-run empty state is a full-bleed
+  `pump-scene-beach.png` scene card ("Ready when you are" / Pacifico "Log
+  your first set") — taps through to start a workout.
 - `GymWorkout.tsx` — most complex. Exercises, supersets, bodyweight, inline
   cardio, plan pre-fill. Triggers `PRMomentScreen` when `newPRs` grows.
 - `SessionPreview.tsx` — editable preview between plan-session tap and
@@ -121,8 +123,14 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   moved out of adjacency.
 - `WorkoutHistory.tsx` — month-grouped list. Calm white cards, sentence-case
   via `sessionLabel`, demoted Delete affordance.
-- `WorkoutTimerBar.tsx` — session clock + rest presets + rest countdown,
-  sticky to top of the scroll container.
+- `WorkoutTimerBar.tsx` — the **atmospheric cockpit header** (mockup §02):
+  a cropped `pump-scene-gym.png` band carrying the session meta (cyan caps,
+  e.g. "Push Day · 2 of 6 done"), the up-next exercise in Pacifico, the live
+  elapsed clock, and the rest controls — quick presets or a live countdown
+  that pulses (`glow-state--urgent`) in its final seconds. Sticky to the top
+  of the scroll container. All timer logic is unchanged from the old light
+  bar; only the presentation moved onto the scene. (Props: `metaLabel`,
+  `exerciseName`, computed in GymWorkout.)
 - `Timer.tsx` — countdown + stopwatch. `RestTimerInline` exported for use
   inside GymWorkout.
 - `IntervalFlow.tsx` — interval timer builder + runner.
@@ -176,8 +184,10 @@ TRAINER (Claude Health Project / coach via MCP)
   → maintains the curated `prs` table; PUMP's dashboard Records reads from it
 
 User taps session → SessionPreview (plan sessions) → GymWorkout pre-fills
-  → logs actual sets (weight overrideable) → completes session
-  → if newPRs > 0: PRMomentScreen full-screen reward
+  → logs actual sets (weight overrideable)
+  → the instant a set sets a new best (newPRs grows): PRMomentScreen
+    full-screen reward fires in-session (sound + burst + "up from")
+  → completes session
 
 On completion:
   → SessionSummary generates BRIEF + captures named feel (Brutal/…/Easy)

@@ -1,8 +1,22 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { TrainerPlan, WorkoutSession } from "./types"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
+}
+
+// Display name for a session. Prefer the plan-session name (e.g. "Push Day" /
+// "Lower + Core") when the session was launched from a plan — matched by the
+// stable planSessionId stored at start, not a name-overlap heuristic. Falls
+// back to a capitalized type for free-form sessions. Single source of truth so
+// the dashboard, history list, and session detail all label consistently.
+export function sessionLabel(session: WorkoutSession, plan: TrainerPlan | null): string {
+  if (session.planSessionId && plan) {
+    const ps = plan.sessions.find(p => p.id === session.planSessionId);
+    if (ps) return ps.name;
+  }
+  return session.type === 'gym' ? 'Gym' : 'Cardio';
 }
 
 // Parse a YYYY-MM-DD session-date string as a LOCAL Date (midnight local).

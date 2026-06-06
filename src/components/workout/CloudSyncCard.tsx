@@ -43,7 +43,7 @@ export function CloudSyncCard({ sync }: { sync: CloudSync }) {
         <div className="flex items-center gap-2.5 min-w-0">
           <Icon className="w-4 h-4 shrink-0" style={{ color: tone }} />
           <div className="min-w-0">
-            <p className="text-[10px] font-mono tracking-[0.2em] text-muted-foreground uppercase">
+            <p className="text-[10px] tabular-nums tracking-[0.2em] text-muted-foreground uppercase">
               Cloud Sync
             </p>
             <p className="text-sm font-semibold truncate" style={{ color: tone }}>

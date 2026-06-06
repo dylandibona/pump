@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dumbbell, Activity, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getWorkoutData, deleteSession } from '@/lib/storage';
+import { getWorkoutData, deleteSession, getPlan } from '@/lib/storage';
 import { WorkoutSession } from '@/lib/types';
-import { parseSessionDate } from '@/lib/utils';
+import { parseSessionDate, sessionLabel } from '@/lib/utils';
 
 interface WorkoutHistoryProps {
   onBack: () => void;
@@ -17,6 +17,7 @@ interface WorkoutHistoryProps {
 export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
   const [filter, setFilter] = useState<'all' | 'gym' | 'cardio'>('all');
   const data = useMemo(() => getWorkoutData(), []);
+  const plan = useMemo(() => getPlan(), []);
   const [sessions, setSessions] = useState(data.sessions);
 
   const filteredSessions = useMemo(() => {
@@ -204,8 +205,8 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
                                 {session.type === 'gym' ? <Dumbbell className="w-5 h-5" /> : <Activity className="w-5 h-5" />}
                               </div>
                               <div>
-                                <p className="font-semibold capitalize" style={{ color: 'var(--pump-text)' }}>
-                                  {session.type}
+                                <p className="font-semibold" style={{ color: 'var(--pump-text)' }}>
+                                  {sessionLabel(session, plan)}
                                 </p>
                                 <p className="text-xs" style={{ color: 'var(--pump-text-dim)' }}>
                                   {formatDate(session.date)}

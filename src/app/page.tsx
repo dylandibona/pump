@@ -22,7 +22,7 @@ import { generateBrief } from '@/lib/brief';
 import { fetchActivePlan } from '@/lib/plan-sync';
 import { pushUnsyncedSessions } from '@/lib/session-sync';
 import { pushUnsyncedBP } from '@/lib/bp-sync';
-import { parseSessionDate } from '@/lib/utils';
+import { parseSessionDate, sessionLabel } from '@/lib/utils';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
 type View = 'dashboard' | 'start' | 'preview' | 'gym' | 'cardio' | 'summary' | 'history' | 'plan' | 'session-detail';
@@ -604,7 +604,7 @@ function SessionDetailView({
           {isGym ? <Dumbbell className="w-10 h-10" /> : <Activity className="w-10 h-10" />}
         </motion.div>
         <h1 className="font-display text-3xl tracking-[0.12em] uppercase" style={{ color: 'var(--pump-text)' }}>
-          {session.type === 'gym' ? 'Gym' : 'Cardio'} Workout
+          {sessionLabel(session, getPlan())}
         </h1>
         <p className="text-sm mt-2" style={{ color: 'var(--pump-text-dim)' }}>{formatDate(session.date)}</p>
       </motion.div>
@@ -680,17 +680,17 @@ function SessionDetailView({
                 </span>
               </div>
               <p className="text-sm text-muted-foreground mt-2">
-                <span className="font-mono">{entry.duration != null ? formatTime(entry.duration) : '—'}</span>
+                <span className="tabular-nums">{entry.duration != null ? formatTime(entry.duration) : '—'}</span>
                 {entry.distance != null && entry.duration != null && (
                   <>
                     <span className="mx-2">·</span>
-                    <span className="font-mono text-accent">
+                    <span className="tabular-nums text-accent">
                       {Math.floor(entry.duration / entry.distance / 60)}:
                       {Math.round((entry.duration / entry.distance) % 60).toString().padStart(2, '0')}/mi
                     </span>
                   </>
                 )}
-                {entry.incline != null && <span className="font-mono text-muted-foreground">{entry.incline}% incline</span>}
+                {entry.incline != null && <span className="tabular-nums text-muted-foreground">{entry.incline}% incline</span>}
               </p>
               {entry.notes && (
                 <p className="text-sm text-muted-foreground mt-3 italic border-l-2 border-accent/30 pl-3">
@@ -780,7 +780,7 @@ function SessionDetailView({
             <textarea
               readOnly
               value={brief}
-              className="w-full min-h-[200px] bg-background/50 border border-white/10 rounded-xl p-3 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-primary/50"
+              className="w-full min-h-[200px] bg-background/50 border border-white/10 rounded-xl p-3 tabular-nums text-xs text-foreground resize-none focus:outline-none focus:border-primary/50"
               onFocus={(e) => e.target.select()}
             />
           </div>

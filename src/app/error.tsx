@@ -64,14 +64,14 @@ export default function GlobalError({
         </div>
 
         <div className="glass rounded-2xl p-4 space-y-3">
-          <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase font-mono">
+          <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase tabular-nums">
             Error details
           </p>
           <textarea
             readOnly
             value={errorText}
             onFocus={(e) => e.target.select()}
-            className="w-full min-h-[180px] bg-background/50 border border-white/10 rounded-xl p-3 font-mono text-xs text-foreground resize-none focus:outline-none focus:border-destructive/50"
+            className="w-full min-h-[180px] bg-background/50 border border-white/10 rounded-xl p-3 tabular-nums text-xs text-foreground resize-none focus:outline-none focus:border-destructive/50"
           />
           <Button
             onClick={handleCopy}

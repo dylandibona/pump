@@ -13,37 +13,43 @@
 
 ## Status (post-Pass-4, current)
 
-Shipped since the audit was written:
+Shipped — Pass 5 (Jun 6 2026) closed the audit:
 - 🟢 **BP heart button overflow** — `pr-[max(0.25rem,env(safe-area-inset-right))]`
-  applied to the dashboard plan-chip row.
-- 🟢 **PR full-screen reward** — `PRMomentScreen.tsx` shipped; trigger wired
-  inside `GymWorkout` (uses `pump-pr-burst.png` + `new-PR.png`).
-- 🟢 **Named feel rating** — Brutal / Tough / OK / Good / Easy live on
-  `SessionSummary.tsx` (drives `feel_score` + the BRIEF).
-- 🟢 **`sessionLabel` propagation** — promoted to `src/lib/utils.ts`; now used
-  by Dashboard Recent, History list, and Session detail.
-- 🟢 **Sign-in logo refresh** — `letspump3.png` (tighter brushy wordmark).
+  on the dashboard plan-chip row.
+- 🟢 **Cockpit (§02) atmospheric header** — `WorkoutTimerBar` rebuilt as the
+  `pump-scene-gym.png` band: session meta (cyan caps) + up-next exercise
+  (Pacifico) + elapsed + rest controls; rest pill pulses via
+  `glow-state--urgent`. Inline pink note panel on the active card. Pacifico
+  "Finish Workout" CTA. **Timer logic unchanged.** Fused-superset rewrite
+  deliberately NOT bundled (see deferred).
+- 🟢 **PR full-screen reward (§03)** — `PRMomentScreen.tsx`; fires in-session
+  when `newPRs` grows. `pump-pr-burst.png` + `new-PR.png` + Pacifico exercise
+  + tabular `weight × reps` + "up from". Auto-dismiss 6s / tap-through.
+- 🟢 **Workout-complete hero band (§04)** — `pump-scene-complete.png` overlay
+  with cyan "Workout Complete" + Pacifico session name + `min · sets · lbs
+  moved` caption.
+- 🟢 **Named feel rating (§04)** — Brutal / Tough / OK / Good / Easy on
+  `SessionSummary.tsx` (drives `feel_score` + BRIEF).
+- 🟢 **Cardio (§05)** — kept as the multi-activity logger; tokens + Pacifico
+  "Finish Workout". No cinematic rebuild (queued).
+- 🟢 **Empty state (§06)** — `pump-scene-beach.png` scene card ("Ready when
+  you are" / Pacifico "Log your first set"), distinct from sign-in.
+- 🟢 **BP sheet SYS/DIA card (§07)** — `.surface-warm` + spectrum-bar trim.
+- 🟢 **Sign-in logo (§08)** — `letspump3.png` (tighter brushy wordmark).
+- 🟢 **`sessionLabel` propagation** — `src/lib/utils.ts`; Dashboard Recent,
+  History list, Session detail.
+- 🟢 **`font-mono` className sweep** — replaced with `tabular-nums` across all
+  components (the var already resolved to Outfit).
+- 🟢 **`glow-state--urgent`** adopted on the cockpit rest timer.
 
-Direction confirmed (work to do under the agreed approach):
-- 🟡 **Cockpit (§02)** — atmospheric header polish (scene band + Pacifico
-  exercise name + animated `glow-state--urgent` rest timer + inline pink note
-  panel). **No fused-superset rewrite this pass** — queued separately.
-- 🟡 **Cardio (§05)** — keep multi-activity logger; adopt tokens + swap
-  "COMPLETE WORKOUT" → Pacifico "Finish Workout". No cinematic rebuild.
-- 🟡 **Empty state (§06)** — use `pump-scene-beach.png` (distinct from
-  sign-in's dumbbell).
-
-Still open (carried from the audit body):
-- 🟠 **Workout-complete hero scene band** — `pump-scene-complete.png` overlay
-  with cyan "WORKOUT COMPLETE" + Pacifico session name + inline stats caption.
-- 🟡 **BP sheet SYS/DIA card** — add `.surface-warm` + spectrum-bar trim
-  (typography already shipped).
-- 🟡 **`.glass` → `.pump-card` migration** + `.glow-state--*` adoption on the
-  cockpit active card + rest timer.
-- 🟡 **`font-mono` className cleanup sweep** (currently cascades to Outfit
-  via `--font-mono`, but the className still litters source).
-- 🔵 **Fused superset block** — queued as its own scoped pass (UX change, not
-  visual; needs explicit testing).
+Deferred — queued as their own scoped passes (by decision):
+- 🔵 **Fused superset block** — one card, shared input toggling between
+  exercises. A UX change that needs its own testing scope, not bundled with
+  a visual pass.
+- 🔵 **Cardio cinematic splash** — the atmospheric `pump-scene-cardio.png`
+  moment belongs on a dedicated "start cardio" screen, not the logger.
+- 🟡 **`.glass` → `.pump-card` migration** — broad cosmetic cleanup; lowest
+  priority, left for a later sweep.
 
 ---
 

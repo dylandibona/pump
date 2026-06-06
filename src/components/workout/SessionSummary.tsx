@@ -2,13 +2,22 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dumbbell, Flame, Trophy, Send, Check, ChevronDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Trophy, Send, Check, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { WorkoutSession, ExerciseStatus, ExerciseStatusReason, GymExercise } from '@/lib/types';
 import { getPRs, getPlan, patchSession } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
-import { parseSessionDate } from '@/lib/utils';
+import { parseSessionDate, sessionLabel } from '@/lib/utils';
+
+// Named feel rating (mockup §04) — replaces the bare 1–5 chips. The number
+// still drives feel_score + the BRIEF; the word gives it personality.
+const FEEL_OPTIONS: { n: number; label: string }[] = [
+  { n: 1, label: 'Brutal' },
+  { n: 2, label: 'Tough' },
+  { n: 3, label: 'OK' },
+  { n: 4, label: 'Good' },
+  { n: 5, label: 'Easy' },
+];
 
 interface SessionSummaryProps {
   session: WorkoutSession;
@@ -181,6 +190,25 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
 
   const isGym = session.type === 'gym';
 
+  // Inline stats caption under the hero title (mockup §04): "62 min · 18 sets
+  // · 12K lbs moved" for gym, distance + time for cardio.
+  const heroCaption = (() => {
+    const parts: string[] = [];
+    if (duration) parts.push(`${duration} min`);
+    if (gymStats) {
+      parts.push(`${gymStats.totalSets} sets`);
+      if (gymStats.totalVolume > 0) {
+        const v = gymStats.totalVolume;
+        parts.push(`${v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v} lbs moved`);
+      }
+    }
+    if (cardioStats) {
+      if (cardioStats.totalDistance > 0) parts.push(`${cardioStats.totalDistance.toFixed(2)} mi`);
+      parts.push(formatTime(cardioStats.totalDuration));
+    }
+    return parts.join(' · ');
+  })();
+
   return (
     <div className="min-h-[80vh] flex flex-col relative">
       {/* Background celebration effect */}
@@ -196,47 +224,42 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
       </div>
 
       <div className="relative z-10 space-y-6">
-        {/* Success Header */}
+        {/* Hero band — sunset balcony scene with the session title overlaid
+            (mockup §04). Full-bleed to the top of the padded container. */}
         <motion.div
-          className="text-center py-8"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, type: 'spring' }}
+          className="-mx-4 -mt-6 relative h-[240px] overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
         >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/pump-scene-complete.png" alt="" className="absolute inset-0 w-full h-full object-cover select-none" draggable={false} />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(180deg, rgba(10,0,32,0.15) 0%, rgba(10,0,32,0.0) 30%, rgba(10,0,32,0.0) 55%, rgba(10,0,32,0.62) 100%)' }}
+          />
           <motion.div
-            className={`w-24 h-24 rounded-3xl flex items-center justify-center mb-4 ${
-              isGym ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent'
-            }`}
-            animate={{
-              rotate: [0, -10, 10, -10, 0],
-              scale: [1, 1.2, 1],
-            }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            {isGym ? <Dumbbell className="w-12 h-12" /> : <Flame className="w-12 h-12" />}
-          </motion.div>
-          <motion.h1
-            className={`font-display text-6xl tracking-wider ${
-              isGym ? 'text-primary text-glow-neon' : 'text-accent text-glow-hot'
-            }`}
-            initial={{ opacity: 0, y: 20 }}
+            className="absolute inset-0 flex flex-col justify-end p-6"
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
           >
-            CRUSHED IT!
-          </motion.h1>
-          <motion.p
-            className="text-muted-foreground mt-2 tracking-wider"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-          >
-            {parseSessionDate(session.date).toLocaleDateString('en-US', {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
-            })}
-          </motion.p>
+            <p
+              className="text-[11px] tracking-[0.35em] uppercase font-bold mb-1"
+              style={{ color: 'rgba(0,255,238,0.95)', textShadow: '0 0 14px rgba(0,255,238,0.7)' }}
+            >
+              Workout Complete
+            </p>
+            <p
+              className="text-white"
+              style={{ fontFamily: 'var(--font-pacifico), cursive', fontSize: '40px', lineHeight: 1.05, textShadow: '0 0 18px rgba(255,0,128,0.6)' }}
+            >
+              {sessionLabel(session, plan)}
+            </p>
+            <p className="text-white/70 text-xs mt-1">
+              {heroCaption || parseSessionDate(session.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+          </motion.div>
         </motion.div>
 
         {/* New PRs Celebration */}
@@ -404,7 +427,7 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
                         {workingSets.map((set, i) => (
                           <span
                             key={i}
-                            className="px-3 py-1 rounded-lg bg-background/50 font-mono text-sm text-primary"
+                            className="px-3 py-1 rounded-lg bg-background/50 tabular-nums text-sm text-primary"
                           >
                             {set.weight}×{set.reps}
                           </span>
@@ -440,7 +463,7 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
                         </div>
                         {needsReason && (
                           <div className="space-y-1.5">
-                            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase font-mono">
+                            <p className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase tabular-nums">
                               Reason
                             </p>
                             <div className="flex flex-wrap gap-1.5">
@@ -463,7 +486,7 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
                         <div className="space-y-1.5">
                           <label
                             htmlFor={`note-${exercise.id}`}
-                            className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase font-mono block"
+                            className="text-[10px] tracking-[0.2em] text-muted-foreground uppercase tabular-nums block"
                           >
                             Quick note
                           </label>
@@ -490,19 +513,22 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
           </motion.div>
         )}
 
-        {/* Session Notes — captured here so they flow into the BRIEF */}
-        {/* Session feel — 1 (rough) to 5 (great), feeds feel_score + BRIEF */}
+        {/* Session feel — named rating (Brutal…Easy); feeds feel_score + BRIEF */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9 }}
-          className="space-y-2"
+          className="rounded-2xl p-4"
+          style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)' }}
         >
-          <p className="text-xs tracking-[0.2em] uppercase text-[color:var(--pump-cyan-deep)] font-mono">
-            How did it feel?
-          </p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[11px] tracking-[0.25em] uppercase font-bold" style={{ color: 'var(--pump-cyan-deep)' }}>
+              How did it feel?
+            </p>
+            <p className="text-xs italic" style={{ color: 'var(--pump-text-mid)' }}>Goes to your trainer</p>
+          </div>
           <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((n) => {
+            {FEEL_OPTIONS.map(({ n, label }) => {
               const active = feelScore === n;
               return (
                 <button
@@ -510,14 +536,14 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
                   type="button"
                   onClick={() => handleSetFeel(n)}
                   aria-pressed={active}
-                  aria-label={`Feel ${n} of 5`}
-                  className="touch-target rounded-xl font-display text-lg transition-all active:scale-95"
+                  aria-label={`Feel ${n} of 5 — ${label}`}
+                  className="rounded-xl py-2.5 flex flex-col items-center gap-0.5 transition-all active:scale-95"
                   style={
                     active
                       ? {
                           background: 'var(--pump-grad-hot)',
                           color: '#fff',
-                          boxShadow: '0 6px 18px -8px rgba(255,0,128,0.6)',
+                          boxShadow: '0 4px 14px -4px rgba(255,0,128,0.55)',
                         }
                       : {
                           background: 'var(--pump-bg-input)',
@@ -526,14 +552,11 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
                         }
                   }
                 >
-                  {n}
+                  <span className="font-display tabular-nums text-lg">{n}</span>
+                  <span className="text-[9px] tracking-[0.15em] uppercase font-bold">{label}</span>
                 </button>
               );
             })}
-          </div>
-          <div className="flex justify-between text-[10px] uppercase tracking-wider text-[color:var(--pump-text-dim)] font-mono px-1">
-            <span>Rough</span>
-            <span>Great</span>
           </div>
         </motion.div>
 
@@ -545,7 +568,7 @@ export function SessionSummary({ session: initialSession, onClose, newPRs = [], 
         >
           <label
             htmlFor="session-notes"
-            className="text-xs tracking-[0.2em] uppercase text-[color:var(--pump-cyan-deep)] font-mono"
+            className="text-xs tracking-[0.2em] uppercase text-[color:var(--pump-cyan-deep)] tabular-nums"
           >
             Session notes for trainer
           </label>

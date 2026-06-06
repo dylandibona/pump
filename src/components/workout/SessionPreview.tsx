@@ -83,7 +83,7 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <p className="font-mono text-[10px] tracking-[0.3em] uppercase text-[color:var(--pump-cyan-deep)]">
+        <p className="tabular-nums text-[10px] tracking-[0.3em] uppercase text-[color:var(--pump-cyan-deep)]">
           PREVIEW · {plan.name.toUpperCase()}
           {plan.blockType ? ` · ${plan.blockType.toUpperCase()}` : ''}
         </p>
@@ -93,7 +93,7 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
         >
           {planSession.name}
         </h1>
-        <p className="font-mono text-xs text-muted-foreground tracking-wider">
+        <p className="tabular-nums text-xs text-muted-foreground tracking-wider">
           {adjusted.length} {adjusted.length === 1 ? 'EXERCISE' : 'EXERCISES'} · ~{duration} MIN
         </p>
       </motion.div>
@@ -124,7 +124,7 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-muted-foreground font-mono text-sm">{i + 1}.</span>
+                    <span className="text-muted-foreground tabular-nums text-sm">{i + 1}.</span>
                     <span className="font-display text-lg tracking-wider">
                       {ex.name.toUpperCase()}
                     </span>
@@ -137,7 +137,7 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
                   </div>
 
                   {!isEditing ? (
-                    <p className="text-sm text-muted-foreground mt-1 font-mono">
+                    <p className="text-sm text-muted-foreground mt-1 tabular-nums">
                       {ex.sets} sets · {ex.targetReps} reps · {weightDisplay}
                     </p>
                   ) : (
@@ -148,7 +148,7 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
                           value={ex.targetReps}
                           onChange={(e) => updateExercise(i, { targetReps: e.target.value })}
                           placeholder="10-12"
-                          className="h-9 font-mono text-sm"
+                          className="h-9 tabular-nums text-sm"
                         />
                       </label>
                       <label className="flex flex-col gap-1">
@@ -165,7 +165,7 @@ export function SessionPreview({ plan, planSession, onStart, onCancel }: Session
                             updateExercise(i, { targetWeight: v === '' ? undefined : Number(v) });
                           }}
                           placeholder={ex.isBodyweight ? 'BW' : '95'}
-                          className="h-9 font-mono text-sm"
+                          className="h-9 tabular-nums text-sm"
                         />
                       </label>
                     </div>

@@ -83,7 +83,7 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                 value={pastedText}
                 onChange={e => { setPastedText(e.target.value); setErrors([]); }}
                 placeholder="Paste the JSON plan your trainer generated..."
-                className="min-h-[140px] font-mono text-sm bg-background/50"
+                className="min-h-[140px] tabular-nums text-sm bg-background/50"
                 autoFocus
               />
               {errors.length > 0 && (
@@ -248,7 +248,7 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                       value={pastedText}
                       onChange={e => { setPastedText(e.target.value); setErrors([]); }}
                       placeholder="Paste updated plan JSON from trainer..."
-                      className="min-h-[120px] font-mono text-sm bg-background/50"
+                      className="min-h-[120px] tabular-nums text-sm bg-background/50"
                       autoFocus
                     />
                     {errors.length > 0 && (

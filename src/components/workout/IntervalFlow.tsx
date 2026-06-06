@@ -252,7 +252,7 @@ function IntervalBuilder({
     <div className="space-y-4 py-4">
       {/* Presets */}
       <div>
-        <p className="text-[10px] font-mono tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)] mb-2">
+        <p className="text-[10px] tabular-nums tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)] mb-2">
           Start from preset
         </p>
         <div className="flex flex-wrap gap-2">
@@ -260,7 +260,7 @@ function IntervalBuilder({
             <button
               key={p.key}
               onClick={() => applyPreset(p.key)}
-              className="px-3 py-1.5 rounded-full text-xs font-mono font-bold bg-[color:var(--pump-bg-input)] text-[color:var(--pump-text-mid)] hover:bg-[color:var(--pump-hot)]/10 hover:text-[color:var(--pump-hot)] transition-colors"
+              className="px-3 py-1.5 rounded-full text-xs tabular-nums font-bold bg-[color:var(--pump-bg-input)] text-[color:var(--pump-text-mid)] hover:bg-[color:var(--pump-hot)]/10 hover:text-[color:var(--pump-hot)] transition-colors"
             >
               {p.name}
             </button>
@@ -270,7 +270,7 @@ function IntervalBuilder({
 
       {/* Name */}
       <label className="block">
-        <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
+        <span className="text-[10px] tabular-nums tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
           Name
         </span>
         <Input
@@ -295,17 +295,17 @@ function IntervalBuilder({
 
       <button
         onClick={addBlock}
-        className="w-full py-2 rounded-lg border-2 border-dashed border-[color:var(--pump-border-card)] text-[color:var(--pump-text-dim)] hover:border-[color:var(--pump-hot)]/30 hover:text-[color:var(--pump-hot)] transition-colors text-xs font-mono tracking-wider uppercase"
+        className="w-full py-2 rounded-lg border-2 border-dashed border-[color:var(--pump-border-card)] text-[color:var(--pump-text-dim)] hover:border-[color:var(--pump-hot)]/30 hover:text-[color:var(--pump-hot)] transition-colors text-xs tabular-nums tracking-wider uppercase"
       >
         + Add Block (compound program)
       </button>
 
       {/* Total */}
       <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-[color:var(--pump-bg-input)]">
-        <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
+        <span className="text-[10px] tabular-nums tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
           Total
         </span>
-        <span className="font-mono text-lg font-bold text-[color:var(--pump-hot)]">
+        <span className="tabular-nums text-lg font-bold text-[color:var(--pump-hot)]">
           {fmt(total)}
         </span>
       </div>
@@ -377,10 +377,10 @@ function BlockEditor({
               value={step.duration || ''}
               onChange={(e) => updateStep(si, { duration: Math.max(0, Number(e.target.value) || 0) })}
               placeholder="30"
-              className="w-20 h-9 text-center font-mono"
+              className="w-20 h-9 text-center tabular-nums"
               aria-label="Seconds"
             />
-            <span className="text-xs font-mono text-[color:var(--pump-text-dim)] w-4">s</span>
+            <span className="text-xs tabular-nums text-[color:var(--pump-text-dim)] w-4">s</span>
             <button
               onClick={() => removeStep(si)}
               disabled={block.steps.length <= 1}
@@ -393,7 +393,7 @@ function BlockEditor({
         ))}
         <button
           onClick={addStep}
-          className="w-full py-1.5 rounded-md text-xs font-mono text-[color:var(--pump-text-dim)] hover:text-[color:var(--pump-hot)] hover:bg-[color:var(--pump-hot)]/5 transition-colors"
+          className="w-full py-1.5 rounded-md text-xs tabular-nums text-[color:var(--pump-text-dim)] hover:text-[color:var(--pump-hot)] hover:bg-[color:var(--pump-hot)]/5 transition-colors"
         >
           <Plus className="w-3 h-3 inline mr-1" /> Add step
         </button>
@@ -401,7 +401,7 @@ function BlockEditor({
 
       {/* Rounds */}
       <div className="flex items-center gap-2">
-        <span className="text-[10px] font-mono tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
+        <span className="text-[10px] tabular-nums tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
           Rounds
         </span>
         <button
@@ -411,7 +411,7 @@ function BlockEditor({
         >
           –
         </button>
-        <span className="font-mono text-lg font-bold w-8 text-center tabular-nums">
+        <span className="tabular-nums text-lg font-bold w-8 text-center tabular-nums">
           {block.rounds}
         </span>
         <button
@@ -550,10 +550,10 @@ function IntervalRunner({
           <span className="font-display tracking-wider text-sm">STOP</span>
         </button>
         <div className="text-right">
-          <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
+          <p className="text-[9px] tabular-nums tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
             {sequence.name || 'Intervals'}
           </p>
-          <p className="font-mono text-xs tabular-nums text-[color:var(--pump-text-mid)]">
+          <p className="tabular-nums text-xs tabular-nums text-[color:var(--pump-text-mid)]">
             Step {stepIndex + 1} / {flat.length}
           </p>
         </div>
@@ -562,7 +562,7 @@ function IntervalRunner({
       {/* Big countdown */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 gap-4">
         <p
-          className="text-xs tracking-[0.4em] uppercase font-mono"
+          className="text-xs tracking-[0.4em] uppercase tabular-nums"
           style={{ color: accent }}
         >
           {step.blockCount > 1 ? `Block ${step.blockIndex + 1}/${step.blockCount} · ` : ''}
@@ -580,7 +580,7 @@ function IntervalRunner({
         </motion.p>
 
         <motion.p
-          className="font-mono font-bold tabular-nums leading-none"
+          className="tabular-nums font-bold tabular-nums leading-none"
           style={{
             color: accent,
             fontSize: 'clamp(5rem, 22vw, 9rem)',

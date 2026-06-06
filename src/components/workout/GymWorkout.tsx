@@ -12,10 +12,11 @@ import { RestTimerInline } from './Timer';
 import { WorkoutTimerBar } from './WorkoutTimerBar';
 import { IntervalFlow } from './IntervalFlow';
 import { ReorderExercisesSheet } from './ReorderExercisesSheet';
+import { PRMomentScreen } from './PRMomentScreen';
 import { Timer as TimerIcon, Zap } from 'lucide-react';
 import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet, CardioActivity, CardioEntry } from '@/lib/types';
-import { getExerciseHistory, getPRForExercise } from '@/lib/storage';
+import { getExerciseHistory, getPRForExercise, computeE1RM, isWorkingSet } from '@/lib/storage';
 import { playSetCompleteFeedback, playPRFeedback, preloadSound } from '@/lib/sounds';
 import { parseSessionDate } from '@/lib/utils';
 
@@ -55,6 +56,11 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
   const [showIntervalFlow, setShowIntervalFlow] = useState(false);
   const [linkingExerciseId, setLinkingExerciseId] = useState<string | null>(null);
   const [showReorder, setShowReorder] = useState(false);
+  // Full-screen PR reward (mockup §03). Populated when newPRs grows; the
+  // overlay self-dismisses or the user taps through.
+  const [prMoment, setPrMoment] = useState<{
+    exercise: string; weight: number; reps: number; prevWeight?: number; prevReps?: number;
+  } | null>(null);
   const planLoadedRef = useRef(false);
   const prevPRCountRef = useRef(newPRs.length);
 
@@ -115,12 +121,34 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
     preloadSound('setComplete');
   }, []);
 
-  // Play sound when a new PR is achieved
+  // Play sound + fire the full-screen reward when a new PR is achieved.
+  // The newest of the just-added names drives the moment; its PR set is the
+  // highest-e1RM working set logged this session, and "up from" reads the
+  // pre-session committed PR (PRs only commit at completion, so it's still the
+  // prior best here).
   useEffect(() => {
     if (newPRs.length > prevPRCountRef.current) {
       playPRFeedback();
+      const name = newPRs[newPRs.length - 1];
+      const ex = session?.exercises?.find(e => e.name.toLowerCase() === name.toLowerCase());
+      const best = ex?.sets
+        .filter(isWorkingSet)
+        .slice()
+        .sort((a, b) => computeE1RM(b.weight, b.reps) - computeE1RM(a.weight, a.reps))[0];
+      if (best) {
+        const prev = getPRForExercise(name);
+        setPrMoment({
+          exercise: name,
+          weight: best.weight,
+          reps: best.reps,
+          prevWeight: prev?.weight,
+          prevReps: prev?.reps,
+        });
+      }
     }
     prevPRCountRef.current = newPRs.length;
+    // Only re-run when the count changes; newPRs/session are read fresh on each fire.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newPRs.length]);
 
   const handleAddExercise = useCallback((exercise: string | { name: string }) => {
@@ -141,11 +169,24 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
 
   const stats = getSessionStats();
 
+  // Cockpit header context: progress ("2 of 6 done") + the up-next exercise.
+  // "done" = an exercise with no remaining planned slots and at least one
+  // working set logged; "active" = the first exercise still carrying a planned
+  // slot (what you're about to log), else the last one.
+  const exs = session.exercises ?? [];
+  const totalEx = exs.length;
+  const doneEx = exs.filter(e => e.sets.length > 0 && !e.sets.some(s => s.isPlanned) && e.sets.some(isWorkingSet)).length;
+  const activeEx = exs.find(e => e.sets.some(s => s.isPlanned)) ?? exs[exs.length - 1];
+  const planName = planSession?.name ?? 'Workout';
+  const metaLabel = totalEx > 0 ? `${planName} · ${doneEx} of ${totalEx} done` : planName;
+
   return (
     <div className="space-y-4 pb-24">
-      {/* Persistent timer header — session clock + rest presets, sticks to
-          top of the scroll container so it's always reachable mid-set. */}
-      <WorkoutTimerBar startTime={session.startTime} />
+      {/* Atmospheric cockpit header — gym scene band carrying session meta,
+          the up-next exercise (Pacifico), the elapsed clock, and rest
+          controls. Sticks to the top of the scroll container so the timer is
+          always reachable mid-set. */}
+      <WorkoutTimerBar startTime={session.startTime} metaLabel={metaLabel} exerciseName={activeEx?.name} />
 
       {/* New PR Celebration */}
       <AnimatePresence>
@@ -364,7 +405,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
                   <p className="font-display text-sm tracking-wider truncate">
                     {iv.name.toUpperCase()}
                   </p>
-                  <p className="text-[10px] font-mono tracking-wider text-[color:var(--pump-text-dim)]">
+                  <p className="text-[10px] tabular-nums tracking-wider text-[color:var(--pump-text-dim)]">
                     {iv.sequence.blocks.map(b => `[${b.steps.map(s => s.duration + 's').join(' / ')}] × ${b.rounds}`).join(' + ')}
                     {' · '}
                     {Math.floor(iv.totalDuration / 60)}:{String(iv.totalDuration % 60).padStart(2, '0')}
@@ -426,16 +467,20 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <Button
+        <motion.button
+          type="button"
           onClick={handleComplete}
-          className="w-full h-16 font-display text-xl tracking-widest relative overflow-hidden group touch-target"
-          size="lg"
           disabled={!session.exercises?.length && !session.cardio?.length}
+          whileTap={{ scale: 0.98 }}
+          className="w-full rounded-2xl py-4 text-white text-2xl touch-target disabled:opacity-50 transition-opacity"
+          style={{
+            fontFamily: 'var(--font-pacifico), cursive',
+            background: 'var(--pump-grad-hot)',
+            boxShadow: '0 8px 24px -8px rgba(255,0,128,0.55)',
+          }}
         >
-          <span className="relative z-10">COMPLETE WORKOUT</span>
-          <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute inset-0 glow-neon opacity-50 group-hover:opacity-100 transition-opacity" />
-        </Button>
+          Finish Workout
+        </motion.button>
       </motion.div>
 
       {/* Interval builder + runner. Mounts when opened; state resets on each open. */}
@@ -455,6 +500,20 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
         exercises={session.exercises ?? []}
         onReorder={reorderExercises}
       />
+
+      {/* Full-screen PR reward (mockup §03) */}
+      <AnimatePresence>
+        {prMoment && (
+          <PRMomentScreen
+            exercise={prMoment.exercise}
+            weight={prMoment.weight}
+            reps={prMoment.reps}
+            prevWeight={prMoment.prevWeight}
+            prevReps={prMoment.prevReps}
+            onDismiss={() => setPrMoment(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -562,7 +621,7 @@ function ExerciseCard({
                     setWeightType(next);
                     onUpdateWeightType(next);
                   }}
-                  className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors px-2 py-0.5 border border-muted-foreground/20 hover:border-primary/40"
+                  className="text-xs tabular-nums text-muted-foreground hover:text-primary transition-colors px-2 py-0.5 border border-muted-foreground/20 hover:border-primary/40"
                 >
                   {weightType === 'total' ? 'TOTAL' : 'EA SIDE'}
                 </button>
@@ -623,6 +682,18 @@ function ExerciseCard({
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Inline note panel (mockup §02) — the saved note renders as a
+            prominent pink panel when not actively editing, so context the
+            trainer left (or you logged) is visible at a glance. */}
+        {exercise.notes?.trim() && !showNotes && (
+          <div
+            className="rounded-lg px-3 py-2 flex gap-2"
+            style={{ background: 'rgba(255,0,128,0.05)', border: '1px solid rgba(255,0,128,0.10)' }}
+          >
+            <p className="text-xs italic" style={{ color: 'var(--pump-text-mid)' }}>{exercise.notes}</p>
+          </div>
+        )}
+
         {/* History Preview */}
         <AnimatePresence>
           {showHistory && history.length > 0 && (
@@ -641,7 +712,7 @@ function ExerciseCard({
                     <span className="text-muted-foreground">
                       {parseSessionDate(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
-                    <span className="font-mono text-primary">
+                    <span className="tabular-nums text-primary">
                       {entry.sets.filter(s => !s.isWarmup).map((s, j) => (
                         <span key={j} className="ml-2">{s.weight}×{s.reps}</span>
                       ))}
@@ -680,10 +751,10 @@ function ExerciseCard({
                     }}
                   >
                     <span className="font-display text-lg text-muted-foreground/50">{setNumber}</span>
-                    <span className="text-center font-mono text-sm text-muted-foreground/50">
+                    <span className="text-center tabular-nums text-sm text-muted-foreground/50">
                       {set.isBodyweight ? 'BW' : set.weight > 0 ? `${set.weight}` : '—'}
                     </span>
-                    <span className="text-center font-mono text-sm text-muted-foreground/50">—</span>
+                    <span className="text-center tabular-nums text-sm text-muted-foreground/50">—</span>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -712,7 +783,7 @@ function ExerciseCard({
                     {set.isWarmup ? 'W' : setNumber}
                   </span>
                   {set.isBodyweight ? (
-                    <span className="h-10 flex items-center justify-center font-mono text-primary text-sm">BW</span>
+                    <span className="h-10 flex items-center justify-center tabular-nums text-primary text-sm">BW</span>
                   ) : (
                     <div>
                       <Input
@@ -720,7 +791,7 @@ function ExerciseCard({
                         value={set.weight}
                         onChange={(e) => onUpdateSet(index, { weight: parseFloat(e.target.value) || 0 })}
                         onFocus={(e) => e.target.select()}
-                        className="h-10 text-center font-mono bg-background/50"
+                        className="h-10 text-center tabular-nums bg-background/50"
                       />
                       {weightType === 'per_side' && <span className="text-[10px] text-muted-foreground text-center block">ea.</span>}
                     </div>
@@ -730,7 +801,7 @@ function ExerciseCard({
                     value={set.reps}
                     onChange={(e) => onUpdateSet(index, { reps: parseInt(e.target.value) || 0 })}
                     onFocus={(e) => e.target.select()}
-                    className="h-10 text-center font-mono bg-background/50"
+                    className="h-10 text-center tabular-nums bg-background/50"
                   />
                   <Button
                     variant="ghost"
@@ -750,7 +821,7 @@ function ExerciseCard({
         <div className="grid grid-cols-4 gap-2 items-end">
           {isBodyweight ? (
             <div className="flex items-end">
-              <span className="h-[52px] flex items-center justify-center font-mono text-primary text-lg w-full bg-secondary/30 border border-border">BW</span>
+              <span className="h-[52px] flex items-center justify-center tabular-nums text-primary text-lg w-full bg-secondary/30 border border-border">BW</span>
             </div>
           ) : (
             <div>
@@ -763,7 +834,7 @@ function ExerciseCard({
                 onChange={(e) => setNewWeight(e.target.value)}
                 onFocus={(e) => e.target.select()}
                 placeholder="lbs"
-                className="touch-target text-center font-mono"
+                className="touch-target text-center tabular-nums"
               />
               <span className="text-xs text-muted-foreground block text-center mt-0.5">
                 {weightType === 'per_side' ? 'lbs ea.' : 'lbs'}
@@ -780,7 +851,7 @@ function ExerciseCard({
               onChange={(e) => setNewReps(e.target.value)}
               onFocus={(e) => e.target.select()}
               placeholder="#"
-              className="touch-target text-center font-mono"
+              className="touch-target text-center tabular-nums"
               onKeyDown={(e) => e.key === 'Enter' && handleAddSet()}
             />
           </div>
@@ -935,7 +1006,7 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
               <Icon className="w-5 h-5 text-accent" />
               <div>
                 <span className="font-display tracking-wider text-sm text-accent">{entry.activity.toUpperCase()}</span>
-                <div className="text-xs text-muted-foreground font-mono">
+                <div className="text-xs text-muted-foreground tabular-nums">
                   {entry.duration != null && formatTime(entry.duration)}
                   {entry.distance != null && ` · ${entry.distance}mi`}
                   {showPace && ` · ${paceMin}:${paceSec.toString().padStart(2,'0')}/mi`}
@@ -972,21 +1043,21 @@ function InlineCardioForm({ cardioEntries, onAdd, onRemove }: InlineCardioFormPr
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Min</label>
-              <Input type="number" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="0" className="touch-target text-center font-mono" />
+              <Input type="number" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="0" className="touch-target text-center tabular-nums" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Sec</label>
-              <Input type="number" value={seconds} onChange={e => setSeconds(e.target.value)} placeholder="0" className="touch-target text-center font-mono" />
+              <Input type="number" value={seconds} onChange={e => setSeconds(e.target.value)} placeholder="0" className="touch-target text-center tabular-nums" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Miles (opt)</label>
-              <Input type="number" step="0.01" value={distance} onChange={e => setDistance(e.target.value)} placeholder="0.0" className="touch-target text-center font-mono" />
+              <Input type="number" step="0.01" value={distance} onChange={e => setDistance(e.target.value)} placeholder="0.0" className="touch-target text-center tabular-nums" />
             </div>
           </div>
           {selectedActivity === 'walk' && (
             <div>
               <label className="text-xs text-muted-foreground uppercase tracking-wider block mb-1">Incline % (opt)</label>
-              <Input type="number" step="0.5" value={incline} onChange={e => setIncline(e.target.value)} placeholder="0" className="touch-target text-center font-mono" />
+              <Input type="number" step="0.5" value={incline} onChange={e => setIncline(e.target.value)} placeholder="0" className="touch-target text-center tabular-nums" />
             </div>
           )}
           <div className="flex gap-2">

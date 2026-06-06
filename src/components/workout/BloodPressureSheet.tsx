@@ -208,9 +208,11 @@ export function BloodPressureSheet({
         <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3">
           {view === 'log' ? (
             <div className="space-y-5">
-              {/* SYS / DIA */}
-              <div className="pump-card p-4">
-                <div className="flex items-center justify-center gap-3">
+              {/* SYS / DIA — big confident card with warm tint + spectrum-bar
+                  trim (mockup §07). */}
+              <div className="surface-warm rounded-2xl p-4 relative overflow-hidden">
+                <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: 'var(--pump-grad-bar)', opacity: 0.5 }} />
+                <div className="flex items-center justify-center gap-3 pt-1">
                   <div className="flex-1">
                     <input
                       inputMode="numeric"

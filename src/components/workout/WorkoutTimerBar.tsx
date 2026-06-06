@@ -1,15 +1,17 @@
 'use client';
 
-// Persistent timer bar, anchored at the top of the active workout view.
-// Shows live session elapsed time and quick-start rest presets. When a
-// rest countdown is running, it takes over the bar with a prominent
-// countdown + stop button. The advanced Timer (custom durations,
-// stopwatch) is still available via the Sheet triggered from the top
-// nav — this bar handles the 95% case mid-set.
+// Atmospheric cockpit header (mockup §02), anchored sticky at the top of the
+// active gym view. A cropped `pump-scene-gym.png` band carries the session
+// meta (cyan caps), the current exercise name (Pacifico), the live elapsed
+// clock, and the rest controls — quick-start presets, or a prominent live
+// countdown that pulses (glow-state--urgent) in its final seconds. All timer
+// logic is unchanged from the old light bar; only the presentation moved onto
+// the scene. The advanced Timer (custom durations, stopwatch) still lives in
+// the Sheet triggered from the top nav.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Timer as TimerIcon, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { playSetCompleteFeedback } from '@/lib/sounds';
 
 const REST_PRESETS: { label: string; seconds: number }[] = [
@@ -22,6 +24,10 @@ const REST_PRESETS: { label: string; seconds: number }[] = [
 interface WorkoutTimerBarProps {
   /** ISO timestamp when the session began */
   startTime: string;
+  /** Session meta line, e.g. "Push Day · 2 of 6 done" (cyan caps eyebrow) */
+  metaLabel?: string;
+  /** Current / up-next exercise name, rendered in Pacifico */
+  exerciseName?: string;
   /** Optional right-side badge showing interval state when running */
   intervalBadge?: React.ReactNode;
 }
@@ -35,7 +41,7 @@ function fmt(sec: number): string {
   return `${m}:${String(r).padStart(2, '0')}`;
 }
 
-export function WorkoutTimerBar({ startTime, intervalBadge }: WorkoutTimerBarProps) {
+export function WorkoutTimerBar({ startTime, metaLabel, exerciseName, intervalBadge }: WorkoutTimerBarProps) {
   const startMs = useMemo(() => new Date(startTime).getTime(), [startTime]);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [restSeconds, setRestSeconds] = useState<number | null>(null); // total rest duration
@@ -84,79 +90,100 @@ export function WorkoutTimerBar({ startTime, intervalBadge }: WorkoutTimerBarPro
 
   return (
     <motion.div
-      className="sticky top-0 z-30 -mx-4 px-4 pt-3 pb-3 mb-4 bg-[color:var(--pump-bg-page)]/92 backdrop-blur-md border-b border-[color:var(--pump-border-card)]"
+      className="sticky top-0 z-30 -mx-4 mb-4 overflow-hidden rounded-b-3xl"
       initial={{ y: -20, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 320, damping: 30 }}
     >
-      <div className="max-w-lg mx-auto flex items-center gap-3">
-        {/* Session elapsed */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-9 h-9 rounded-lg bg-[color:var(--pump-hot)]/12 flex items-center justify-center text-[color:var(--pump-hot)]">
-            <TimerIcon className="w-4 h-4" />
+      {/* Scene backdrop — gym scene cropped to a dark band. Plain img matches
+          the dashboard hero pattern (no next/image layout constraints). */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/pump-scene-gym.png" alt="" className="absolute inset-0 w-full h-full object-cover select-none" draggable={false} />
+      <div
+        className="absolute inset-0"
+        style={{ background: 'linear-gradient(180deg, rgba(10,0,32,0.62) 0%, rgba(10,0,32,0.72) 55%, rgba(10,0,32,0.88) 100%)' }}
+      />
+
+      <div className="relative max-w-lg mx-auto px-4 pt-3 pb-3">
+        {/* Meta + current exercise */}
+        {(metaLabel || exerciseName) && (
+          <div className="mb-2 min-w-0">
+            {metaLabel && (
+              <p
+                className="text-[10px] tracking-[0.28em] uppercase font-bold truncate"
+                style={{ color: 'rgba(0,255,238,0.9)', textShadow: '0 0 10px rgba(0,255,238,0.5)' }}
+              >
+                {metaLabel}
+              </p>
+            )}
+            {exerciseName && (
+              <p
+                className="text-white truncate"
+                style={{ fontFamily: 'var(--font-pacifico), cursive', fontSize: '26px', lineHeight: 1.15, textShadow: '0 0 14px rgba(255,0,128,0.5)' }}
+              >
+                {exerciseName}
+              </p>
+            )}
           </div>
-          <div className="leading-tight">
-            <p className="text-[9px] font-mono tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
-              Session
+        )}
+
+        <div className="flex items-end gap-3">
+          {/* Session elapsed */}
+          <div className="leading-tight shrink-0">
+            <p className="text-[9px] tracking-[0.25em] uppercase font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>
+              Elapsed
             </p>
-            <p className="font-mono text-lg font-bold tabular-nums text-[color:var(--pump-text)]">
+            <p className="font-display text-2xl tabular-nums text-white" style={{ textShadow: '0 0 8px rgba(0,0,0,0.4)' }}>
               {fmt(elapsed)}
             </p>
           </div>
-        </div>
 
-        {/* Rest presets OR live countdown */}
-        <div className="flex-1 flex justify-end items-center gap-1.5 min-w-0">
-          {!isResting && !intervalBadge && (
-            REST_PRESETS.map(p => (
-              <button
-                key={p.label}
-                onClick={() => startRest(p.seconds)}
-                className="px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold bg-[color:var(--pump-bg-input)] text-[color:var(--pump-text-mid)] hover:bg-[color:var(--pump-hot)]/10 hover:text-[color:var(--pump-hot)] transition-colors"
-                aria-label={`Start ${p.label} rest`}
-              >
-                {p.label}
-              </button>
-            ))
-          )}
+          {/* Rest presets OR live countdown */}
+          <div className="flex-1 flex justify-end items-center gap-1.5 min-w-0">
+            {!isResting && !intervalBadge && (
+              REST_PRESETS.map(p => (
+                <button
+                  key={p.label}
+                  onClick={() => startRest(p.seconds)}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold tabular-nums text-white/90 transition-colors hover:bg-white/20"
+                  style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.14)' }}
+                  aria-label={`Start ${p.label} rest`}
+                >
+                  {p.label}
+                </button>
+              ))
+            )}
 
-          {isResting && (
-            <motion.div
-              className={`flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-lg border ${
-                isDone
-                  ? 'bg-[color:var(--pump-hot)]/14 border-[color:var(--pump-hot)]/30'
-                  : isUrgent
-                    ? 'bg-[color:var(--pump-hot)]/14 border-[color:var(--pump-hot)]/40 animate-pulse-neon'
-                    : 'bg-[color:var(--pump-hot)]/8 border-[color:var(--pump-hot)]/20'
-              }`}
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-            >
-              <span className="text-[9px] font-mono tracking-[0.2em] uppercase text-[color:var(--pump-text-dim)]">
-                {isDone ? 'Done' : 'Rest'}
-              </span>
-              <span
-                className={`font-mono text-lg font-bold tabular-nums ${
-                  isDone || isUrgent
-                    ? 'text-[color:var(--pump-hot)] text-glow-hot'
-                    : 'text-[color:var(--pump-text)]'
-                }`}
+            {isResting && (
+              <motion.div
+                className={`flex items-center gap-2 pl-3 pr-1.5 py-1.5 rounded-xl border ${isUrgent ? 'glow-state glow-state--urgent' : ''}`}
+                style={{ background: 'rgba(255,0,128,0.20)', borderColor: 'rgba(255,0,128,0.5)' }}
+                initial={{ opacity: 0, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
               >
-                {fmt(restRemaining ?? 0)}
-              </span>
-              <button
-                onClick={stopRest}
-                className="w-7 h-7 rounded-md flex items-center justify-center text-[color:var(--pump-text-dim)] hover:text-[color:var(--pump-hot)] hover:bg-[color:var(--pump-hot)]/10 transition-colors"
-                aria-label="Cancel rest"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </motion.div>
-          )}
+                <span className="text-[9px] tracking-[0.25em] uppercase font-bold" style={{ color: 'rgba(255,0,128,0.95)' }}>
+                  {isDone ? 'Done' : 'Rest'}
+                </span>
+                <span
+                  className="font-display text-2xl tabular-nums text-white"
+                  style={{ textShadow: '0 0 10px rgba(255,0,128,0.7)' }}
+                >
+                  {fmt(restRemaining ?? 0)}
+                </span>
+                <button
+                  onClick={stopRest}
+                  className="w-7 h-7 rounded-md flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Cancel rest"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </motion.div>
+            )}
 
-          {intervalBadge && !isResting && (
-            <div className="min-w-0">{intervalBadge}</div>
-          )}
+            {intervalBadge && !isResting && (
+              <div className="min-w-0">{intervalBadge}</div>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>

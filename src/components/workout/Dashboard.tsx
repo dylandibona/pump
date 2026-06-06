@@ -1,12 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, exportData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
-import { parseSessionDate } from '@/lib/utils';
+import { parseSessionDate, sessionLabel } from '@/lib/utils';
 import { BloodPressureSheet } from './BloodPressureSheet';
 import { fetchPRs, getCachedPRs, currentBestPerExercise, type CuratedPR } from '@/lib/prs-sync';
 import type { CloudSync } from '@/hooks/useCloudSync';
@@ -35,19 +36,6 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
   const prs = useMemo(() => currentBestPerExercise(prsAll), [prsAll]);
 
   const [showBP, setShowBP] = useState(false);
-
-  // Display name for a session in the Recent rows. Prefer the plan-session
-  // name (e.g. "Push Day" / "Lower + Core") when this session was launched
-  // from a plan; fall back to a capitalized type for free-form sessions. Match
-  // is by planSessionId — that's the stable id we store at start, not a name
-  // overlap heuristic.
-  const sessionLabel = (s: WorkoutSession): string => {
-    if (s.planSessionId && plan) {
-      const ps = plan.sessions.find(p => p.id === s.planSessionId);
-      if (ps) return ps.name;
-    }
-    return s.type === 'gym' ? 'Gym' : 'Cardio';
-  };
 
   const handleExport = () => {
     const json = exportData();
@@ -122,7 +110,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
             Plan chip expands; BP is a compact hot-gradient heart so the BP
             log is one tap from anywhere but doesn't take a full row. */}
         <motion.div
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 pr-[max(0.25rem,env(safe-area-inset-right))]"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25 }}
@@ -236,7 +224,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
           </div>
 
           {recentSessions.length === 0 ? (
-            <EmptyState />
+            <EmptyState onStart={onStartWorkout} />
           ) : (
             <div className="space-y-2">
               {recentSessions.map((session, index) => (
@@ -258,7 +246,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold truncate" style={{ color: 'var(--pump-text)' }}>{sessionLabel(session)}</span>
+                      <span className="font-semibold truncate" style={{ color: 'var(--pump-text)' }}>{sessionLabel(session, plan)}</span>
                       {!session.completed && (
                         <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded-full font-bold shrink-0"
                           style={{ background: 'rgba(0,168,158,0.12)', color: 'var(--pump-cyan-deep)' }}>
@@ -426,35 +414,41 @@ function StatCard({
   );
 }
 
-// Empty State Component
-function EmptyState() {
+// Empty State — first-run scene moment (mockup §06). Full-bleed beach scene
+// (a calm "chill arrival" mood, distinct from sign-in's dramatic dumbbell
+// scene) with a cyan caps eyebrow + Pacifico call. The whole card starts a
+// workout so the first set is one tap away.
+function EmptyState({ onStart }: { onStart: () => void }) {
   return (
-    <motion.div
-      className="glass rounded-xl p-8 text-center"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+    <motion.button
+      type="button"
+      onClick={onStart}
+      className="relative block w-full overflow-hidden rounded-3xl text-left"
+      style={{ aspectRatio: '3 / 4', boxShadow: '0 16px 48px -16px rgba(139,0,255,0.45)' }}
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
       transition={{ delay: 0.5 }}
+      whileTap={{ scale: 0.99 }}
     >
-      <motion.div
-        className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-primary/20 flex items-center justify-center"
-        animate={{
-          rotate: [0, -10, 10, -10, 0],
-          scale: [1, 1.1, 1]
-        }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          repeatDelay: 3
-        }}
+      <Image src="/pump-scene-beach.png" alt="" fill priority className="object-cover" />
+      <div
+        className="absolute inset-x-0 bottom-0 p-6 text-center"
+        style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(10,0,32,0.65) 100%)' }}
       >
-        <Dumbbell className="w-10 h-10 text-primary" />
-      </motion.div>
-      <p className="font-display text-xl tracking-wider text-muted-foreground">
-        NO WORKOUTS YET
-      </p>
-      <p className="text-sm text-muted-foreground/60 mt-2">
-        Start your first workout above
-      </p>
-    </motion.div>
+        <p
+          className="text-[11px] tracking-[0.35em] uppercase font-bold"
+          style={{ color: 'rgba(0,255,238,0.95)', textShadow: '0 0 14px rgba(0,255,238,0.6)' }}
+        >
+          Ready when you are
+        </p>
+        <p
+          className="text-white mt-1"
+          style={{ fontFamily: 'var(--font-pacifico), cursive', fontSize: '34px', lineHeight: 1.1, textShadow: '0 0 16px rgba(255,0,128,0.6)' }}
+        >
+          Log your first set
+        </p>
+        <p className="text-white/70 text-sm mt-2">Tap to start — your plan is waiting above.</p>
+      </div>
+    </motion.button>
   );
 }

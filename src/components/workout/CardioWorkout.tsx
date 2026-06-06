@@ -200,7 +200,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                       value={hours}
                       onChange={(e) => setHours(e.target.value)}
                       placeholder="0"
-                      className="touch-target text-2xl font-mono text-center bg-background/50"
+                      className="touch-target text-2xl tabular-nums text-center bg-background/50"
                     />
                     <span className="text-xs text-muted-foreground uppercase tracking-wider mt-1 block">
                       Hours
@@ -212,7 +212,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                       value={minutes}
                       onChange={(e) => setMinutes(e.target.value)}
                       placeholder="0"
-                      className="touch-target text-2xl font-mono text-center bg-background/50"
+                      className="touch-target text-2xl tabular-nums text-center bg-background/50"
                     />
                     <span className="text-xs text-muted-foreground uppercase tracking-wider mt-1 block">
                       Min
@@ -224,7 +224,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                       value={seconds}
                       onChange={(e) => setSeconds(e.target.value)}
                       placeholder="0"
-                      className="touch-target text-2xl font-mono text-center bg-background/50"
+                      className="touch-target text-2xl tabular-nums text-center bg-background/50"
                     />
                     <span className="text-xs text-muted-foreground uppercase tracking-wider mt-1 block">
                       Sec
@@ -244,7 +244,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                   value={distance}
                   onChange={(e) => setDistance(e.target.value)}
                   placeholder="e.g., 3.1"
-                  className="touch-target text-2xl font-mono text-center bg-background/50"
+                  className="touch-target text-2xl tabular-nums text-center bg-background/50"
                 />
               </div>
 
@@ -260,7 +260,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                     value={incline}
                     onChange={(e) => setIncline(e.target.value)}
                     placeholder="e.g., 15"
-                    className="touch-target text-2xl font-mono text-center bg-background/50"
+                    className="touch-target text-2xl tabular-nums text-center bg-background/50"
                   />
                 </div>
               )}
@@ -277,7 +277,7 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                     value={speed}
                     onChange={(e) => setSpeed(e.target.value)}
                     placeholder="e.g., 3.5"
-                    className="touch-target text-2xl font-mono text-center bg-background/50"
+                    className="touch-target text-2xl tabular-nums text-center bg-background/50"
                   />
                 </div>
               )}
@@ -324,11 +324,11 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                         )}
                       </span>
                       {incline && (
-                        <span className="font-mono text-lg text-accent">· {incline}% incline</span>
+                        <span className="tabular-nums text-lg text-accent">· {incline}% incline</span>
                       )}
                     </div>
                     {distance && (
-                      <p className="text-lg font-mono text-accent mt-1">
+                      <p className="text-lg tabular-nums text-accent mt-1">
                         {calculatePace(
                           parseFloat(distance),
                           (parseInt(hours) || 0) * 3600 +
@@ -411,16 +411,20 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <Button
+        <motion.button
+          type="button"
           onClick={handleComplete}
-          className="w-full h-16 font-display text-xl tracking-widest relative overflow-hidden group touch-target"
-          size="lg"
           disabled={!session.cardio?.length}
+          whileTap={{ scale: 0.98 }}
+          className="w-full rounded-2xl py-4 text-white text-2xl touch-target disabled:opacity-50 transition-opacity"
+          style={{
+            fontFamily: 'var(--font-pacifico), cursive',
+            background: 'var(--pump-grad-hot)',
+            boxShadow: '0 8px 24px -8px rgba(255,0,128,0.55)',
+          }}
         >
-          <span className="relative z-10">COMPLETE WORKOUT</span>
-          <div className="absolute inset-0 bg-gradient-to-r from-accent via-primary to-accent bg-[length:200%_100%] animate-shimmer opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="absolute inset-0 glow-hot opacity-50 group-hover:opacity-100 transition-opacity" />
-        </Button>
+          Finish Workout
+        </motion.button>
       </motion.div>
     </div>
   );
@@ -464,18 +468,18 @@ function CardioEntryCard({
             </p>
             <div className="flex items-center gap-2 text-sm flex-wrap">
               {entry.duration != null && (
-                <span className="font-mono text-foreground">
+                <span className="tabular-nums text-foreground">
                   {formatTime(entry.duration)}
                 </span>
               )}
               {entry.distance != null && entry.duration != null && (
                 <>
                   <span className="text-muted-foreground">·</span>
-                  <span className="font-mono text-accent text-glow-hot">
+                  <span className="tabular-nums text-accent text-glow-hot">
                     {entry.distance} mi
                   </span>
                   <span className="text-muted-foreground">·</span>
-                  <span className="font-mono text-accent">
+                  <span className="tabular-nums text-accent">
                     {calculatePace(entry.distance, entry.duration)}
                   </span>
                 </>
@@ -483,7 +487,7 @@ function CardioEntryCard({
               {entry.incline != null && (
                 <>
                   <span className="text-muted-foreground">·</span>
-                  <span className="font-mono text-foreground">
+                  <span className="tabular-nums text-foreground">
                     {entry.incline}% incline
                   </span>
                 </>
@@ -491,7 +495,7 @@ function CardioEntryCard({
               {entry.speed != null && (
                 <>
                   <span className="text-muted-foreground">·</span>
-                  <span className="font-mono text-foreground">
+                  <span className="tabular-nums text-foreground">
                     {entry.speed} mph
                   </span>
                 </>
