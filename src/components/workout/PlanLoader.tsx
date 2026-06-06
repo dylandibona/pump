@@ -73,10 +73,11 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="glass p-4 space-y-3 border-l-2 border-primary/50"
+              className="rounded-2xl p-4 space-y-3"
+              style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)', borderLeft: '3px solid var(--pump-hot)' }}
             >
-              <p className="text-xs tracking-[0.2em] text-muted-foreground uppercase">
-                PASTE PLAN FROM TRAINER
+              <p className="text-[10px] tracking-[0.2em] uppercase font-bold" style={{ color: 'var(--pump-cyan-deep)' }}>
+                Paste plan from trainer
               </p>
               <Textarea
                 value={pastedText}
@@ -87,9 +88,9 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
               />
               {errors.length > 0 && (
                 <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                  <div className="flex items-center gap-2 text-destructive text-xs font-display tracking-wider">
+                  <div className="flex items-center gap-2 text-destructive text-xs font-bold tracking-[0.18em] uppercase">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>PLAN WON&rsquo;T LOAD — {errors.length} {errors.length === 1 ? 'ISSUE' : 'ISSUES'}</span>
+                    <span>Plan won&rsquo;t load — {errors.length} {errors.length === 1 ? 'issue' : 'issues'}</span>
                   </div>
                   <ul className="space-y-1 text-sm text-destructive/90 list-disc pl-4">
                     {errors.map((msg, i) => (
@@ -105,10 +106,10 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                 <Button
                   onClick={handleLoad}
                   disabled={!pastedText.trim()}
-                  className="flex-1 font-display tracking-wider"
+                  className="flex-1 tracking-[0.18em] uppercase font-bold"
                 >
                   <Upload className="w-4 h-4 mr-2" />
-                  LOAD PLAN
+                  Load plan
                 </Button>
                 <Button
                   variant="outline"
@@ -125,14 +126,15 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowInput(true)}
-              className="w-full glass p-4 flex items-center gap-3 border-l-2 border-dashed border-muted-foreground/30 hover:border-primary/50 transition-colors group text-left"
+              className="w-full rounded-2xl p-4 flex items-center gap-3 text-left transition-all"
+              style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)', borderLeft: '3px dashed var(--pump-border-card)' }}
             >
-              <Upload className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+              <Upload className="w-4 h-4" style={{ color: 'var(--pump-text-dim)' }} />
               <div>
-                <p className="font-display tracking-wider text-muted-foreground group-hover:text-foreground transition-colors text-sm">
-                  NO ACTIVE PLAN
+                <p className="text-[10px] tracking-[0.2em] uppercase font-bold" style={{ color: 'var(--pump-text-dim)' }}>
+                  No active plan
                 </p>
-                <p className="text-xs text-muted-foreground/60 mt-0.5">
+                <p className="text-xs mt-0.5" style={{ color: 'var(--pump-text-dim)' }}>
                   Load a plan from your trainer to get started
                 </p>
               </div>
@@ -147,7 +149,8 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="glass border-l-2 border-primary/50"
+      className="rounded-2xl"
+      style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)', borderLeft: '3px solid var(--pump-hot)' }}
     >
       {/* Plan header */}
       <button
@@ -155,14 +158,14 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
         className="w-full p-4 flex items-center justify-between text-left"
       >
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-primary/20 flex items-center justify-center">
-            <Check className="w-4 h-4 text-primary" />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'rgba(255,0,128,0.10)' }}>
+            <Check className="w-4 h-4" style={{ color: 'var(--pump-hot)' }} />
           </div>
           <div>
-            <p className="font-display tracking-wider text-primary text-sm">
-              {currentPlan.name.toUpperCase()}
+            <p className="font-semibold" style={{ color: 'var(--pump-text)' }}>
+              {currentPlan.name}
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs" style={{ color: 'var(--pump-text-dim)' }}>
               v{currentPlan.version} · {currentPlan.blockType ?? 'Training'} · {currentPlan.sessions.length} sessions
             </p>
           </div>
@@ -179,14 +182,15 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 space-y-3 border-t border-white/5">
+            <div className="px-4 pb-4 space-y-3" style={{ borderTop: '1px solid var(--pump-border-card)' }}>
               {currentPlan.weeklyStructure && (
                 <div className="pt-3">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Weekly Rotation</p>
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-[10px] tracking-[0.2em] uppercase font-bold mb-2" style={{ color: 'var(--pump-text-dim)' }}>Weekly Rotation</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {currentPlan.weeklyStructure.map((name, i) => (
-                      <span key={i} className="text-xs font-display tracking-wider px-2 py-1 bg-secondary/40 text-muted-foreground">
-                        {name.toUpperCase()}
+                      <span key={i} className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: 'var(--pump-bg-input)', color: 'var(--pump-text-mid)' }}>
+                        {name}
                       </span>
                     ))}
                   </div>
@@ -195,19 +199,19 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
 
               {currentPlan.sessions.map(session => (
                 <div key={session.id} className="pt-2">
-                  <p className="text-xs font-display tracking-wider text-foreground mb-1">
-                    {session.name.toUpperCase()}
+                  <p className="text-sm font-semibold mb-0.5" style={{ color: 'var(--pump-text)' }}>
+                    {session.name}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs" style={{ color: 'var(--pump-text-dim)' }}>
                     {session.exercises.map(e => e.name).join(' · ')}
                   </p>
                 </div>
               ))}
 
               {currentPlan.trainerNotes && (
-                <div className="pt-2 border-t border-white/5">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Trainer Notes</p>
-                  <p className="text-xs text-muted-foreground/80 italic">{currentPlan.trainerNotes}</p>
+                <div className="pt-2" style={{ borderTop: '1px solid var(--pump-border-card)' }}>
+                  <p className="text-[10px] tracking-[0.2em] uppercase font-bold mb-1" style={{ color: 'var(--pump-cyan-deep)' }}>Trainer Notes</p>
+                  <p className="text-xs italic" style={{ color: 'var(--pump-text-mid)' }}>{currentPlan.trainerNotes}</p>
                 </div>
               )}
 
@@ -217,10 +221,10 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                   variant="outline"
                   size="sm"
                   onClick={() => { setShowInput(true); setShowDetails(false); }}
-                  className="flex-1 font-display tracking-wider text-xs hover:border-primary/50"
+                  className="flex-1 tracking-[0.18em] uppercase font-bold text-xs"
                 >
                   <Upload className="w-3 h-3 mr-1" />
-                  REPLACE PLAN
+                  Replace plan
                 </Button>
                 <Button
                   variant="ghost"
@@ -249,9 +253,9 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                     />
                     {errors.length > 0 && (
                       <div className="space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-                        <div className="flex items-center gap-2 text-destructive text-xs font-display tracking-wider">
+                        <div className="flex items-center gap-2 text-destructive text-xs font-bold tracking-[0.18em] uppercase">
                           <AlertCircle className="w-4 h-4 shrink-0" />
-                          <span>PLAN WON&rsquo;T LOAD — {errors.length} {errors.length === 1 ? 'ISSUE' : 'ISSUES'}</span>
+                          <span>Plan won&rsquo;t load — {errors.length} {errors.length === 1 ? 'issue' : 'issues'}</span>
                         </div>
                         <ul className="space-y-1 text-sm text-destructive/90 list-disc pl-4">
                           {errors.map((msg, i) => (
@@ -260,8 +264,8 @@ export function PlanLoader({ currentPlan, onPlanLoaded, onPlanCleared }: PlanLoa
                         </ul>
                       </div>
                     )}
-                    <Button onClick={handleLoad} disabled={!pastedText.trim()} className="w-full font-display tracking-wider">
-                      LOAD UPDATED PLAN
+                    <Button onClick={handleLoad} disabled={!pastedText.trim()} className="w-full tracking-[0.18em] uppercase font-bold">
+                      Load updated plan
                     </Button>
                   </motion.div>
                 )}
