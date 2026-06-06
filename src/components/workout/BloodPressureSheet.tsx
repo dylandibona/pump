@@ -158,7 +158,7 @@ export function BloodPressureSheet({
         type="button"
         onClick={() => setView(v)}
         aria-pressed={active}
-        className="flex-1 rounded-lg py-2 text-sm font-display tracking-wider uppercase transition-all"
+        className="flex-1 rounded-lg py-2 text-sm tracking-[0.18em] uppercase font-bold transition-all"
         style={
           active
             ? { background: 'var(--pump-bg-card)', color: 'var(--pump-hot)', boxShadow: '0 1px 4px rgba(255,0,128,0.15)' }
@@ -182,9 +182,9 @@ export function BloodPressureSheet({
         className="glass-strong border-t-2 border-primary/30 flex flex-col p-0 gap-0"
       >
         <SheetHeader className="shrink-0 px-4 pt-4 pb-2 relative">
-          <SheetTitle className="font-display text-2xl tracking-wider text-gradient text-center flex items-center justify-center gap-2">
-            <Heart className="w-5 h-5 text-[color:var(--pump-hot)]" />
-            BLOOD PRESSURE
+          <SheetTitle className="font-display text-lg tracking-[0.18em] uppercase text-center flex items-center justify-center gap-2" style={{ color: 'var(--pump-text)' }}>
+            <Heart className="w-5 h-5" style={{ color: 'var(--pump-hot)' }} />
+            Blood Pressure
           </SheetTitle>
           <SheetClose
             aria-label="Close"
@@ -290,7 +290,7 @@ export function BloodPressureSheet({
                         type="button"
                         onClick={() => { setOnMeds(opt.v); if (!opt.v) setTakenAgo(null); }}
                         aria-pressed={active}
-                        className="touch-target rounded-xl font-display tracking-wider transition-all"
+                        className="touch-target rounded-xl tracking-[0.18em] uppercase font-bold text-sm transition-all"
                         style={
                           active
                             ? { background: 'var(--pump-grad-hot)', color: '#fff' }
@@ -315,7 +315,7 @@ export function BloodPressureSheet({
                             type="button"
                             onClick={() => setTakenAgo(b.key)}
                             aria-pressed={active}
-                            className="touch-target rounded-lg text-sm font-display transition-all"
+                            className="touch-target rounded-lg text-sm font-bold transition-all"
                             style={
                               active
                                 ? { background: 'var(--pump-cyan-deep)', color: '#fff' }
@@ -380,10 +380,14 @@ export function BloodPressureSheet({
               onClick={handleSave}
               disabled={!valid || saving}
               whileTap={{ scale: 0.98 }}
-              className="touch-target w-full rounded-xl text-white text-lg font-display tracking-widest disabled:opacity-50 transition-opacity"
-              style={{ background: 'var(--pump-grad-hot)', boxShadow: '0 8px 24px -8px rgba(255,0,128,0.6)' }}
+              className="touch-target w-full rounded-xl text-white text-2xl disabled:opacity-50 transition-opacity"
+              style={{
+                fontFamily: 'var(--font-pacifico), cursive',
+                background: 'var(--pump-grad-hot)',
+                boxShadow: '0 8px 24px -8px rgba(255,0,128,0.6)',
+              }}
             >
-              SAVE READING
+              Save Reading
             </motion.button>
           ) : (
             <motion.button

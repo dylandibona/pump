@@ -310,13 +310,13 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                     <div className="flex items-baseline gap-2 flex-wrap">
                       {distance && (
                         <>
-                          <span className="font-display text-4xl text-accent text-glow-hot">
+                          <span className="font-display text-4xl tabular-nums text-[color:var(--pump-cyan-deep)]">
                             {distance}
                           </span>
                           <span className="text-muted-foreground">mi ·</span>
                         </>
                       )}
-                      <span className="font-display text-4xl text-accent text-glow-hot">
+                      <span className="font-display text-4xl tabular-nums text-[color:var(--pump-cyan-deep)]">
                         {formatTime(
                           (parseInt(hours) || 0) * 3600 +
                           (parseInt(minutes) || 0) * 60 +
@@ -384,19 +384,19 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
           </p>
           <div className="grid grid-cols-3 gap-4 text-center">
             <div>
-              <p className="font-display text-4xl text-accent text-glow-hot">
+              <p className="font-display text-4xl tabular-nums text-[color:var(--pump-cyan-deep)]">
                 {stats.activityCount}
               </p>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Activities</p>
             </div>
             <div>
-              <p className="font-display text-4xl text-accent text-glow-hot">
+              <p className="font-display text-4xl tabular-nums text-[color:var(--pump-cyan-deep)]">
                 {(stats.totalDistance as number).toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Miles</p>
             </div>
             <div>
-              <p className="font-display text-4xl text-accent text-glow-hot">
+              <p className="font-display text-4xl tabular-nums text-[color:var(--pump-cyan-deep)]">
                 {formatTime(stats.totalDuration as number)}
               </p>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Time</p>
