@@ -116,7 +116,7 @@ contract.
 
 **Active / brand assets (in use):**
 - `pump-header.png` — neon "Pump" banner, dashboard hero (V3)
-- `letspump3.png` — brushy "Let's Pump!" wordmark, sign-in splash (V3)
+- `letspump3-transparent.png` — brushy "Let's Pump!" wordmark, sign-in splash (V3)
 - `new-PR.png` — wordmark over the PR burst (V3, in PRMomentScreen)
 - `pump-pr-burst.png` — vertical 3:4 starburst backdrop for the PR moment
 - `pump-scene-empty.png` — floating dumbbell night-sky, sign-in + splash
@@ -181,7 +181,7 @@ For the latest punch list see **`MOCKUP_AUDIT.md`** at the project root.
 - **Named feel rating** — Brutal / Tough / OK / Good / Easy (`SessionSummary`).
 - **Dashboard empty state** — `pump-scene-beach.png` scene card.
 - **BP sheet SYS/DIA card** — `.surface-warm` + spectrum-bar trim.
-- **Sign-in logo** — `letspump3.png`.
+- **Sign-in logo** — `letspump3-transparent.png`.
 - **BP heart overflow** — safe-area-inset-right gutter.
 - **`sessionLabel(s, plan)`** — promoted to `src/lib/utils.ts`; applied on
   Dashboard Recent, History list, Session detail.

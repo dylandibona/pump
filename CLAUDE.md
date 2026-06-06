@@ -68,7 +68,7 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
 - `src/components/auth/AuthGate.tsx` — wraps the app in `layout.tsx`.
   **Hard-gates** behind magic-link login when `NEXT_PUBLIC_SUPABASE_*` are
   set; falls through (ungated, localStorage-only) when unset. Splash + sign-in
-  both use `pump-scene-empty.png` (dark dumbbell scene) + `letspump3.png`
+  both use `pump-scene-empty.png` (dark dumbbell scene) + `letspump3-transparent.png`
   (brushy "Let's Pump!" wordmark) so the loading→form transition is seamless.
 
 ### Cloud sync — Upstash Redis (legacy, Phase-2 removal pending)
@@ -109,7 +109,17 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   backdrop + `new-PR.png` wordmark + Pacifico exercise name + Outfit-tabular
   weight overlay.
 - `CardioWorkout.tsx` — multi-activity logger. Activity picker (run/bike/swim/
-  row/elliptical/walk) stays; styling adopted Volume System tokens.
+  row/elliptical/walk) stays; styling adopted Volume System tokens. Opens with
+  `CardioSceneHeader` (cinematic cockpit, mockup §05) in place of the old inline
+  countdown/stopwatch `Timer` card; owns the session-local renameable session
+  name + computes the header's duration/distance totals.
+- `CardioSceneHeader.tsx` — the **cinematic cardio cockpit** (mockup §05): a
+  full-bleed `pump-scene-cardio.png` neon-highway band with cyan
+  "CARDIO · \<activity\>" caps, an inline-editable Pacifico session name (cardio
+  has no persisted name field — derived default, renamed via the pencil, held in
+  CardioWorkout state), and a giant Outfit-tabular hero timer at the vanishing
+  point = **total logged duration**, flanked by live distance + pace. The cardio
+  counterpart to `WorkoutTimerBar`; the logger is unchanged below it.
 - `BottomTabBar.tsx` — persistent root nav. Hidden on workflow views (start,
   preview, gym, cardio, summary, session-detail).
 - `BloodPressureSheet.tsx` + `src/lib/bp-sync.ts` — non-workout BP recorder.
@@ -211,7 +221,7 @@ On completion:
   numbers). **Space Mono retired.** `font-mono` className auto-falls-through
   to Outfit via `--font-mono`.
 - **Brand assets** — dashboard hero is `pump-header.png` (neon cursive on a
-  retrowave scene). Sign-in is `pump-scene-empty.png` + `letspump3.png`.
+  retrowave scene). Sign-in is `pump-scene-empty.png` + `letspump3-transparent.png`.
   PR moment is `pump-pr-burst.png` + `new-PR.png`. Inventory in `DESIGN.md §7`.
 - **Auth gate (Supabase)** — `AuthGate` hard-gates the whole app behind
   magic-link login when `NEXT_PUBLIC_SUPABASE_*` are set; ungated/

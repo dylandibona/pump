@@ -18,7 +18,7 @@
 - [x] **`/design` dev route** — Volume System token reference.
 - [x] **`/mockup` dev gallery** — every designed screen, source of truth for
   intent.
-- [x] **Sign-in / splash** — `pump-scene-empty.png` + `letspump3.png` brushy
+- [x] **Sign-in / splash** — `pump-scene-empty.png` + `letspump3-transparent.png` brushy
   logo + dark glass form.
 - [x] **Floating glass-pill back button** — sticky, fades in past 60px scroll,
   always reachable mid-flow.
@@ -114,9 +114,12 @@
 - [ ] **Fused superset block** — one cockpit card with a single shared input
   toggling between the two exercises (mockup §02). A logging-UX change that
   needs its own testing scope; not bundled with the Pass 5 visual refresh.
-- [ ] **Cardio cinematic splash** — the atmospheric `pump-scene-cardio.png`
-  moment (mockup §05) belongs on a dedicated "start cardio" screen, not the
-  multi-activity logger (which stays as-is).
+- [x] **Cardio cinematic splash** — shipped as `CardioSceneHeader`: a full-bleed
+  `pump-scene-cardio.png` cockpit header atop the logger (mirroring how
+  `WorkoutTimerBar` became the gym scene header). Cyan "CARDIO · \<activity\>"
+  caps, inline-editable Pacifico session name, giant centered hero timer (total
+  logged duration) flanked by live distance + pace. Replaced the old inline
+  countdown/stopwatch `Timer` card; the multi-activity logger is untouched.
 
 ### Health (non-workout)
 - [ ] **BP history / trend view** — the recorder shipped Jun 5 (entry only). Add a category-colored list of past readings + a 7-day average / simple trend; fits the History tab or a dedicated mini-view.

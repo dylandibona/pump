@@ -58,7 +58,7 @@ function Splash() {
           transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
           style={{ filter: 'drop-shadow(0 8px 28px rgba(255,0,128,0.5)) drop-shadow(0 0 18px rgba(0,255,238,0.2))' }}
         >
-          <Image src="/letspump3.png" alt="Let's Pump!" width={1200} height={800} priority className="w-[78vw] max-w-[480px] h-auto" />
+          <Image src="/letspump3-transparent.png" alt="Let's Pump!" width={1200} height={800} priority className="w-[78vw] max-w-[480px] h-auto" />
         </motion.div>
       </div>
     </div>
@@ -122,7 +122,7 @@ function SignIn() {
           transition={{ duration: 0.5 }}
         >
           <Image
-            src="/letspump3.png"
+            src="/letspump3-transparent.png"
             alt="Let's Pump!"
             width={1200}
             height={800}

@@ -35,7 +35,7 @@ Shipped — Pass 5 (Jun 6 2026) closed the audit:
 - 🟢 **Empty state (§06)** — `pump-scene-beach.png` scene card ("Ready when
   you are" / Pacifico "Log your first set"), distinct from sign-in.
 - 🟢 **BP sheet SYS/DIA card (§07)** — `.surface-warm` + spectrum-bar trim.
-- 🟢 **Sign-in logo (§08)** — `letspump3.png` (tighter brushy wordmark).
+- 🟢 **Sign-in logo (§08)** — `letspump3-transparent.png` (tighter brushy wordmark).
 - 🟢 **`sessionLabel` propagation** — `src/lib/utils.ts`; Dashboard Recent,
   History list, Session detail.
 - 🟢 **`font-mono` className sweep** — replaced with `tabular-nums` across all
@@ -46,8 +46,9 @@ Deferred — queued as their own scoped passes (by decision):
 - 🔵 **Fused superset block** — one card, shared input toggling between
   exercises. A UX change that needs its own testing scope, not bundled with
   a visual pass.
-- 🔵 **Cardio cinematic splash** — the atmospheric `pump-scene-cardio.png`
-  moment belongs on a dedicated "start cardio" screen, not the logger.
+- 🟢 **Cardio cinematic splash** — shipped as `CardioSceneHeader` atop the
+  logger (see §05). The atmospheric `pump-scene-cardio.png` moment now lives as
+  a scene cockpit header; the multi-activity logger stays intact below it.
 - 🟡 **`.glass` → `.pump-card` migration** — broad cosmetic cleanup; lowest
   priority, left for a later sweep.
 
@@ -208,17 +209,20 @@ the stat numbers.
 
 | Item | Status | Notes |
 |---|---|---|
-| Full-bleed scene backdrop | 🟠 | Not built |
-| Pacifico session name | 🟠 | Not built (live doesn't even have a session name UI) |
-| Centered timer at vanishing point | 🟠 | Live has Timer in a different layout |
-| "Finish" Pacifico CTA | 🟡 | Live has "COMPLETE WORKOUT" all-caps |
+| Full-bleed scene backdrop | 🟢 | `CardioSceneHeader` — full-bleed `pump-scene-cardio.png` cockpit band atop the logger |
+| Pacifico session name | 🟢 | Inline-editable Pacifico name (derived default "Today's cardio"; session-local, renameable via the pencil) |
+| Centered timer at vanishing point | 🟢 | Giant Outfit-tabular hero = total logged duration; distance + pace flank it (mockup data) |
+| "Finish" Pacifico CTA | 🟢 | Logger's "Finish Workout" is Pacifico on `--pump-grad-hot` |
 | Activity type picker (RUN/BIKE/SWIM/etc.) | 🟢 | Lives correctly; not in the mockup but the user confirmed it must stay |
 | Stat tile colors | 🟢 | Pass 2 calmed them |
 
-**Suggested fixes:**
-1. Either a) make cardio session a fundamentally different screen (mockup's
-   cinematic layout) or b) accept the cardio screen is "the activity logger" not
-   "the cardio moment" and just adopt the system tokens. **Decision needed.**
+**Resolved (decision b+):** the cardio screen is "the activity logger," and the
+cinematic moment from the mockup now lives as `CardioSceneHeader` — a scene
+**cockpit header** above the logger (mirroring how `WorkoutTimerBar` carries the
+gym scene, §02), not a separate transient splash. The header shows the cardio
+banked so far (total logged duration as the hero, distance + pace below), so the
+timer is meaningful for the post-hoc logging model rather than a wall clock. It
+replaced the old inline countdown/stopwatch `Timer` card.
 
 ---
 
@@ -282,7 +286,7 @@ logo, dark-glass form with welcome / email / Pacifico Send magic link / caption.
 | Item | Status | Notes |
 |---|---|---|
 | Scene backdrop | 🟢 | `pump-scene-empty.png` |
-| Logo asset | 🟢 | `letspump3.png` (refined neon brushy wordmark) |
+| Logo asset | 🟢 | `letspump3-transparent.png` (refined neon brushy wordmark) |
 | Dark-glass form | 🟢 | rgba navy + backdrop-blur + spectrum-bar trim |
 | Pacifico Send magic link | 🟢 | Hot gradient |
 | Splash mood | 🟢 | Same scene, no light-theme flash |
