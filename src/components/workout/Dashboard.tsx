@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart } from 'lucide-react';
+import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getRecentSessions, getWorkoutStats, getPRs, exportData, getBPReadings, classifyBP, type BPCategory } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
@@ -197,6 +197,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
         <motion.button
           type="button"
           onClick={() => setShowBP(true)}
+          aria-label="Log blood pressure"
           className="pump-card w-full p-4 flex items-center gap-3 text-left hover:border-primary/30 transition-all"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -207,7 +208,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
             <Heart className="w-5 h-5 text-[color:var(--pump-hot)]" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground font-mono">Blood Pressure</p>
+            <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Blood Pressure</p>
             {lastBP ? (
               <p className="font-display text-lg tracking-wide flex items-center gap-2">
                 <span className="tabular-nums">{lastBP.systolic}/{lastBP.diastolic}</span>
@@ -220,10 +221,15 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
                 <span className="text-xs text-muted-foreground font-normal">{relativeTime(lastBP.measuredAt)}</span>
               </p>
             ) : (
-              <p className="font-display text-lg tracking-wide text-[color:var(--pump-text)]">Log a reading →</p>
+              <p className="font-display text-lg tracking-wide text-[color:var(--pump-text)]">Log a reading</p>
             )}
           </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white"
+            style={{ background: 'var(--pump-grad-hot)', boxShadow: '0 4px 12px -4px rgba(255,0,128,0.6)' }}
+          >
+            <Plus className="w-5 h-5" />
+          </div>
         </motion.button>
 
         {/* Recent Workouts */}
