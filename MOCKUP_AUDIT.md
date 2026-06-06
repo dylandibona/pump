@@ -282,7 +282,7 @@ logo, dark-glass form with welcome / email / Pacifico Send magic link / caption.
 | Item | Status | Notes |
 |---|---|---|
 | Scene backdrop | 🟢 | `pump-scene-empty.png` |
-| Logo asset | 🟢 | `lets-pump.png` (v2, tighter) |
+| Logo asset | 🟢 | `letspump3.png` (refined neon brushy wordmark) |
 | Dark-glass form | 🟢 | rgba navy + backdrop-blur + spectrum-bar trim |
 | Pacifico Send magic link | 🟢 | Hot gradient |
 | Splash mood | 🟢 | Same scene, no light-theme flash |

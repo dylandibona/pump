@@ -6,8 +6,8 @@
 > attitude reads as intentional swagger instead of uniform noise, while the screens
 > you actually work in get out of the way.
 >
-> Status: **In production.** Pass 1–4 shipped to `main`. Outstanding work is tracked
-> in `MOCKUP_AUDIT.md`.
+> Status: **In production.** Pass 1–5 shipped to `main` (Pass 5 closed the
+> mockup-vs-live audit). Outstanding work is tracked in `MOCKUP_AUDIT.md`.
 
 ---
 
@@ -62,9 +62,9 @@ retired** — it read "techie/cold."
 | **Outfit 500–600, sentence case** | Quiet register (V1 work) | Helper text, inputs, list rows, list captions |
 | **Outfit, `tabular-nums`** | All numbers / data | Weights, reps, BP, timers, volumes, stats |
 
-Tailwind `font-mono` className auto-falls-through to Outfit via `--font-mono` so
-existing usages keep working visually. (Cleanup pass to remove the className still
-pending.)
+Tailwind `font-mono` className resolves to Outfit via `--font-mono`. The Pass 5
+cleanup swept the remaining `font-mono` classNames to `tabular-nums` across the
+workout components (only comments in `layout.tsx` still mention it).
 
 ---
 
@@ -120,10 +120,10 @@ contract.
 - `new-PR.png` — wordmark over the PR burst (V3, in PRMomentScreen)
 - `pump-pr-burst.png` — vertical 3:4 starburst backdrop for the PR moment
 - `pump-scene-empty.png` — floating dumbbell night-sky, sign-in + splash
-- `pump-scene-beach.png` — hotel-balcony sunset, reserved for empty-state
-- `pump-scene-complete.png` — sunset balcony, reserved for workout-complete hero band
-- `pump-scene-cardio.png` — neon highway, available for cardio moment if/when built
-- `pump-scene-gym.png` — neon gym, available for cockpit atmospheric header if/when built
+- `pump-scene-beach.png` — beach scene, dashboard first-run empty state (in use)
+- `pump-scene-complete.png` — sunset balcony, workout-complete hero band (in use)
+- `pump-scene-gym.png` — neon gym, cockpit atmospheric header in `WorkoutTimerBar` (in use)
+- `pump-scene-cardio.png` — neon highway, reserved for the deferred cardio "start" splash
 - `pump-icon-192.png` / `pump-icon-512.png` / `apple-touch-icon.png` — PWA icons (wordmark)
 
 **Retired (archived in `_archive/`):**
@@ -168,25 +168,31 @@ For the latest punch list see **`MOCKUP_AUDIT.md`** at the project root.
 - Floating glass-pill back button on scroll.
 - Dashboard alignment to `/mockup §01` (BP inline heart, real plan session names).
 
-**In progress (Pass 5):**
-- **Gym cockpit atmospheric header** — `pump-scene-gym.png` band + Pacifico
-  exercise name + animated `glow-state--urgent` rest timer + inline note panel.
-- **PR full-screen reward** — `PRMomentScreen` component built; trigger wiring
-  in `GymWorkout`.
-- **Workout-complete hero scene band** — `pump-scene-complete.png` overlay.
-- **Named feel rating** — Brutal / Tough / OK / Good / Easy (shipped per
-  `SessionSummary.tsx`).
-- BP heart button: small-viewport overflow polish (safe-area-inset-right).
+**Shipped (Pass 5 — closed the audit):**
+- **Gym cockpit atmospheric header** — `WorkoutTimerBar` rebuilt on the
+  `pump-scene-gym.png` band: session meta (cyan caps) + up-next exercise
+  (Pacifico) + elapsed + rest controls; rest pill pulses via
+  `glow-state--urgent`. Inline pink note panel on the active card. Pacifico
+  "Finish Workout" CTA. Timer logic unchanged.
+- **PR full-screen reward** — `PRMomentScreen` fires in-session when `newPRs`
+  grows (`pump-pr-burst.png` + `new-PR.png` + Pacifico exercise + "up from").
+- **Workout-complete hero scene band** — `pump-scene-complete.png` overlay +
+  Pacifico session name + `min · sets · lbs moved` caption.
+- **Named feel rating** — Brutal / Tough / OK / Good / Easy (`SessionSummary`).
+- **Dashboard empty state** — `pump-scene-beach.png` scene card.
+- **BP sheet SYS/DIA card** — `.surface-warm` + spectrum-bar trim.
+- **Sign-in logo** — `letspump3.png`.
+- **BP heart overflow** — safe-area-inset-right gutter.
+- **`sessionLabel(s, plan)`** — promoted to `src/lib/utils.ts`; applied on
+  Dashboard Recent, History list, Session detail.
+- **`font-mono` className sweep** — replaced with `tabular-nums` app-wide.
 
 **Deferred / open questions:**
 - Fused superset block (one card, two halves, single shared input) — meaningful
   UX change. Queued as its own scoped pass (not bundled with visual refresh).
-- Cardio "cinematic" treatment — decision: keep functional logger and add a
-  pre-flow "Start cardio" splash later, vs. rebuild. Logger-first wins for now.
-- `.glass` → `.pump-card` migration; `font-mono` className cleanup; `.glow-state--*`
-  adoption on the cockpit's active card / rest timer.
-- Apply `sessionLabel(s)` from `src/lib/utils.ts` to History list + Session detail
-  (only Dashboard Recent uses it today).
+- Cardio "cinematic" treatment — keep the functional logger; add a pre-flow
+  "Start cardio" splash (`pump-scene-cardio.png`) later. Logger-first for now.
+- `.glass` → `.pump-card` migration — broad cosmetic cleanup, lowest priority.
 
 ---
 

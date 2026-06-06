@@ -715,7 +715,7 @@ function SignInMock() {
             so it sits cleanly over the scene without competing for glow. */}
         <div className="px-6 pt-10 flex justify-center">
           <Image
-            src="/lets-pump.png"
+            src="/letspump3.png"
             alt="Let's Pump!"
             width={1200}
             height={800}
