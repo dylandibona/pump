@@ -76,6 +76,10 @@ export interface WorkoutSession {
   // the summary screen; feeds the Supabase session row (feel_score) and the
   // BRIEF. Optional — absent until the user rates it.
   feelScore?: number;
+  // Stable client-generated UUID, minted once when the session STARTS and held
+  // for its lifetime. Sent as `client_session_id` on the Supabase write so a
+  // double-fire / retry hits the partial unique index and dedups to one row.
+  clientSessionId?: string;
   // Names of exercises that set a new PR / first baseline this session, as
   // detected live by useWorkout. Persisted (small — just names) so the
   // Supabase reconciliation sweep can regenerate the BRIEF with PR highlights

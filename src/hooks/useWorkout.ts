@@ -111,6 +111,12 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
 
     const newSession: WorkoutSession = {
       id: generateId(),
+      // Stable id for idempotent cloud writes — minted once here, reused on
+      // every write/retry for this session (UUID where available).
+      clientSessionId:
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : generateId(),
       date,
       type,
       startTime: new Date().toISOString(),

@@ -83,6 +83,9 @@ function buildRow(session: WorkoutSession, plan: TrainerPlan | null) {
   );
   const vol = totalVolume(session);
   return {
+    // Stable idempotency key — hits the partial unique index so a retry/double
+    // dedups to one row. Null for legacy sessions started before this shipped.
+    client_session_id: session.clientSessionId ?? null,
     session_date: session.date,
     plan_id: plan?.planId ?? null,
     plan_version: plan?.version ?? null,
@@ -96,9 +99,23 @@ function buildRow(session: WorkoutSession, plan: TrainerPlan | null) {
   };
 }
 
+// Single-flight guard: the sweep is triggered from several places (dashboard
+// return, window focus, load). Without this, two triggers fire concurrently,
+// both read the same session as unsynced before either records it, and both
+// insert — the double-row bug. Concurrent callers share the one in-flight run.
+let sweepInFlight: Promise<{ pushed: number }> | null = null;
+
+export function pushUnsyncedSessions(): Promise<{ pushed: number }> {
+  if (sweepInFlight) return sweepInFlight;
+  sweepInFlight = runSweep().finally(() => {
+    sweepInFlight = null;
+  });
+  return sweepInFlight;
+}
+
 // Push any completed-but-unsynced sessions. Inert when Supabase is unconfigured
 // or no user is signed in (RLS would reject the write — leave them for later).
-export async function pushUnsyncedSessions(): Promise<{ pushed: number }> {
+async function runSweep(): Promise<{ pushed: number }> {
   if (!isSupabaseConfigured || typeof window === 'undefined') return { pushed: 0 };
 
   const synced = ensureBaseline();
@@ -111,15 +128,27 @@ export async function pushUnsyncedSessions(): Promise<{ pushed: number }> {
 
   const plan = getPlan();
   let pushed = 0;
+  let changed = false;
   for (const session of pending) {
+    // Payload assembled in full (brief + notes + all fields) synchronously here,
+    // before the write — never mid-flight.
     const { error } = await supabase.from('sessions').insert(buildRow(session, plan));
     if (error) {
+      // 23505 = unique violation on client_session_id: this session was already
+      // written by a prior run / another device / a retry. Idempotent — mark it
+      // synced so we never create a second row (first complete write wins).
+      if (error.code === '23505') {
+        synced.add(session.id);
+        changed = true;
+        continue;
+      }
       console.warn('Session push failed (will retry):', session.id, error.message);
       continue; // leave unsynced — retried on the next sweep
     }
     synced.add(session.id);
+    changed = true;
     pushed += 1;
   }
-  if (pushed > 0) saveSyncedIds(synced);
+  if (changed) saveSyncedIds(synced);
   return { pushed };
 }

@@ -31,9 +31,18 @@ export function generateBrief(
     ? Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)
     : null;
 
-  const planSession = plan?.sessions.find(ps =>
-    session.exercises?.some(ex => ps.exercises.some(pe => pe.name.toLowerCase() === ex.name.toLowerCase()))
-  );
+  // Resolve the plan session the SAME way the stored label does — by the
+  // session's own planSessionId first — so the brief header names the session
+  // that was actually run. Falling back to exercise-name overlap (free-form
+  // sessions) previously returned the first matching plan session, which
+  // mislabeled e.g. a Lower day as "Session A — Upper".
+  const planSession =
+    (session.planSessionId
+      ? plan?.sessions.find(ps => ps.id === session.planSessionId)
+      : undefined) ??
+    plan?.sessions.find(ps =>
+      session.exercises?.some(ex => ps.exercises.some(pe => pe.name.toLowerCase() === ex.name.toLowerCase()))
+    );
 
   let brief = `PUMP BRIEF — ${planSession ? planSession.name + ' — ' : ''}${date}${duration ? ` — ${duration}m` : ''}\n`;
   if (plan) brief += `PLAN: ${plan.name} v${plan.version}\n`;
