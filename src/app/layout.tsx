@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Monoton, Pacifico, Space_Mono, Outfit } from 'next/font/google';
+import { Monoton, Pacifico, Outfit } from 'next/font/google';
 import './globals.css';
 import { AuthGate } from '@/components/auth/AuthGate';
 
@@ -20,13 +20,10 @@ const pacifico = Pacifico({
   display: 'swap',
 });
 
-// Space Mono — all numerical/data display (weights, reps, tags, timestamps).
-const spaceMono = Space_Mono({
-  weight: ['400', '700'],
-  variable: '--font-space-mono',
-  subsets: ['latin'],
-  display: 'swap',
-});
+// Space Mono is RETIRED (Volume System v2). All numerical data uses Outfit +
+// `tabular-nums`. Tailwind's `font-mono` now resolves to Outfit via the CSS
+// var below, so existing font-mono usages keep working visually without the
+// machine/techy feel. Pass 2 will migrate them to semantic classes.
 
 // Outfit — all UI text (exercise names at 800, labels at 700, body copy).
 const outfit = Outfit({
@@ -66,7 +63,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${spaceMono.variable} ${monoton.variable} ${pacifico.variable} h-full antialiased`}
+      className={`${outfit.variable} ${monoton.variable} ${pacifico.variable} h-full antialiased`}
     >
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
