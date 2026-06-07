@@ -184,6 +184,17 @@
     scroll-behavior: smooth;
     background: var(--pump-bg-page);
   }
+  /* Kill horizontal scrolling. Decorative full-bleed / oversized elements
+     (e.g. the dashboard's 600px ambient halo) can extend past the viewport;
+     desktop Chrome clips them, but iOS Safari turns the overflow into a
+     sideways-scrollable page, which shoved the inline BP button off-screen.
+     `clip` (not `hidden`) prevents the scroll WITHOUT creating a scroll
+     container, so `position: sticky` (timer bar, back-button pill) keeps
+     working. */
+  html,
+  body {
+    overflow-x: clip;
+  }
 }
 
 /* ======= Font utility classes ======= */

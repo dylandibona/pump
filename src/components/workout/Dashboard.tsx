@@ -27,8 +27,10 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpenPlan, plan, sync, refreshToken }: DashboardProps) {
-  const stats = useMemo(() => getWorkoutStats(), [refreshToken]);
-  const recentSessions = useMemo(() => getRecentSessions(5), [refreshToken]);
+  // refreshToken is the cache key: these read from localStorage (opaque to the
+  // deps linter), so we recompute whenever it signals an out-of-band change.
+  const stats = useMemo(() => { void refreshToken; return getWorkoutStats(); }, [refreshToken]);
+  const recentSessions = useMemo(() => { void refreshToken; return getRecentSessions(5); }, [refreshToken]);
   // Records come from the curated Supabase `prs` table (cached locally for
   // instant first paint). The local PersonalRecord store is no longer read
   // here — it stays only for the in-session "new best" badge.
@@ -91,7 +93,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
       <div className="fixed inset-0 bg-grid pointer-events-none opacity-60" />
 
       {/* Hot-pink ambient halo behind the hero */}
-      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[color:var(--pump-hot)]/10 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] max-w-full h-[400px] bg-[color:var(--pump-hot)]/10 rounded-full blur-[120px] pointer-events-none" />
 
       <div className="relative z-10 space-y-6">
         {/* Brand hero — neon "Pump" header treatment. The single brand moment,
