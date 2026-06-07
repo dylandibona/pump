@@ -162,6 +162,29 @@
 
 ## Medium Priority
 
+### Cardio & heart rate (COROS HR monitor)
+Goal: start a cardio session that tracks time + HR, finish with notes.
+**Reality check — live HR in the iOS PWA is blocked:**
+- **Web Bluetooth** (BLE Heart Rate Service `0x180D`) is the natural way to read
+  a strap live, but Apple does **not** support it in Safari / iOS WKWebView — so
+  the installed PWA can't talk to the COROS strap directly. (It *does* work in
+  Chrome/Edge on Android/desktop — irrelevant to the iPhone use case.)
+- **HealthKit** (COROS syncs HR there) is **native-only** — a PWA can't read it.
+- ∴ "watch HR tick inside Pump during the run" needs a native wrapper; not doable
+  in pure-PWA form.
+
+Pragmatic paths, by effort:
+- [ ] **Manual avg/max HR fields on cardio entries** (easy — ships now) — type
+  the numbers off the COROS watch at the end, with notes. Fits the post-hoc
+  logging model. _Supersedes "Heart rate zone (manual)"._
+- [ ] **Strava import (COROS → Strava → Pump)** (medium) — once the activity
+  syncs to Strava, pull duration / distance / avg+max HR via the Strava API to
+  pre-fill a cardio entry. Post-hoc, not live; needs Strava OAuth + an edge
+  function. _Supersedes "Strava integration for cardio"._
+- [ ] **Native wrapper (Capacitor) for HealthKit / live BLE** (big) — the only
+  route to true live HR + Apple Health read; a major move away from pure PWA.
+  _Supersedes "Apple Health integration" + folds into "Apple Watch companion"._
+
 ### Analytics & Dashboard
 - [ ] Weekly volume chart (bar graph)
 - [ ] PR progression timeline per exercise
@@ -182,15 +205,13 @@
 
 ## Low Priority
 
-- [ ] Apple Health integration (steps, HR)
-- [ ] Strava integration for cardio
 - [ ] RPE per set
 - [ ] Notes per set (not just per exercise)
 - [ ] Failure indicator per set
 - [ ] Tempo notation
 - [ ] Calorie estimate for cardio
-- [ ] Heart rate zone (manual)
-- [ ] Apple Watch companion
+- [ ] Apple Watch companion (see "Cardio & heart rate" under Medium — native wrapper)
+- _Heart rate / Apple Health / Strava → consolidated under_ **Cardio & heart rate (COROS HR monitor)** _in Medium Priority._
 
 ---
 
