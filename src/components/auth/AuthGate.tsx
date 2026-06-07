@@ -66,12 +66,13 @@ function Splash() {
 }
 
 function SignIn() {
-  // Two-phase email auth. The same email carries BOTH a 6-digit code and a
-  // magic link. The code path (verifyOtp) completes sign-in *inside* this view
-  // — critical for the installed PWA, whose storage jar is separate from
-  // Safari, so a tapped magic link would log you into the browser, not the app.
-  // The link stays as a desktop fallback. See Supabase email template:
-  // it must render {{ .Token }} for the code to arrive.
+  // Two-phase, code-ONLY email auth (no magic link). signInWithOtp emails a
+  // 6-digit code; verifyOtp({ type: 'email' }) completes sign-in *inside* this
+  // view. This is the PWA-correct path — the installed app's storage jar is
+  // separate from Safari, so a tapped magic link would log in the browser, not
+  // the app. There is deliberately NO magic-link redirect handling
+  // (detectSessionInUrl is off in supabase.ts) so nothing races the code path.
+  // The Supabase email template must render {{ .Token }} for the code to arrive.
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [phase, setPhase] = useState<'email' | 'code'>('email');
@@ -86,7 +87,9 @@ function SignIn() {
     setError('');
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: { emailRedirectTo: window.location.origin },
+      // Single-user app: never auto-create a user from a typo'd email. No
+      // emailRedirectTo — we don't use the magic-link redirect at all.
+      options: { shouldCreateUser: false },
     });
     setBusy(false);
     if (signInError) {

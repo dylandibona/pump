@@ -1,8 +1,13 @@
 // Supabase browser client — PUMP is a pure client-rendered PWA, so we use the
-// plain supabase-js client (not @supabase/ssr). Its defaults already do what we
-// need: persistSession + autoRefreshToken (session lives in localStorage, so a
-// magic-link login is one-time and auto-restores) and detectSessionInUrl (the
-// magic-link token in the URL hash is consumed on load).
+// plain supabase-js client (not @supabase/ssr). persistSession +
+// autoRefreshToken keep their defaults (session lives in localStorage, so a
+// login is one-time and auto-restores).
+//
+// Auth is CODE-ONLY (signInWithOtp + verifyOtp). detectSessionInUrl is turned
+// OFF: we never consume a magic-link token from the URL, so there is no
+// redirect handling to race the 6-digit-code path. (An installed PWA can't be
+// logged in by a tapped link anyway — the link opens Safari, a separate
+// storage jar.)
 //
 // The publishable key is public by design; Row Level Security on the DD Health
 // Supabase project is what actually protects the data. This is health data, so
@@ -30,5 +35,7 @@ if (!isSupabaseConfigured) {
 // touching `supabase` (the cast keeps types clean without littering null checks
 // inside guarded branches).
 export const supabase: SupabaseClient = isSupabaseConfigured
-  ? createClient(url!, anonKey!)
+  ? createClient(url!, anonKey!, {
+      auth: { detectSessionInUrl: false },
+    })
   : (null as unknown as SupabaseClient);

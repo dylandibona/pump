@@ -67,14 +67,18 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   readings → Supabase `bp_readings`.
 - `src/components/auth/AuthGate.tsx` — wraps the app in `layout.tsx`.
   **Hard-gates** behind email login when `NEXT_PUBLIC_SUPABASE_*` are set; falls
-  through (ungated, localStorage-only) when unset. **Two-phase sign-in: email →
-  6-digit code.** `signInWithOtp` sends the email; the user types the code and
+  through (ungated, localStorage-only) when unset. **Two-phase, CODE-ONLY
+  sign-in: email → 6-digit code (no magic link).** `signInWithOtp({ email,
+  options: { shouldCreateUser: false } })` emails the code; the user types it and
   `verifyOtp({ email, token, type: 'email' })` completes sign-in *in this view*.
   This is the PWA-correct path — a tapped magic link opens in Safari, whose
-  storage jar is separate from the installed standalone app, so it would never
-  log the app in. The same email still carries a magic link (desktop fallback).
-  ⚠️ Requires the Supabase **Magic Link email template** to render `{{ .Token }}`
-  (the 6-digit code) — without it, no code arrives. Splash + sign-in
+  storage jar is separate from the installed standalone app, so it could never
+  log the app in. There is **no magic-link redirect handling**:
+  `detectSessionInUrl` is off (see `supabase.ts`) so nothing races the code path,
+  and the email template omits `{{ .ConfirmationURL }}` (Supabase then sends an
+  OTP only, no link).
+  ⚠️ Requires the Supabase email template to render `{{ .Token }}` (the 6-digit
+  code) — without it, no code arrives. Splash + sign-in
   both use `pump-scene-empty.png` (dark dumbbell scene) + `letspump3-transparent.png`
   (brushy "Let's Pump!" wordmark) so the loading→form transition is seamless.
 
@@ -198,8 +202,9 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   (`verifyOtp`). The default "Confirm signup" template has NO `{{ .Token }}`, so
   if your flow hits it untouched, no code is sent at all. The branded HTML body
   lives (version-controlled) at `supabase/email-templates/magic-link.html`; it
-  renders both `{{ .Token }}` (code, hero) and `{{ .ConfirmationURL }}` (link,
-  desktop fallback). References the hosted `letspump-email.png` wordmark (an
+  renders **only** `{{ .Token }}` (code hero) and deliberately omits
+  `{{ .ConfirmationURL }}` so Supabase sends an OTP only (no magic link).
+  References the hosted `letspump-email.png` wordmark (an
   email-optimized 600px/82KB PNG — the app's full-res `letspump3-transparent.png`
   is left for `next/image` to optimize).
 - **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
@@ -247,12 +252,15 @@ On completion:
   login when `NEXT_PUBLIC_SUPABASE_*` are set; ungated/localStorage-only when
   unset. Single user. Health data, so RLS + an authed session are the only
   protection (publishable key is public).
-- **Sign-in is a 6-digit code, not a magic link tap.** Installed PWAs have a
+- **Sign-in is a 6-digit code — code-only, no magic link.** Installed PWAs have a
   storage jar separate from Safari, so a tapped magic link logs in the *browser*
-  not the app. Sign-in is two-phase (email → code): `signInWithOtp` then
-  `verifyOtp` completes login inside the standalone app. The link still ships in
-  the same email as a desktop fallback. Needs `{{ .Token }}` in the Supabase
-  email template (see Env vars).
+  not the app. Sign-in is two-phase (email → code): `signInWithOtp({ email,
+  options: { shouldCreateUser: false } })` then `verifyOtp({ type: 'email' })`
+  completes login inside the standalone app. No magic link is involved:
+  `detectSessionInUrl` is off (`supabase.ts`) and the email template omits
+  `{{ .ConfirmationURL }}` (OTP-only). `shouldCreateUser: false` blocks stray
+  signups (single-user app). Needs `{{ .Token }}` in the Supabase email template
+  (see Env vars).
 - **Floating back-button pill** — sticky in the top-left, fades in on scroll
   past 60px. Always reachable mid-workout so the user never reaches for the
   browser back button.

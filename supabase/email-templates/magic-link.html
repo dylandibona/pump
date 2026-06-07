@@ -8,15 +8,16 @@
   other as the default (undesigned link, and Confirm-signup has no code at all).
   Subject suggestion: "Your PUMP sign-in code"
 
-  It renders BOTH:
-    • {{ .Token }}           — the 6-digit code (primary path: typed into the
-                               installed PWA, whose storage jar is separate from
-                               Safari, so a tapped link can't log the app in).
-    • {{ .ConfirmationURL }} — the magic link (desktop fallback).
+  CODE-ONLY: this template renders only {{ .Token }} (the 6-digit code) and does
+  NOT include {{ .ConfirmationURL }}. Per Supabase, omitting ConfirmationURL means
+  an OTP is sent and no magic link is generated — which is what we want: the app
+  uses verifyOtp and has detectSessionInUrl off, so there is no magic-link
+  redirect to handle (an installed PWA can't be logged in by a tapped link
+  anyway; the link would open Safari, a separate storage jar).
 
-  Email HTML rules followed: table layout, inline styles, bulletproof button,
-  web fonts with system fallbacks (Outfit/Pacifico render in Apple/iOS Mail,
-  fall back to sans-serif/cursive elsewhere). Kept self-contained.
+  Email HTML rules followed: table layout, inline styles, web fonts with system
+  fallbacks (Outfit/Pacifico render in Apple/iOS Mail, fall back to
+  sans-serif/cursive elsewhere). Kept self-contained.
 -->
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -113,36 +114,14 @@
                 </tr>
               </table>
 
-              <!-- Divider with "or on a computer" -->
+              <!-- Code-only instruction (no magic link — auth is OTP-only) -->
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="border-top:1px solid rgba(255,255,255,0.10); font-size:0; line-height:0; height:1px;">&nbsp;</td>
                 </tr>
                 <tr>
-                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:10px; font-weight:800; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.45); padding:18px 0 16px;">
-                    On a computer?
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Bulletproof CTA button (magic-link fallback) -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td align="center">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
-                      <tr>
-                        <td align="center" bgcolor="#FF0080" style="border-radius:14px; background:#FF0080; background-image:linear-gradient(135deg,#FF0080,#FF00FF,#8B00FF);">
-                          <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block; padding:15px 38px; font-family:'Pacifico','Outfit',cursive; font-size:22px; line-height:22px; color:#FFFFFF; border-radius:14px;">
-                            Let&rsquo;s Go
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-                <tr>
-                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:rgba(255,255,255,0.5); padding:14px 0 2px;">
-                    Tap it on a desktop browser. On your phone, use the code above —<br />a link opens Safari, not your home-screen app.
+                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:13px; line-height:20px; color:rgba(255,255,255,0.6); padding:18px 8px 2px;">
+                    Open <strong style="color:#FFFFFF;">PUMP</strong> and type the code above. Works the same on your phone or computer.
                   </td>
                 </tr>
               </table>
