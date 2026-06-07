@@ -66,26 +66,61 @@ function Splash() {
 }
 
 function SignIn() {
+  // Two-phase email auth. The same email carries BOTH a 6-digit code and a
+  // magic link. The code path (verifyOtp) completes sign-in *inside* this view
+  // — critical for the installed PWA, whose storage jar is separate from
+  // Safari, so a tapped magic link would log you into the browser, not the app.
+  // The link stays as a desktop fallback. See Supabase email template:
+  // it must render {{ .Token }} for the code to arrive.
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [code, setCode] = useState('');
+  const [phase, setPhase] = useState<'email' | 'code'>('email');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = email.trim();
     if (!trimmed) return;
-    setStatus('sending');
+    setBusy(true);
     setError('');
     const { error: signInError } = await supabase.auth.signInWithOtp({
       email: trimmed,
       options: { emailRedirectTo: window.location.origin },
     });
+    setBusy(false);
     if (signInError) {
-      setStatus('error');
       setError(signInError.message);
       return;
     }
-    setStatus('sent');
+    setCode('');
+    setPhase('code');
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = code.replace(/\D/g, '');
+    if (token.length < 6) return;
+    setBusy(true);
+    setError('');
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token,
+      type: 'email',
+    });
+    if (verifyError) {
+      setBusy(false);
+      setError(verifyError.message);
+      return;
+    }
+    // Success: AuthGate's onAuthStateChange swaps in the app. Leave `busy` true
+    // so the button reads "Signing in…" through the transition.
+  };
+
+  const resetToEmail = () => {
+    setPhase('email');
+    setCode('');
+    setError('');
   };
 
   return (
@@ -165,29 +200,91 @@ function SignIn() {
               }}
             />
 
-            {status === 'sent' ? (
-              <div className="text-center">
-                <p
-                  className="text-[10px] tracking-[0.3em] uppercase font-bold mb-3"
+            {phase === 'code' ? (
+              <form onSubmit={handleVerify}>
+                <label
+                  htmlFor="auth-code"
+                  className="text-[10px] tracking-[0.3em] uppercase font-bold block mb-2"
                   style={{ color: 'rgba(0,255,238,0.95)' }}
                 >
-                  Check your email
+                  Enter your code
+                </label>
+                <p className="text-sm mb-3" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                  We emailed a 6-digit code to{' '}
+                  <span className="font-medium text-white">{email.trim()}</span>.
                 </p>
-                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                  We sent a sign-in link to{' '}
-                  <span className="font-medium text-white">{email.trim()}</span>. Tap it on this device to log in.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setStatus('idle')}
-                  className="mt-5 text-[10px] tracking-[0.18em] uppercase font-semibold transition-colors"
-                  style={{ color: 'rgba(255,255,255,0.55)' }}
+
+                <input
+                  id="auth-code"
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]*"
+                  maxLength={6}
+                  autoFocus
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="••••••"
+                  className="touch-target w-full rounded-xl px-4 text-center text-2xl tracking-[0.5em] tabular-nums outline-none transition-colors"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                  }}
+                />
+
+                {error && (
+                  <p className="text-sm mt-3" style={{ color: '#FF6B95' }} aria-live="polite">
+                    {error || 'That code didn’t work. Try again.'}
+                  </p>
+                )}
+
+                <motion.button
+                  type="submit"
+                  disabled={busy || code.length < 6}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full mt-3 rounded-xl py-4 text-white text-2xl active:scale-[0.98] transition disabled:opacity-60"
+                  style={{
+                    fontFamily: 'var(--font-pacifico), cursive',
+                    background: 'var(--pump-grad-hot)',
+                    boxShadow:
+                      '0 12px 32px -8px rgba(255,0,128,0.7), 0 0 24px rgba(255,0,128,0.25)',
+                  }}
                 >
-                  Use a different email
-                </button>
-              </div>
+                  {busy ? 'Signing in…' : 'Verify'}
+                </motion.button>
+
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <button
+                    type="button"
+                    onClick={handleSend}
+                    disabled={busy}
+                    className="text-[10px] tracking-[0.18em] uppercase font-semibold transition-colors disabled:opacity-50"
+                    style={{ color: 'rgba(255,255,255,0.7)' }}
+                  >
+                    Resend code
+                  </button>
+                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>·</span>
+                  <button
+                    type="button"
+                    onClick={resetToEmail}
+                    className="text-[10px] tracking-[0.18em] uppercase font-semibold transition-colors"
+                    style={{ color: 'rgba(255,255,255,0.55)' }}
+                  >
+                    Use a different email
+                  </button>
+                </div>
+
+                <p
+                  className="text-[10px] tracking-[0.15em] uppercase font-semibold text-center mt-4"
+                  style={{ color: 'rgba(255,255,255,0.5)' }}
+                >
+                  Prefer a link? The same email has one too.
+                </p>
+              </form>
             ) : (
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSend}>
                 <label
                   htmlFor="auth-email"
                   className="text-[10px] tracking-[0.3em] uppercase font-bold block mb-3"
@@ -214,7 +311,7 @@ function SignIn() {
                   }}
                 />
 
-                {status === 'error' && (
+                {error && (
                   <p className="text-sm mt-3" style={{ color: '#FF6B95' }} aria-live="polite">
                     {error || 'Something went wrong. Try again.'}
                   </p>
@@ -222,7 +319,7 @@ function SignIn() {
 
                 <motion.button
                   type="submit"
-                  disabled={status === 'sending'}
+                  disabled={busy}
                   whileTap={{ scale: 0.98 }}
                   className="w-full mt-3 rounded-xl py-4 text-white text-2xl active:scale-[0.98] transition disabled:opacity-60"
                   style={{
@@ -232,14 +329,14 @@ function SignIn() {
                       '0 12px 32px -8px rgba(255,0,128,0.7), 0 0 24px rgba(255,0,128,0.25)',
                   }}
                 >
-                  {status === 'sending' ? 'Sending…' : 'Send magic link'}
+                  {busy ? 'Sending…' : 'Send my code'}
                 </motion.button>
 
                 <p
                   className="text-[10px] tracking-[0.15em] uppercase font-semibold text-center mt-4"
                   style={{ color: 'rgba(255,255,255,0.55)' }}
                 >
-                  One-time link · No password
+                  6-digit code · No password
                 </p>
               </form>
             )}

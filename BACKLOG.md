@@ -4,6 +4,20 @@
 
 ## Completed
 
+### Jun 7 2026 session — Cardio cockpit + post-ship fixes
+- [x] **Cardio cinematic cockpit** — `CardioSceneHeader` (mockup §05) atop the
+  multi-activity logger.
+- [x] **Dashboard load flashing** — was remounting on every boot data change
+  (`key={dataVersion+bootRefresh}`); now a `refreshToken` prop re-derives data
+  in place without replaying mount animations.
+- [x] **Inline BP button off-screen** — decorative 600px halo overflowed the
+  viewport → iOS sideways scroll. Fixed with `overflow-x: clip` (html/body) +
+  `max-w-full` on the halo.
+- [x] **PWA sign-in opened in browser** — magic link can't reach a standalone
+  PWA's storage jar. Sign-in is now two-phase email → 6-digit code (`verifyOtp`)
+  so login completes in-app; link kept as desktop fallback. _Needs `{{ .Token }}`
+  in the Supabase Magic Link email template._
+
 ### Jun 6 2026 session — Design elevation (Pass 1–4) + tech fixes
 - [x] **Volume System v2** — `DESIGN.md` ships as the design philosophy (three
   volumes / type registers / glow-as-state / Overlay Contract). v1 Miami Heat

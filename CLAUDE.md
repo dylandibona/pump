@@ -66,8 +66,15 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
 - `src/lib/bp-sync.ts` — `pushUnsyncedBP()` mirror for blood-pressure
   readings → Supabase `bp_readings`.
 - `src/components/auth/AuthGate.tsx` — wraps the app in `layout.tsx`.
-  **Hard-gates** behind magic-link login when `NEXT_PUBLIC_SUPABASE_*` are
-  set; falls through (ungated, localStorage-only) when unset. Splash + sign-in
+  **Hard-gates** behind email login when `NEXT_PUBLIC_SUPABASE_*` are set; falls
+  through (ungated, localStorage-only) when unset. **Two-phase sign-in: email →
+  6-digit code.** `signInWithOtp` sends the email; the user types the code and
+  `verifyOtp({ email, token, type: 'email' })` completes sign-in *in this view*.
+  This is the PWA-correct path — a tapped magic link opens in Safari, whose
+  storage jar is separate from the installed standalone app, so it would never
+  log the app in. The same email still carries a magic link (desktop fallback).
+  ⚠️ Requires the Supabase **Magic Link email template** to render `{{ .Token }}`
+  (the 6-digit code) — without it, no code arrives. Splash + sign-in
   both use `pump-scene-empty.png` (dark dumbbell scene) + `letspump3-transparent.png`
   (brushy "Let's Pump!" wordmark) so the loading→form transition is seamless.
 
@@ -172,7 +179,7 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
 - `pump-sync-token` / `pump-sync-last` — Upstash bearer token + last-sync
   timestamp (legacy)
 - Supabase auth session — stored by `supabase-js` under its own `sb-*` key
-  (one-time magic-link login auto-restores)
+  (one-time code login auto-restores)
 
 ## Env vars (Vercel project)
 - **Supabase (Phase 1+):** `NEXT_PUBLIC_SUPABASE_URL`,
@@ -182,6 +189,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   **Supabase Auth → URL redirect allowlist** (localhost + pump.dylandibona.com)
   *first* to avoid lockout. Tighten the placeholder RLS to `auth.uid()` after
   first login.
+  ⚠️ **Email template:** the **Magic Link** template (Auth → Email Templates)
+  must include `{{ .Token }}` so the 6-digit code arrives — the PWA sign-in
+  enters that code (`verifyOtp`). Without it, only the (browser-opening) link is
+  sent and the installed app can't complete login.
 - **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
   (or `UPSTASH_REDIS_REST_*`). Removed in Phase 2.
 
@@ -223,10 +234,16 @@ On completion:
 - **Brand assets** — dashboard hero is `pump-header.png` (neon cursive on a
   retrowave scene). Sign-in is `pump-scene-empty.png` + `letspump3-transparent.png`.
   PR moment is `pump-pr-burst.png` + `new-PR.png`. Inventory in `DESIGN.md §7`.
-- **Auth gate (Supabase)** — `AuthGate` hard-gates the whole app behind
-  magic-link login when `NEXT_PUBLIC_SUPABASE_*` are set; ungated/
-  localStorage-only when unset. Single user. Health data, so RLS + an authed
-  session are the only protection (publishable key is public).
+- **Auth gate (Supabase)** — `AuthGate` hard-gates the whole app behind email
+  login when `NEXT_PUBLIC_SUPABASE_*` are set; ungated/localStorage-only when
+  unset. Single user. Health data, so RLS + an authed session are the only
+  protection (publishable key is public).
+- **Sign-in is a 6-digit code, not a magic link tap.** Installed PWAs have a
+  storage jar separate from Safari, so a tapped magic link logs in the *browser*
+  not the app. Sign-in is two-phase (email → code): `signInWithOtp` then
+  `verifyOtp` completes login inside the standalone app. The link still ships in
+  the same email as a desktop fallback. Needs `{{ .Token }}` in the Supabase
+  email template (see Env vars).
 - **Floating back-button pill** — sticky in the top-left, fades in on scroll
   past 60px. Always reachable mid-workout so the user never reaches for the
   browser back button.
