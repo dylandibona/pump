@@ -16,13 +16,13 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 // fall through to the app ungated rather than brick it.
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [ready, setReady] = useState(false);
+  // Ungated (no Supabase env) → ready immediately. Gated → stay on the splash
+  // until getSession resolves. Deriving the initial value here avoids a
+  // synchronous setState in the effect (cascading-render lint).
+  const [ready, setReady] = useState(!isSupabaseConfigured);
 
   useEffect(() => {
-    if (!isSupabaseConfigured) {
-      setReady(true);
-      return;
-    }
+    if (!isSupabaseConfigured) return;
     let mounted = true;
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;

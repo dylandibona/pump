@@ -17,6 +17,10 @@
   PWA's storage jar. Sign-in is now two-phase email → 6-digit code (`verifyOtp`)
   so login completes in-app; link kept as desktop fallback. _Needs `{{ .Token }}`
   in the Supabase Magic Link email template._
+- [x] **Lint tidy (touched files)** — `AuthGate` ready-state now derived (no
+  synchronous setState in effect); `page.tsx` scopes a single
+  `react-hooks/set-state-in-effect` disable (legitimate external-store syncs in
+  the view/boot controller); removed an unused import.
 
 ### Jun 6 2026 session — Design elevation (Pass 1–4) + tech fixes
 - [x] **Volume System v2** — `DESIGN.md` ships as the design philosophy (three
@@ -188,6 +192,12 @@
 
 ## Technical Debt
 
+- [ ] **Codebase-wide lint debt** — the newer `react-hooks` rules
+  (`set-state-in-effect`, `purity`) flag many pre-existing patterns across
+  `useCloudSync`, `WorkoutTimerBar`, `useTimer`, etc. (~27 findings). The build
+  does NOT gate on lint (Next 16), so it ships fine, but `npm run lint` is red.
+  Sweep these deliberately in their own pass (mostly: derive initial state, or
+  move `Date.now()`/`Math.random()` out of render). Don't bundle with feature work.
 - [ ] Unit tests for useWorkout hook
 - [ ] Virtualize long history lists
 - [ ] Service worker for true offline (currently localStorage only)

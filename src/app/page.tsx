@@ -1,5 +1,12 @@
 'use client';
 
+/* eslint-disable react-hooks/set-state-in-effect --
+   This is the app's view/boot controller. Several effects intentionally sync
+   from non-reactive external stores (localStorage via getPlan/finalize…, Supabase
+   via syncActivePlan) into React state in response to a signal (mount, view
+   change, sync dataVersion). That's a legitimate effect use, not the
+   derived-state anti-pattern the rule targets. Scoped to this rule only. */
+
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Timer as TimerIcon, Dumbbell, Activity, Pencil, Send, Check } from 'lucide-react';
@@ -17,7 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 import { useWorkout } from '@/hooks/useWorkout';
 import { useCloudSync } from '@/hooks/useCloudSync';
-import { getSession, getPlan, getNextPlanSession, getPRs, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions } from '@/lib/storage';
+import { getSession, getPlan, getNextPlanSession, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { fetchActivePlan } from '@/lib/plan-sync';
 import { pushUnsyncedSessions } from '@/lib/session-sync';
