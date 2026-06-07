@@ -246,6 +246,13 @@ On completion:
   (`dissolveBrokenSupersets`).
 - **Session feel** — named 1–5 rating on the summary (Brutal / Tough / OK /
   Good / Easy); feeds `feel_score` (Supabase) and a `FEEL:` line in the BRIEF.
+- **Cardio cinematic moment = a cockpit header, not a separate splash.** The
+  mockup's §05 cinematic cardio screen ships as `CardioSceneHeader` atop the
+  multi-activity logger (mirroring the gym cockpit, §02), not as a transient
+  start-splash. Its hero timer is the **total logged duration** (the cardio
+  banked), not a wall clock — honest for the post-hoc, entry-by-entry logging
+  model. Session name is session-local + renameable (no persisted field, no
+  Supabase/BRIEF churn). The logger (activity picker + entries) is unchanged.
 - **"Synced to trainer" reassurance** — workout-complete shows a band:
   "Your trainer sees this in their dashboard. No paste needed." The primary
   CTA is "Done" (honest — the Supabase write already happened); secondary

@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useWorkout } from '@/hooks/useWorkout';
 import { CardioActivity, CardioEntry } from '@/lib/types';
-import { Timer } from './Timer';
+import { CardioSceneHeader } from './CardioSceneHeader';
 import { LucideIcon } from 'lucide-react';
 
 interface CardioWorkoutProps {
@@ -37,6 +37,10 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
 
   const [showAddForm, setShowAddForm] = useState(true);
   const [selectedActivity, setSelectedActivity] = useState<CardioActivity>('run');
+  // Cardio has no persisted session-name field; the cinematic header derives a
+  // friendly default and lets it be renamed in-session (kept local — it's an
+  // atmospheric label, not data the trainer needs).
+  const [sessionName, setSessionName] = useState('Today’s cardio');
   const [distance, setDistance] = useState('');
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
@@ -76,6 +80,15 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
 
   const stats = getSessionStats();
 
+  // Totals for the cinematic header — the cardio banked so far.
+  const totalDurationSec = session.cardio?.reduce((sum, e) => sum + (e.duration ?? 0), 0) ?? 0;
+  const totalDistanceMi = session.cardio?.reduce((sum, e) => sum + (e.distance ?? 0), 0) ?? 0;
+  // Eyebrow activity: the latest logged activity once entries exist, otherwise
+  // whatever's selected in the picker (updates live as you choose).
+  const headerActivity = session.cardio?.length
+    ? session.cardio[session.cardio.length - 1].activity
+    : selectedActivity;
+
   const formatTime = (totalSeconds: number): string => {
     const hrs = Math.floor(totalSeconds / 3600);
     const mins = Math.floor((totalSeconds % 3600) / 60);
@@ -96,13 +109,16 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
 
   return (
     <div className="space-y-4 pb-24">
-      {/* Timer Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <Timer className="mb-4" />
-      </motion.div>
+      {/* Cinematic scene header (mockup §05) — the cardio "moment". Replaces
+          the old inline countdown/stopwatch card; entry durations are logged
+          per-activity below and totaled into the hero timer here. */}
+      <CardioSceneHeader
+        activity={headerActivity}
+        name={sessionName}
+        onNameChange={setSessionName}
+        totalDurationSec={totalDurationSec}
+        totalDistanceMi={totalDistanceMi}
+      />
 
       {/* Existing Entries */}
       {session.cardio?.map((entry, index) => (
