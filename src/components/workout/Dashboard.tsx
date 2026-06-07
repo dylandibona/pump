@@ -124,7 +124,10 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
         >
           <motion.button
             onClick={onOpenPlan}
-            className="flex-1 flex items-center gap-3 rounded-2xl px-4 py-3 text-left"
+            // min-w-0: this flex item must be allowed to shrink below its
+            // content width, or a long plan name refuses to truncate and shoves
+            // the BP heart button off the right edge (clipped by overflow-x).
+            className="flex-1 min-w-0 flex items-center gap-3 rounded-2xl px-4 py-3 text-left"
             style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.06)' }}
             whileTap={{ scale: 0.99 }}
           >
