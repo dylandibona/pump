@@ -356,7 +356,7 @@ export default function Home() {
               transition={{ duration: 0.3 }}
             >
               <Dashboard
-                key={`dash-${cloudSync.dataVersion}-${bootRefresh}`}
+                refreshToken={cloudSync.dataVersion + bootRefresh}
                 onStartWorkout={() => setView('start')}
                 onViewHistory={() => setView('history')}
                 onViewSession={handleViewSession}

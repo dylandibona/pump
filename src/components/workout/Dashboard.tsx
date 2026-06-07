@@ -19,11 +19,16 @@ interface DashboardProps {
   onOpenPlan: () => void;
   plan: TrainerPlan | null;
   sync: CloudSync;
+  // Bumps when stored data changes out-of-band (cold-start cleanup, a cloud
+  // sync merge). Used to re-derive the localStorage-backed views WITHOUT
+  // remounting the dashboard — remounting replays every entry animation, which
+  // looked like the screen flashing several times on load.
+  refreshToken: number;
 }
 
-export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpenPlan, plan, sync }: DashboardProps) {
-  const stats = useMemo(() => getWorkoutStats(), []);
-  const recentSessions = useMemo(() => getRecentSessions(5), []);
+export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpenPlan, plan, sync, refreshToken }: DashboardProps) {
+  const stats = useMemo(() => getWorkoutStats(), [refreshToken]);
+  const recentSessions = useMemo(() => getRecentSessions(5), [refreshToken]);
   // Records come from the curated Supabase `prs` table (cached locally for
   // instant first paint). The local PersonalRecord store is no longer read
   // here — it stays only for the in-session "new best" badge.
@@ -32,7 +37,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
     let cancelled = false;
     fetchPRs().then(fresh => { if (!cancelled) setPrsAll(fresh); });
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshToken]);
   const prs = useMemo(() => currentBestPerExercise(prsAll), [prsAll]);
 
   const [showBP, setShowBP] = useState(false);
