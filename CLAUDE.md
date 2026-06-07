@@ -192,7 +192,11 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   ⚠️ **Email template:** the **Magic Link** template (Auth → Email Templates)
   must include `{{ .Token }}` so the 6-digit code arrives — the PWA sign-in
   enters that code (`verifyOtp`). Without it, only the (browser-opening) link is
-  sent and the installed app can't complete login.
+  sent and the installed app can't complete login. The branded HTML body lives
+  (version-controlled) at `supabase/email-templates/magic-link.html` — paste it
+  into the dashboard; it renders both `{{ .Token }}` (code, hero) and
+  `{{ .ConfirmationURL }}` (link, desktop fallback). References the hosted
+  `letspump3-transparent.png` wordmark.
 - **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
   (or `UPSTASH_REDIS_REST_*`). Removed in Phase 2.
 

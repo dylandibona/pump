@@ -21,6 +21,10 @@
   synchronous setState in effect); `page.tsx` scopes a single
   `react-hooks/set-state-in-effect` disable (legitimate external-store syncs in
   the view/boot controller); removed an unused import.
+- [x] **Branded sign-in email** — `supabase/email-templates/magic-link.html`:
+  dark neon template matching the sign-in screen, 6-digit code as the hero +
+  "Let's Go" magic-link button (desktop fallback), responsive/fluid for phones.
+  _Paste into Supabase Auth → Email Templates → Magic Link._
 
 ### Jun 6 2026 session — Design elevation (Pass 1–4) + tech fixes
 - [x] **Volume System v2** — `DESIGN.md` ships as the design philosophy (three

@@ -1,0 +1,167 @@
+<!--
+  PUMP — Supabase "Magic Link" email template.
+
+  Paste this into: Supabase dashboard → Authentication → Email Templates →
+  "Magic Link" → message body (HTML). Subject suggestion: "Your PUMP sign-in code"
+
+  This template is used by signInWithOtp. It renders BOTH:
+    • {{ .Token }}           — the 6-digit code (primary path: typed into the
+                               installed PWA, whose storage jar is separate from
+                               Safari, so a tapped link can't log the app in).
+    • {{ .ConfirmationURL }} — the magic link (desktop fallback).
+
+  Email HTML rules followed: table layout, inline styles, bulletproof button,
+  web fonts with system fallbacks (Outfit/Pacifico render in Apple/iOS Mail,
+  fall back to sans-serif/cursive elsewhere). Kept self-contained.
+-->
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="x-apple-disable-message-reformatting" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="supported-color-schemes" content="dark light" />
+  <title>Your PUMP sign-in code</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Pacifico&display=swap" rel="stylesheet" />
+  <style>
+    /* Some clients honor <style>; everything critical is also inlined below. */
+    body { margin: 0; padding: 0; background: #0A0020; }
+    a { text-decoration: none; }
+    @media (prefers-color-scheme: light) {
+      .bg-page { background: #0A0020 !important; }
+    }
+    /* Narrow phones: shrink the code so it never overflows the card. */
+    @media only screen and (max-width: 400px) {
+      .code-hero { font-size: 30px !important; letter-spacing: 0.14em !important; text-indent: 0.14em !important; padding: 18px 10px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0; padding:0; background:#0A0020;">
+  <!-- Preheader (hidden preview text) -->
+  <div style="display:none; max-height:0; overflow:hidden; opacity:0; color:#0A0020; font-size:1px; line-height:1px;">
+    Your 6-digit sign-in code for PUMP. Enter it in the app to log in.
+  </div>
+
+  <table role="presentation" class="bg-page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0A0020;">
+    <tr>
+      <td align="center" style="padding:32px 16px 40px;">
+
+        <!-- Card -->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%; max-width:480px;">
+
+          <!-- Neon top accent (cyan → pink) -->
+          <tr>
+            <td style="height:3px; line-height:3px; font-size:0; background:#FF0080; background-image:linear-gradient(90deg,#00FFEE,#FF0080,#8B00FF); border-radius:24px 24px 0 0;">&nbsp;</td>
+          </tr>
+
+          <tr>
+            <td style="background:#120033; border:1px solid rgba(255,255,255,0.08); border-top:0; border-radius:0 0 24px 24px; padding:36px 32px;">
+
+              <!-- Wordmark -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding-bottom:10px;">
+                    <img src="https://pump.dylandibona.com/letspump3-transparent.png" alt="PUMP" width="240" style="display:block; width:240px; max-width:72%; height:auto; border:0;" />
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Eyebrow -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:11px; font-weight:800; letter-spacing:0.32em; text-transform:uppercase; color:#00FFEE; padding-bottom:8px;">
+                    Your sign-in code
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Sub -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:15px; line-height:22px; color:rgba(255,255,255,0.78); padding-bottom:24px;">
+                    Enter this code in the PUMP app to log in.
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Code hero -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td class="code-hero" align="center" style="background:#0A0020; border:1px solid rgba(0,255,238,0.35); border-radius:16px; padding:20px 16px; font-family:'Outfit',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:36px; font-weight:800; letter-spacing:0.22em; color:#FFFFFF; text-indent:0.22em; white-space:nowrap;">
+                          {{ .Token }}
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Expiry note -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:12px; letter-spacing:0.04em; color:rgba(255,255,255,0.5); padding:14px 0 26px;">
+                    This code is good for one hour. One use only.
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider with "or on a computer" -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="border-top:1px solid rgba(255,255,255,0.10); font-size:0; line-height:0; height:1px;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:10px; font-weight:800; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.45); padding:18px 0 16px;">
+                    On a computer?
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Bulletproof CTA button (magic-link fallback) -->
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 auto;">
+                      <tr>
+                        <td align="center" bgcolor="#FF0080" style="border-radius:14px; background:#FF0080; background-image:linear-gradient(135deg,#FF0080,#FF00FF,#8B00FF);">
+                          <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block; padding:15px 38px; font-family:'Pacifico','Outfit',cursive; font-size:22px; line-height:22px; color:#FFFFFF; border-radius:14px;">
+                            Let&rsquo;s Go
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:12px; line-height:18px; color:rgba(255,255,255,0.5); padding:14px 0 2px;">
+                    Tap it on a desktop browser. On your phone, use the code above —<br />a link opens Safari, not your home-screen app.
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="font-family:'Outfit',-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; font-size:11px; line-height:18px; color:rgba(255,255,255,0.38); padding:22px 16px 0;">
+              You&rsquo;re receiving this because someone requested a sign-in to PUMP.<br />
+              If that wasn&rsquo;t you, you can safely ignore this email.
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="font-family:'Pacifico','Outfit',cursive; font-size:18px; color:rgba(255,0,128,0.6); padding:12px 0 0;">
+              Let&rsquo;s pump.
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
