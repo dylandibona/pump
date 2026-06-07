@@ -14,8 +14,11 @@
 ## Status (post-Pass-4, current)
 
 Shipped — Pass 5 (Jun 6 2026) closed the audit:
-- 🟢 **BP heart button overflow** — `pr-[max(0.25rem,env(safe-area-inset-right))]`
-  on the dashboard plan-chip row.
+- 🟢 **BP heart button overflow** — the Pass-5 `pr-[max(...)]` padding tweak did
+  NOT fix it. Real cause: the dashboard's decorative 600px ambient halo (fixed,
+  centered) overflows the viewport; iOS Safari turns that into sideways scroll,
+  shoving the inline BP button off-screen. Fixed for real with `overflow-x: clip`
+  on html/body + `max-w-full` on the halo (commit 61f2265).
 - 🟢 **Cockpit (§02) atmospheric header** — `WorkoutTimerBar` rebuilt as the
   `pump-scene-gym.png` band: session meta (cyan caps) + up-next exercise
   (Pacifico) + elapsed + rest controls; rest pill pulses via
@@ -54,20 +57,19 @@ Deferred — queued as their own scoped passes (by decision):
 
 ---
 
-## Cross-cutting bug (your report)
+## Cross-cutting bug (your report) — ✅ RESOLVED (commit 61f2265)
 
-🔴 **BP heart button feels off-screen on the right** (`Dashboard.tsx` plan-chip row).
-- Measured: at 320 / 360 / 375 / 390 viewport widths, the button's right edge sits
-  at exactly the page `px-4` margin (16px from the viewport edge). It does **not**
-  geometrically clip in DevTools.
-- But on a real iPhone, Safari's safe-area-inset-right + a vertical scrollbar +
-  the page's `max-w-lg mx-auto` interaction can push it past the edge, especially
-  when the scrollbar appears (overflow shifts content).
-- **Fix:** wrap the plan row in `pr-[max(1rem,env(safe-area-inset-right))]`, or
-  drop the button's size from `w-12` to `w-11` on narrow viewports, or pull the
-  row's right padding in by 4px to give the button breathing room. Lowest-risk
-  fix: change the row container from sitting at the page padding to a slightly
-  smaller `pr-3` so there's a guaranteed visual gutter.
+🟢 **BP heart button felt off-screen on the right** (`Dashboard.tsx` plan-chip row).
+- Earlier theory (safe-area + padding) was wrong; the `pr-[max(...)]` tweak didn't
+  fix it. **Actual root cause:** the dashboard's decorative `fixed w-[600px]`
+  ambient halo extends ~113px past a phone viewport (`left:-112 → right:488` at
+  375px). Desktop Chrome clips it, but iOS Safari turns the overflow into a
+  horizontally-scrollable page, shifting the whole layout right so the inline BP
+  heart sat past the right edge (reachable only by scrolling sideways).
+- **Fix shipped:** `overflow-x: clip` on html/body (kills sideways scroll without
+  breaking `position: sticky`, unlike `overflow-x: hidden`) + `max-w-full` on the
+  halo so it can't exceed the viewport. Verified at 375px: no document overflow,
+  max horizontal scroll = 0, BP button fully on-screen.
 
 ---
 
