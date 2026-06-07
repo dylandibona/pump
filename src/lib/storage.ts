@@ -1,5 +1,6 @@
 import { WorkoutData, WorkoutSession, PersonalRecord, WorkoutTemplate, UserSettings, GymExercise, GymSet, TrainerPlan, ExerciseStatus, BPReading } from './types';
 import { normalizeExerciseName } from './exercises';
+import { mergeEnvelopes, type SyncEnvelope } from './sync-merge';
 
 const STORAGE_KEY = 'dylan-workout-tracker';
 
@@ -612,7 +613,7 @@ export function exportData(): string {
   return JSON.stringify(data, null, 2);
 }
 
-// Import data from JSON
+// Import data from JSON (full replace). Kept for completeness.
 export function importData(jsonString: string): boolean {
   try {
     const data = JSON.parse(jsonString) as WorkoutData;
@@ -621,6 +622,44 @@ export function importData(jsonString: string): boolean {
   } catch (error) {
     console.error('Error importing data:', error);
     return false;
+  }
+}
+
+// Import a backup and MERGE it into whatever's already here (union by id —
+// nothing is lost, safe to run on a populated device, idempotent). This is the
+// device-to-device restore path: export the JSON from one storage jar (e.g.
+// Safari) and import it into another (e.g. the installed PWA), which otherwise
+// starts empty because localStorage is per-container. Accepts a backup produced
+// by exportData() (a WorkoutData blob).
+export function importMergeData(
+  jsonString: string,
+): { ok: boolean; sessions: number; error?: string } {
+  try {
+    const incoming = JSON.parse(jsonString) as Partial<WorkoutData>;
+    if (!incoming || !Array.isArray(incoming.sessions)) {
+      return { ok: false, sessions: 0, error: 'That file is not a PUMP backup.' };
+    }
+    const stamp = new Date().toISOString();
+    const local: SyncEnvelope = { updatedAt: stamp, data: getWorkoutData(), plan: getPlan() };
+    const imported: SyncEnvelope = {
+      updatedAt: stamp,
+      data: {
+        sessions: incoming.sessions ?? [],
+        personalRecords: incoming.personalRecords ?? [],
+        templates: incoming.templates ?? [],
+        settings: incoming.settings ?? getWorkoutData().settings,
+      },
+      plan: getPlan(),
+    };
+    const merged = mergeEnvelopes(local, imported);
+    saveWorkoutData(merged.data);
+    return { ok: true, sessions: merged.data.sessions.length };
+  } catch (error) {
+    return {
+      ok: false,
+      sessions: 0,
+      error: error instanceof Error ? error.message : 'Import failed',
+    };
   }
 }
 

@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Dumbbell, Activity, Download, ClipboardList, ChevronRight, Heart } from 'lucide-react';
+import { Dumbbell, Activity, Download, Upload, ClipboardList, ChevronRight, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getRecentSessions, getWorkoutStats, exportData } from '@/lib/storage';
+import { getRecentSessions, getWorkoutStats, exportData, importMergeData } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { parseSessionDate, sessionLabel } from '@/lib/utils';
 import { BloodPressureSheet } from './BloodPressureSheet';
@@ -43,6 +43,25 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
   const prs = useMemo(() => currentBestPerExercise(prsAll), [prsAll]);
 
   const [showBP, setShowBP] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-importing the same file
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const res = importMergeData(text);
+      if (res.ok) {
+        alert(`Restored — ${res.sessions} workout${res.sessions === 1 ? '' : 's'} now on this device.`);
+        window.location.reload();
+      } else {
+        alert(`Import failed: ${res.error ?? 'unknown error'}`);
+      }
+    } catch {
+      alert('Could not read that file.');
+    }
+  };
 
   const handleExport = () => {
     const json = exportData();
@@ -367,8 +386,11 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
             workout-complete screen ("Synced to trainer"). Component is kept in
             the codebase for the Phase 2 cleanup. */}
 
-        {/* Export / Backup */}
+        {/* Backup — export here, import on another device (e.g. the installed
+            PWA, whose localStorage starts empty) to bring your full history
+            over. Import merges (union by id), so it's safe to re-run. */}
         <motion.div
+          className="grid grid-cols-2 gap-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9 }}
@@ -379,8 +401,23 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
             className="w-full font-display tracking-wider border-dashed border opacity-50 hover:opacity-100 transition-opacity"
           >
             <Download className="w-4 h-4 mr-2" />
-            EXPORT BACKUP
+            EXPORT
           </Button>
+          <Button
+            onClick={() => importInputRef.current?.click()}
+            variant="outline"
+            className="w-full font-display tracking-wider border-dashed border opacity-50 hover:opacity-100 transition-opacity"
+          >
+            <Upload className="w-4 h-4 mr-2" />
+            IMPORT
+          </Button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportFile}
+            className="hidden"
+          />
         </motion.div>
       </div>
 
