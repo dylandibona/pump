@@ -1,10 +1,14 @@
 <!--
   PUMP — Supabase "Magic Link" email template.
 
-  Paste this into: Supabase dashboard → Authentication → Email Templates →
-  "Magic Link" → message body (HTML). Subject suggestion: "Your PUMP sign-in code"
+  Paste this into the DD Health project (eifcefpxttrijarsfjre) → Authentication
+  → Emails → message body (HTML), into BOTH the "Magic Link" AND "Confirm signup"
+  templates, and Save each. signInWithOtp uses "Magic Link" for an existing user
+  and "Confirm signup" for a new/unconfirmed one — editing only one leaves the
+  other as the default (undesigned link, and Confirm-signup has no code at all).
+  Subject suggestion: "Your PUMP sign-in code"
 
-  This template is used by signInWithOtp. It renders BOTH:
+  It renders BOTH:
     • {{ .Token }}           — the 6-digit code (primary path: typed into the
                                installed PWA, whose storage jar is separate from
                                Safari, so a tapped link can't log the app in).

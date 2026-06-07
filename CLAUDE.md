@@ -189,15 +189,19 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   **Supabase Auth → URL redirect allowlist** (localhost + pump.dylandibona.com)
   *first* to avoid lockout. Tighten the placeholder RLS to `auth.uid()` after
   first login.
-  ⚠️ **Email template:** the **Magic Link** template (Auth → Email Templates)
-  must include `{{ .Token }}` so the 6-digit code arrives — the PWA sign-in
-  enters that code (`verifyOtp`). Without it, only the (browser-opening) link is
-  sent and the installed app can't complete login. The branded HTML body lives
-  (version-controlled) at `supabase/email-templates/magic-link.html` — paste it
-  into the dashboard; it renders both `{{ .Token }}` (code, hero) and
-  `{{ .ConfirmationURL }}` (link, desktop fallback). References the hosted
-  `letspump-email.png` wordmark (an email-optimized 600px/82KB PNG — the app's
-  full-res `letspump3-transparent.png` is left for `next/image` to optimize).
+  ⚠️ **Email templates (paste into the DD Health project — `eifcefpxttrijarsfjre`):**
+  `signInWithOtp` picks the template by user state — **existing user → "Magic
+  Link"**, **new/unconfirmed user → "Confirm signup"** — so paste the branded
+  body into **BOTH** (Auth → Emails) and Save each, or you'll get the default
+  (undesigned link) email on whichever path you hit. Both must include
+  `{{ .Token }}` so the 6-digit code arrives — the PWA sign-in enters that code
+  (`verifyOtp`). The default "Confirm signup" template has NO `{{ .Token }}`, so
+  if your flow hits it untouched, no code is sent at all. The branded HTML body
+  lives (version-controlled) at `supabase/email-templates/magic-link.html`; it
+  renders both `{{ .Token }}` (code, hero) and `{{ .ConfirmationURL }}` (link,
+  desktop fallback). References the hosted `letspump-email.png` wordmark (an
+  email-optimized 600px/82KB PNG — the app's full-res `letspump3-transparent.png`
+  is left for `next/image` to optimize).
 - **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
   (or `UPSTASH_REDIS_REST_*`). Removed in Phase 2.
 
