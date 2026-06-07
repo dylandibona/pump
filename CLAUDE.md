@@ -31,7 +31,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   logic. Exports `computeE1RM` (Epley) and `isWorkingSet`. PRs commit once at
   completion via `finalizePRs`. Session finalization helpers:
   `finalizeSession`, `finishOrDiscardSession`, `finalizeAbandonedSessions`,
-  `dissolveBrokenSupersets`, `sessionDurationMin`.
+  `dissolveBrokenSupersets`, `sessionDurationMin`. `exportData()` / `importMergeData()`
+  back the dashboard EXPORT / IMPORT buttons — import unions a backup into local
+  via `mergeEnvelopes` (safe, full fidelity), the cross-device restore path since
+  localStorage is per-container (Safari vs installed PWA).
 - `src/lib/utils.ts` — pure helpers including `parseSessionDate` (avoids the
   UTC-rolling bug on YYYY-MM-DD strings) and **`sessionLabel(s, plan)`** — the
   one canonical display name for a session (prefers plan-session name via
@@ -297,6 +300,13 @@ On completion:
   union-based with no tombstones, so a deleted item can reappear from another
   device (acceptable until Phase 2). Both layers are inert when their env
   vars are unset.
+- **localStorage is per-container → a fresh device starts empty.** The installed
+  PWA has a separate storage jar from Safari, and `session-sync` is **push-only**
+  (the dashboard reads history from localStorage; the curated `prs`/`plans` tables
+  DO pull, but sessions don't). So a new device shows no workout history.
+  Stop-gap: the **EXPORT / IMPORT** backup buttons move full-fidelity data between
+  jars (`importMergeData`). Proper fix is the Phase-2 Supabase pull (see BACKLOG
+  → High Priority → Cross-device data sync).
 - **Script-font nav titles on root views** — Plan, History, New Workout render
   their nav title in Pacifico (title-case). Workflow views keep Outfit 800
   uppercase.

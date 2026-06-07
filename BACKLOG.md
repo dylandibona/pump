@@ -132,6 +132,17 @@
 
 ## High Priority
 
+### Cross-device data sync (the real fix behind the "empty PWA" bug)
+- [ ] **Pull session history from the cloud on load** so a fresh device (e.g.
+  the installed PWA, whose localStorage starts empty) auto-populates without a
+  manual import. Today `session-sync` is **push-only** and the dashboard reads
+  history from localStorage, so a new device shows nothing. Stop-gap shipped:
+  **Export → Import** (full-fidelity manual restore). Proper fix = finish the
+  Supabase migration (Phase 2): store the COMPLETE session (cardio entries, ids,
+  times — the current `sessions` table is coach-shaped and lossy) and pull+merge
+  on load. Mind the push sweep's synced-ids baseline so pulled rows don't
+  re-push as duplicates.
+
 ### Queued — scoped passes (deferred from Pass 5, by decision)
 - [ ] **Fused superset block** — one cockpit card with a single shared input
   toggling between the two exercises (mockup §02). A logging-UX change that
@@ -199,8 +210,10 @@ Pragmatic paths, by effort:
 
 ### Data
 - [ ] Export session log as text (for pasting into Health Project history)
-- [ ] Full data export as JSON backup
-- [ ] Import from backup
+- [x] Full data export as JSON backup (dashboard EXPORT button)
+- [x] Import from backup — dashboard IMPORT button; `importMergeData` unions a
+  backup into local via `mergeEnvelopes` (safe, idempotent, full fidelity). This
+  is the cross-device restore path (Safari → installed PWA).
 
 ---
 
