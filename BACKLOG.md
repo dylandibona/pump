@@ -177,12 +177,13 @@ Pragmatic paths, by effort:
 - [ ] **Manual avg/max HR fields on cardio entries** (easy — ships now) — type
   the numbers off the COROS watch at the end, with notes. Fits the post-hoc
   logging model. _Supersedes "Heart rate zone (manual)"._
-- [ ] **Strava import (COROS → Strava → Pump)** (medium) — once the activity
-  syncs to Strava, pull duration / distance / avg+max HR via the Strava API to
-  pre-fill a cardio entry. Post-hoc, not live; needs Strava OAuth + an edge
-  function. _Supersedes "Strava integration for cardio"._
-- [ ] **Native wrapper (Capacitor) for HealthKit / live BLE** (big) — the only
-  route to true live HR + Apple Health read; a major move away from pure PWA.
+- [ ] **#2 — Strava import (COROS → Strava → Pump)** (medium — planned next step
+  for HR) — once the activity syncs to Strava, pull duration / distance / avg+max
+  HR via the Strava API to pre-fill a cardio entry. Post-hoc, not live; needs
+  Strava OAuth + an edge function. _Supersedes "Strava integration for cardio"._
+- [ ] **#3 — Native wrapper (Capacitor) for HealthKit / live BLE** (possibility /
+  stretch only) — the *only* route to true live HR + Apple Health read, but a
+  major move away from the pure PWA. Park unless we decide to go native.
   _Supersedes "Apple Health integration" + folds into "Apple Watch companion"._
 
 ### Analytics & Dashboard

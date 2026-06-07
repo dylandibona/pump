@@ -196,7 +196,8 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   (version-controlled) at `supabase/email-templates/magic-link.html` — paste it
   into the dashboard; it renders both `{{ .Token }}` (code, hero) and
   `{{ .ConfirmationURL }}` (link, desktop fallback). References the hosted
-  `letspump3-transparent.png` wordmark.
+  `letspump-email.png` wordmark (an email-optimized 600px/82KB PNG — the app's
+  full-res `letspump3-transparent.png` is left for `next/image` to optimize).
 - **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
   (or `UPSTASH_REDIS_REST_*`). Removed in Phase 2.
 
