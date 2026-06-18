@@ -94,6 +94,10 @@ function buildRow(session: WorkoutSession, plan: TrainerPlan | null) {
     total_volume: vol > 0 ? vol : null,
     feel_score: session.feelScore ?? null,
     exercises: session.exercises ?? [],
+    // Lossless complete session (native PUMP shape) so the coach gets cardio +
+    // intervals + notes structurally, not just as prose in raw_brief. Additive;
+    // the shaped columns above are unchanged. Column added 2026-06-17.
+    payload: session,
     raw_brief: brief,
     processed: false,
   };

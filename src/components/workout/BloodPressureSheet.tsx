@@ -4,11 +4,27 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, X, Check, Copy } from 'lucide-react';
 import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { getBPReadings, saveBPReading, classifyBP, generateId, type BPCategory } from '@/lib/storage';
+import { getBPReadings, saveBPReading, classifyBP, generateId, getBPLastShared, setBPLastShared, type BPCategory } from '@/lib/storage';
 import { pushUnsyncedBP } from '@/lib/bp-sync';
 import type { BPMedTimingBucket, BPReading } from '@/lib/types';
 
 const MED_NAME = 'lisinopril 10mg';
+
+// Doctor-export scope. Default "new since last shared" (cursor) so each copy
+// sends only what hasn't been sent yet; the toggle widens to a rolling window.
+type ExportWindow = 'new' | '7d' | '30d' | 'all';
+const EXPORT_WINDOWS: { key: ExportWindow; label: string }[] = [
+  { key: 'new', label: 'New' },
+  { key: '7d', label: '7d' },
+  { key: '30d', label: '30d' },
+  { key: 'all', label: 'All' },
+];
+const WINDOW_LABEL: Record<ExportWindow, string> = {
+  new: 'new since last shared',
+  '7d': 'last 7 days',
+  '30d': 'last 30 days',
+  all: 'all readings',
+};
 
 const MED_BUCKETS: { key: BPMedTimingBucket; label: string }[] = [
   { key: 'lt1h', label: '<1h' },
@@ -57,7 +73,7 @@ function medSummary(r: BPReading): string {
 }
 
 // Plain-text block for pasting to a PCP. Newest first, one reading per line.
-function formatExport(readings: BPReading[]): string {
+function formatExport(readings: BPReading[], scopeLabel?: string): string {
   const lines = readings.map(r => {
     const cat = CATEGORY_META[classifyBP(r.systolic, r.diastolic)].label;
     const pulse = r.pulse ? `, pulse ${r.pulse}` : '';
@@ -65,7 +81,8 @@ function formatExport(readings: BPReading[]): string {
     return `${fmtDateTime(r.measuredAt)} — ${r.systolic}/${r.diastolic} mmHg (${cat})${pulse}, ${medSummary(r)}${notes}`;
   });
   const n = readings.length;
-  return `Blood pressure — last ${n} reading${n === 1 ? '' : 's'}\n\n${lines.join('\n')}`;
+  const heading = scopeLabel ?? `last ${n} reading${n === 1 ? '' : 's'}`;
+  return `Blood pressure — ${heading}\n\n${lines.join('\n')}`;
 }
 
 export function BloodPressureSheet({
@@ -93,8 +110,15 @@ export function BloodPressureSheet({
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const [readings, setReadings] = useState<BPReading[]>([]);
+  // Full reading set (newest first); the recent list + doctor export derive
+  // from it through the selected export window.
+  const [allReadings, setAllReadings] = useState<BPReading[]>([]);
   const [copied, setCopied] = useState(false);
+  const [exportWindow, setExportWindow] = useState<ExportWindow>('new');
+  const [lastShared, setLastShared] = useState<string | null>(null);
+  // Timestamp captured when the sheet opens — anchors the rolling 7d/30d window
+  // math out of render (calling Date.now() in the memo violates the purity rule).
+  const [openedAt, setOpenedAt] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -108,13 +132,34 @@ export function BloodPressureSheet({
     setNotes('');
     setSaving(false);
     setCopied(false);
-    setReadings(getBPReadings().slice(0, 10));
+    setAllReadings(getBPReadings());
+    setExportWindow('new');
+    setLastShared(getBPLastShared());
+    setOpenedAt(nowIso ? new Date(nowIso).getTime() : new Date().getTime());
   }, [open, nowIso]);
 
   const sys = parseInt(systolic, 10);
   const dia = parseInt(diastolic, 10);
   const valid = sys >= 40 && sys <= 300 && dia >= 20 && dia <= 200 && (!onMeds || takenAgo !== null);
   const category = useMemo(() => (sys > 0 && dia > 0 ? classifyBP(sys, dia) : null), [sys, dia]);
+
+  // Readings in the selected export scope (newest first). "new" = measured
+  // after the last-shared cursor (everything, the first time); the windows are
+  // rolling N-day spans. Drives BOTH the Recent list and the doctor export so
+  // what you see is what you'll copy.
+  const scopedReadings = useMemo(() => {
+    const cutoff =
+      exportWindow === '7d' ? openedAt - 7 * 864e5 :
+      exportWindow === '30d' ? openedAt - 30 * 864e5 :
+      null;
+    const cursor = lastShared ? new Date(lastShared).getTime() : null;
+    return allReadings.filter(r => {
+      const t = new Date(r.measuredAt).getTime();
+      if (exportWindow === 'new') return cursor === null || t > cursor;
+      if (cutoff !== null) return t >= cutoff;
+      return true; // 'all'
+    });
+  }, [allReadings, exportWindow, lastShared, openedAt]);
 
   const handleSave = () => {
     if (!valid || saving) return;
@@ -136,9 +181,16 @@ export function BloodPressureSheet({
   };
 
   const handleCopy = async () => {
-    if (readings.length === 0) return;
+    if (scopedReadings.length === 0) return;
     try {
-      await navigator.clipboard.writeText(formatExport(readings));
+      const n = scopedReadings.length;
+      const heading = `${WINDOW_LABEL[exportWindow]} — ${n} reading${n === 1 ? '' : 's'}`;
+      await navigator.clipboard.writeText(formatExport(scopedReadings, heading));
+      // Advance the cursor so the next "New" copy only includes readings logged
+      // after this share. Any window (not just "new") marks "shared up to now".
+      const now = new Date().toISOString();
+      setBPLastShared(now);
+      setLastShared(now);
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch {
@@ -345,10 +397,40 @@ export function BloodPressureSheet({
           ) : (
             /* Recent */
             <div className="space-y-2">
-              {readings.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-10">No readings yet.</p>
+              {/* Export scope — what the "Copy for doctor" button will send.
+                  Default "New" = only readings logged since the last copy. */}
+              <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--pump-bg-input)' }}>
+                {EXPORT_WINDOWS.map(w => {
+                  const active = exportWindow === w.key;
+                  return (
+                    <button
+                      key={w.key}
+                      type="button"
+                      onClick={() => setExportWindow(w.key)}
+                      aria-pressed={active}
+                      className="flex-1 rounded-lg py-1.5 text-xs tracking-[0.12em] uppercase font-bold transition-all"
+                      style={
+                        active
+                          ? { background: 'var(--pump-bg-card)', color: 'var(--pump-hot)', boxShadow: '0 1px 4px rgba(255,0,128,0.15)' }
+                          : { color: 'var(--pump-text-dim)' }
+                      }
+                    >
+                      {w.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {scopedReadings.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-10">
+                  {allReadings.length === 0
+                    ? 'No readings yet.'
+                    : exportWindow === 'new'
+                      ? 'Nothing new since you last shared. Switch to 7d / 30d / All to see more.'
+                      : 'No readings in this range.'}
+                </p>
               ) : (
-                readings.map(r => {
+                scopedReadings.map(r => {
                   const cat = classifyBP(r.systolic, r.diastolic);
                   return (
                     <div key={r.id} className="pump-card p-3">
@@ -395,7 +477,7 @@ export function BloodPressureSheet({
             <motion.button
               type="button"
               onClick={handleCopy}
-              disabled={readings.length === 0}
+              disabled={scopedReadings.length === 0}
               whileTap={{ scale: 0.98 }}
               className="touch-target w-full rounded-xl text-lg font-display tracking-wider disabled:opacity-50 transition-all flex items-center justify-center gap-2"
               style={
@@ -407,7 +489,12 @@ export function BloodPressureSheet({
               {copied ? (
                 <><Check className="w-5 h-5" /> COPIED FOR YOUR DOCTOR</>
               ) : (
-                <><Copy className="w-5 h-5" /> COPY LAST {readings.length} FOR DOCTOR</>
+                <>
+                  <Copy className="w-5 h-5" />
+                  COPY {scopedReadings.length}
+                  {exportWindow === 'new' ? ' NEW' : exportWindow === 'all' ? '' : ` (${exportWindow.toUpperCase()})`}
+                  {' '}FOR DOCTOR
+                </>
               )}
             </motion.button>
           )}

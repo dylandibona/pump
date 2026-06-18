@@ -411,6 +411,21 @@ export function deleteBPReading(id: string): void {
   }
 }
 
+// Cursor for the BP doctor-export "new since last shared" default. ISO string;
+// the export copies only readings measured after it and advances it on each
+// copy. Local-only — sharing is to the clipboard, nothing syncs.
+const BP_LAST_SHARED_KEY = 'pump-bp-last-shared';
+
+export function getBPLastShared(): string | null {
+  if (typeof window === 'undefined') return null;
+  try { return localStorage.getItem(BP_LAST_SHARED_KEY); } catch { return null; }
+}
+
+export function setBPLastShared(iso: string): void {
+  if (typeof window === 'undefined') return;
+  try { localStorage.setItem(BP_LAST_SHARED_KEY, iso); } catch { /* unavailable */ }
+}
+
 // AHA blood-pressure category (highest applicable). Used for instant feedback.
 export type BPCategory = 'normal' | 'elevated' | 'stage1' | 'stage2' | 'crisis';
 export function classifyBP(systolic: number, diastolic: number): BPCategory {

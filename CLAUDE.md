@@ -66,6 +66,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   (UUID minted on session start) is the idempotency key — duplicate writes
   hit the partial unique index, caught as `23505` and marked synced (first
   complete write wins, no second row). Native `GymExercise[]` shape preserved.
+  Each row also carries a **`payload jsonb`** = the COMPLETE `WorkoutSession`
+  (native client shape), so the coach gets cardio + intervals + notes
+  structurally, not just as prose in `raw_brief` (the shaped columns are lossy).
+  Additive + nullable; legacy rows have null payload.
 - `src/lib/prs-sync.ts` — fetches the **curated `prs` Supabase table** (clean
   exercise / weight / reps / unit / kind / achieved_on). Cached locally for
   instant first paint. Dashboard Records read from here; local PersonalRecord
@@ -151,8 +155,12 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   preview, gym, cardio, summary, session-detail).
 - `BloodPressureSheet.tsx` + `src/lib/bp-sync.ts` — non-workout BP recorder.
   Dashboard heart button → bottom sheet (LOG / RECENT toggle, SYS/DIA/pulse,
-  time, lisinopril toggle + how-long-ago buckets, notes, live AHA category;
-  "Copy last N for doctor" exports plain text for PCP).
+  time, lisinopril toggle + how-long-ago buckets, notes, live AHA category).
+  **Doctor export is scoped** — a `New · 7d · 30d · All` toggle drives both the
+  RECENT list and the "Copy for doctor" text; default **New = only readings
+  since the last copy** (a `pump-bp-last-shared` ISO cursor, advanced on each
+  copy via `setBPLastShared`). Fixes the old "copy re-sends the whole list every
+  time" — you now send only what's new.
 - `PlanLoader.tsx` — parses trainer JSON (manual fallback to the Supabase
   plan fetch), shows plan details. Mounted inside the Plan tab view.
 - `ReorderExercisesSheet.tsx` — dedicated reorder surface (framer `Reorder`).
@@ -201,6 +209,8 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   (sweep dedup)
 - `pump-bp-readings` — blood-pressure readings (local store; synced to
   `bp_readings`)
+- `pump-bp-last-shared` — ISO cursor for the BP doctor-export "new since last
+  shared" default (advanced on each copy; local-only, never synced)
 - `pump-sync-token` / `pump-sync-last` — Upstash bearer token + last-sync
   timestamp (legacy)
 - Supabase auth session — stored by `supabase-js` under its own `sb-*` key
@@ -248,7 +258,8 @@ User taps session → SessionPreview (plan sessions) → GymWorkout pre-fills
 On completion:
   → SessionSummary generates BRIEF + captures named feel (Brutal/…/Easy)
   → session-sync sweep writes a row to Supabase `sessions`
-     (raw_brief, feel_score, native GymExercise[], client_session_id UUID)
+     (raw_brief, feel_score, native GymExercise[], client_session_id UUID,
+      payload jsonb = complete WorkoutSession for lossless coach reads)
   → idempotent — duplicate writes hit unique index, caught as 23505
   → BRIEF copied to clipboard via "Open with trainer" (secondary action)
 ```

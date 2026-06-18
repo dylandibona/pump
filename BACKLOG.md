@@ -133,20 +133,20 @@
 ## High Priority
 
 ### Cross-device data sync (the real fix behind the "empty PWA" bug)
-- [ ] **Pull session history from the cloud on load** so a fresh device (e.g.
-  the installed PWA, whose localStorage starts empty) auto-populates without a
-  manual import. Today `session-sync` is **push-only** and the dashboard reads
-  history from localStorage, so a new device shows nothing. Stop-gap shipped:
-  **Export → Import** (full-fidelity manual restore). Proper fix = finish the
-  Supabase migration (Phase 2): store the COMPLETE session (cardio entries, ids,
-  times — the current `sessions` table is coach-shaped and lossy) and pull+merge
-  on load. Mind the push sweep's synced-ids baseline so pulled rows don't
-  re-push as duplicates.
+- [ ] _(DEPRIORITIZED Jun 17 — Dylan is single-device, PWA-only going forward;
+  the one-time JSON import covered the migration. Revisit only if multi-device
+  returns.)_ **Pull session history from the cloud on load** so a fresh device
+  auto-populates without a manual import. Today `session-sync` is **push-only**
+  and the dashboard reads history from localStorage. Stop-gap shipped:
+  **Export → Import**.
+- [x] **Lossless session `payload` for the coach** (shipped Jun 17) — added a
+  nullable `payload jsonb` column on DD Health `sessions` (migration
+  `add_sessions_payload_jsonb`) holding the COMPLETE `WorkoutSession`, written on
+  push in `buildRow`. Coach now gets cardio + intervals + notes structurally, not
+  just as prose in `raw_brief`. Additive — shaped columns untouched; legacy rows
+  have null payload. Also the foundation if the cross-device pull is revived.
 
 ### Queued — scoped passes (deferred from Pass 5, by decision)
-- [ ] **Fused superset block** — one cockpit card with a single shared input
-  toggling between the two exercises (mockup §02). A logging-UX change that
-  needs its own testing scope; not bundled with the Pass 5 visual refresh.
 - [x] **Cardio cinematic splash** — shipped as `CardioSceneHeader`: a full-bleed
   `pump-scene-cardio.png` cockpit header atop the logger (mirroring how
   `WorkoutTimerBar` became the gym scene header). Cyan "CARDIO · \<activity\>"
@@ -155,8 +155,14 @@
   countdown/stopwatch `Timer` card; the multi-activity logger is untouched.
 
 ### Health (non-workout)
-- [ ] **BP history / trend view** — the recorder shipped Jun 5 (entry only). Add a category-colored list of past readings + a 7-day average / simple trend; fits the History tab or a dedicated mini-view.
+- [x] **Smart BP export** (shipped Jun 17) — "Copy for doctor" no longer dumps
+  the whole list each time. Default **New = only readings since the last copy**
+  (`pump-bp-last-shared` ISO cursor, advanced on copy), with a `New · 7d · 30d ·
+  All` toggle driving both the RECENT list and the export. `BloodPressureSheet.tsx`
+  + `getBPLastShared`/`setBPLastShared` in `storage.ts`.
 - [ ] **BP reading edit/delete** — tap a past reading to correct or remove it (storage + sweep already support delete).
+- [x] ~~BP history / trend view~~ — RETIRED (Jun 17). The RECENT list already
+  shows past readings; a trend/average view is not wanted.
 
 ### PUMP OS
 - [ ] Plan progress indicator — "Session 3 of 12" style tracking
@@ -192,9 +198,11 @@ Pragmatic paths, by effort:
   for HR) — once the activity syncs to Strava, pull duration / distance / avg+max
   HR via the Strava API to pre-fill a cardio entry. Post-hoc, not live; needs
   Strava OAuth + an edge function. _Supersedes "Strava integration for cardio"._
-- [ ] **#3 — Native wrapper (Capacitor) for HealthKit / live BLE** (possibility /
-  stretch only) — the *only* route to true live HR + Apple Health read, but a
-  major move away from the pure PWA. Park unless we decide to go native.
+- [ ] **#3 — Native wrapper (Capacitor) for HealthKit / live BLE** (stretch, but
+  Dylan is interested — Jun 17) — the *only* route to true **live in-app HR**
+  (read the COROS strap over BLE) + Apple Health read. Keeps the existing web
+  app, shells it in Capacitor + a BLE/HealthKit plugin; bulk of the code carries
+  over. Cost is the native build/signing/App-Store move, not a rewrite.
   _Supersedes "Apple Health integration" + folds into "Apple Watch companion"._
 
 ### Analytics & Dashboard
@@ -219,6 +227,10 @@ Pragmatic paths, by effort:
 
 ## Low Priority
 
+- [ ] **Fused superset block** _(parked — low priority, Jun 17)_ — one cockpit
+  card with a single shared input toggling between the two paired exercises
+  (mockup §02). Link/unlink already works; this is only an alternating-single-
+  card logging UX, not a fix. Build only if the two-card view proves annoying.
 - [ ] RPE per set
 - [ ] Notes per set (not just per exercise)
 - [ ] Failure indicator per set
