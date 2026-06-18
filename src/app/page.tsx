@@ -24,7 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 import { useWorkout } from '@/hooks/useWorkout';
 import { useCloudSync } from '@/hooks/useCloudSync';
-import { getSession, getPlan, getNextPlanSession, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions } from '@/lib/storage';
+import { getSession, getPlan, getNextPlanSession, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions, patchSession } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { fetchActivePlan } from '@/lib/plan-sync';
 import { pushUnsyncedSessions } from '@/lib/session-sync';
@@ -33,6 +33,17 @@ import { parseSessionDate, sessionLabel } from '@/lib/utils';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
 type View = 'dashboard' | 'start' | 'preview' | 'gym' | 'cardio' | 'summary' | 'history' | 'plan' | 'session-detail';
+
+// Named feel rating — same scale as the post-workout SessionSummary. Surfaced
+// on the session-detail view so feel + notes stay editable AFTER a session is
+// finished (a session auto-finished via Back never sees the summary editor).
+const FEEL_OPTIONS: { n: number; label: string }[] = [
+  { n: 1, label: 'Brutal' },
+  { n: 2, label: 'Tough' },
+  { n: 3, label: 'OK' },
+  { n: 4, label: 'Good' },
+  { n: 5, label: 'Easy' },
+];
 
 // Views that are "root tabs" — the tab bar highlights one of them and is shown.
 // Other views (start, preview, gym, cardio, summary, session-detail) are
@@ -256,8 +267,12 @@ export default function Home() {
           nav so the back action is always reachable (no temptation to use the
           browser back button mid-workout). Pointer-events-none on the wrapper
           so it doesn't intercept clicks elsewhere. Aligned with the content
-          column via the same max-w-lg + px-4 wrapping. */}
-      {view !== 'dashboard' && view !== 'summary' && (
+          column via the same max-w-lg + px-4 wrapping.
+          Suppressed on the in-session views (gym/cardio): those carry their own
+          sticky cockpit header (WorkoutTimerBar / CardioSceneHeader), so a
+          floating pill would sit on top of it AND invite an accidental
+          mid-workout exit. The in-flow nav-bar Back still handles leaving. */}
+      {view !== 'dashboard' && view !== 'summary' && view !== 'gym' && view !== 'cardio' && (
         <div
           className="fixed inset-x-0 z-50 pointer-events-none"
           style={{ top: 'max(env(safe-area-inset-top), 0.75rem)' }}
@@ -709,20 +724,11 @@ function SessionDetailView({
         </motion.div>
       )}
 
-      {/* Session Notes */}
-      {session.notes && (
-        <motion.div
-          className="glass rounded-xl p-4"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <h3 className="font-display text-lg tracking-wider text-muted-foreground mb-2">
-            NOTES
-          </h3>
-          <p className="text-foreground">{session.notes}</p>
-        </motion.div>
-      )}
+      {/* Feel + Notes — editable here so they can be set/changed AFTER a
+          session is finished (e.g. one auto-finished via Back, which never
+          reached the post-workout summary editor). Writes through to storage
+          via patchSession. */}
+      <FeelAndNotesEditor key={session.id} session={session} />
 
       {/* Back Button */}
       <motion.div
@@ -794,5 +800,95 @@ function SessionDetailView({
         )}
       </motion.div>
     </div>
+  );
+}
+
+// Editable feel rating + session notes for a finished session. Mirrors the
+// post-workout SessionSummary controls so these stay editable from history —
+// the only path to set them on a session that was auto-finished via Back.
+// Both write straight to localStorage via patchSession (source of truth the
+// BRIEF + Supabase sweep read). Keyed by session id so switching sessions
+// re-seeds the local state.
+function FeelAndNotesEditor({ session }: { session: WorkoutSession }) {
+  const [feel, setFeel] = useState<number | undefined>(session.feelScore);
+  const [notes, setNotes] = useState(session.notes ?? '');
+
+  const handleFeel = (n: number) => {
+    const next = feel === n ? undefined : n;
+    setFeel(next);
+    patchSession(session.id, { feelScore: next });
+  };
+
+  const handleNotesBlur = () => {
+    const trimmed = notes.trim();
+    if (trimmed !== (session.notes?.trim() ?? '')) {
+      patchSession(session.id, { notes: trimmed });
+    }
+  };
+
+  return (
+    <motion.div
+      className="rounded-2xl p-4 space-y-4"
+      style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)' }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.4 }}
+    >
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] tracking-[0.25em] uppercase font-bold" style={{ color: 'var(--pump-cyan-deep)' }}>
+            How did it feel?
+          </p>
+          <p className="text-xs italic" style={{ color: 'var(--pump-text-mid)' }}>Goes to your trainer</p>
+        </div>
+        <div className="grid grid-cols-5 gap-2">
+          {FEEL_OPTIONS.map(({ n, label }) => {
+            const active = feel === n;
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => handleFeel(n)}
+                aria-pressed={active}
+                aria-label={`Feel ${n} of 5 — ${label}`}
+                className="rounded-xl py-2.5 flex flex-col items-center gap-0.5 transition-all active:scale-95"
+                style={
+                  active
+                    ? { background: 'var(--pump-grad-hot)', color: '#fff', boxShadow: '0 4px 14px -4px rgba(255,0,128,0.55)' }
+                    : { background: 'var(--pump-bg-input)', color: 'var(--pump-text-mid)', border: '1px solid var(--pump-border-card)' }
+                }
+              >
+                <span className="font-display tabular-nums text-lg">{n}</span>
+                <span className="text-[9px] tracking-[0.15em] uppercase font-bold">{label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label
+          htmlFor="detail-session-notes"
+          className="text-xs tracking-[0.2em] uppercase tabular-nums"
+          style={{ color: 'var(--pump-cyan-deep)' }}
+        >
+          Session notes for trainer
+        </label>
+        <textarea
+          id="detail-session-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          onBlur={handleNotesBlur}
+          placeholder="Energy, form, soreness, anything worth flagging…"
+          className="w-full min-h-[96px] rounded-xl p-3 text-sm resize-none focus:outline-none transition-colors"
+          style={{
+            background: 'var(--pump-bg-input)',
+            border: '1px solid var(--pump-border-card)',
+            color: 'var(--pump-text)',
+          }}
+          rows={3}
+        />
+      </div>
+    </motion.div>
   );
 }

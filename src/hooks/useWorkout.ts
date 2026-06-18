@@ -183,7 +183,50 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     }));
   }, [mutate]);
 
-  // Add a set to an exercise
+  // Live PR / baseline detection — fires celebration UI only. Storage commit
+  // happens once at session completion (finalizePRs), so mid-set edits, typos,
+  // or set removals can't leave orphan PRs behind. Set must be a working set
+  // and hit MIN_PR_REPS; comparison is by weight against the pre-session
+  // snapshot. Strictly greater = PR, matching weight does not upgrade (Dylan's
+  // spec). One celebration per exercise per session — subsequent qualifying
+  // sets just update the stored best silently. Shared by logSet + addSet.
+  const detectPR = useCallback((exerciseName: string, set: Omit<GymSet, 'id'>) => {
+    if (!isWorkingSet(set as GymSet) || set.reps < MIN_PR_REPS) return;
+    const preSessionWeight = prSnapshotRef.current.get(exerciseName.toLowerCase());
+    if (preSessionWeight === undefined) {
+      setNewBaselines(prev => (prev.includes(exerciseName) ? prev : [...prev, exerciseName]));
+    } else if (set.weight > preSessionWeight) {
+      setNewPRs(prev => (prev.includes(exerciseName) ? prev : [...prev, exerciseName]));
+    }
+  }, []);
+
+  // Log a working/warmup set from the add-set form. Fills the FIRST remaining
+  // planned placeholder if one exists, else appends. CRITICAL: the planned
+  // slot is resolved INSIDE the mutate transform against fresh state (via
+  // sessionRef), not from a stale render snapshot — that closes the
+  // double-tap race where two rapid logs both targeted the same planned index,
+  // dropped one logged set, and made a completed exercise persist as PARTIAL.
+  const logSet = useCallback((exerciseId: string, set: Omit<GymSet, 'id'>) => {
+    let exerciseName: string | undefined;
+    mutate(current => {
+      const updatedExercises = current.exercises?.map(ex => {
+        if (ex.id !== exerciseId) return ex;
+        exerciseName = ex.name;
+        const plannedIdx = ex.sets.findIndex(s => s.isPlanned);
+        if (plannedIdx >= 0) {
+          const sets = [...ex.sets];
+          sets[plannedIdx] = { ...set, isPlanned: false };
+          return { ...ex, sets };
+        }
+        return { ...ex, sets: [...ex.sets, set] };
+      });
+      return { ...current, exercises: updatedExercises };
+    });
+    if (exerciseName) detectPR(exerciseName, set);
+  }, [mutate, detectPR]);
+
+  // Append a set to an exercise (no planned-slot resolution). Used by
+  // duplicate-last-set and any caller that explicitly wants an appended row.
   const addSet = useCallback((exerciseId: string, set: Omit<GymSet, 'id'>) => {
     let exerciseName: string | undefined;
     mutate(current => {
@@ -196,30 +239,8 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
       });
       return { ...current, exercises: updatedExercises };
     });
-
-    // Live PR / baseline detection — fires celebration UI only. Storage
-    // commit happens once at session completion (finalizePRs), so mid-set
-    // edits, typos, or set removals can't leave orphan PRs behind. Set must
-    // be a working set and hit MIN_PR_REPS; comparison is by weight against
-    // the pre-session snapshot. Strictly greater = PR, matching weight does
-    // not upgrade (Dylan's spec). One celebration per exercise per session
-    // — subsequent qualifying sets just update the stored best silently.
-    if (!exerciseName) return;
-    if (!isWorkingSet(set as GymSet) || set.reps < MIN_PR_REPS) return;
-    const key = exerciseName.toLowerCase();
-    const preSessionWeight = prSnapshotRef.current.get(key);
-    const exerciseDisplayName = exerciseName;
-
-    if (preSessionWeight === undefined) {
-      setNewBaselines(prev =>
-        prev.includes(exerciseDisplayName) ? prev : [...prev, exerciseDisplayName]
-      );
-    } else if (set.weight > preSessionWeight) {
-      setNewPRs(prev =>
-        prev.includes(exerciseDisplayName) ? prev : [...prev, exerciseDisplayName]
-      );
-    }
-  }, [mutate]);
+    if (exerciseName) detectPR(exerciseName, set);
+  }, [mutate, detectPR]);
 
   // Update a set
   const updateSet = useCallback((exerciseId: string, setIndex: number, updates: Partial<GymSet>) => {
@@ -504,6 +525,7 @@ export function useWorkout(options: UseWorkoutOptions = {}) {
     startSession,
     addExercise,
     bulkAddExercises,
+    logSet,
     addSet,
     updateSet,
     removeSet,

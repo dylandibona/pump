@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Dumbbell, Activity, Download, Upload, ClipboardList, ChevronRight, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getRecentSessions, getWorkoutStats, exportData, importMergeData } from '@/lib/storage';
+import { getRecentSessions, getWorkoutStats, exportData, importMergeData, isWorkingSet } from '@/lib/storage';
 import { WorkoutSession, TrainerPlan } from '@/lib/types';
 import { parseSessionDate, sessionLabel } from '@/lib/utils';
 import { BloodPressureSheet } from './BloodPressureSheet';
@@ -256,7 +256,15 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
             <EmptyState onStart={onStartWorkout} />
           ) : (
             <div className="space-y-2">
-              {recentSessions.map((session, index) => (
+              {/* Featured "Last Session" recap — recommissions the slot that used
+                  to show the first-run scene. A glanceable celebration of the
+                  most recent (just-finished) workout with its key stats. */}
+              <LastSessionCard
+                session={recentSessions[0]}
+                plan={plan}
+                onView={() => onViewSession(recentSessions[0])}
+              />
+              {recentSessions.slice(1).map((session, index) => (
                 <motion.button
                   key={session.id}
                   onClick={() => onViewSession(session)}
@@ -264,7 +272,7 @@ export function Dashboard({ onStartWorkout, onViewHistory, onViewSession, onOpen
                   style={{ background: '#FFFFFF', boxShadow: '0 1px 3px rgba(10,0,32,0.05)' }}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.06 }}
+                  transition={{ delay: 0.56 + index * 0.06 }}
                   whileTap={{ scale: 0.99 }}
                 >
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
@@ -458,6 +466,92 @@ function StatCard({
         {label}
       </p>
     </motion.div>
+  );
+}
+
+// Last Session recap — the featured top card in the Recent list once history
+// exists (recommissions the slot the first-run scene used to occupy). A
+// glanceable celebration of the most recent / just-finished workout: session
+// label + the three key stats, tapping into its detail. Calm by design (no
+// resting glow, per the Volume System) — the numbers carry the moment.
+function LastSessionCard({
+  session,
+  plan,
+  onView,
+}: {
+  session: WorkoutSession;
+  plan: TrainerPlan | null;
+  onView: () => void;
+}) {
+  const isGym = session.type === 'gym';
+  const date = parseSessionDate(session.date);
+  const isToday = date.toDateString() === new Date().toDateString();
+
+  const durMin = session.endTime
+    ? Math.round((new Date(session.endTime).getTime() - new Date(session.startTime).getTime()) / 60000)
+    : null;
+  const durLabel = durMin == null ? '—' : durMin < 60 ? `${durMin}m` : `${Math.floor(durMin / 60)}h ${durMin % 60}m`;
+
+  const workingSets = session.exercises?.flatMap((e) => e.sets).filter(isWorkingSet) ?? [];
+  const volume = workingSets.reduce((s, set) => s + set.weight * set.reps, 0);
+  const volLabel = volume >= 1000 ? `${(volume / 1000).toFixed(0)}K` : `${volume}`;
+  const distance = session.cardio?.reduce((s, c) => s + (c.distance ?? 0), 0) ?? 0;
+
+  const stats = isGym
+    ? [
+        { v: durLabel, l: 'Time' },
+        { v: String(workingSets.length), l: 'Sets' },
+        { v: volume > 0 ? volLabel : '—', l: 'Lbs' },
+      ]
+    : [
+        { v: durLabel, l: 'Time' },
+        { v: distance > 0 ? distance.toFixed(1) : '—', l: 'Miles' },
+        { v: String(session.cardio?.length ?? 0), l: 'Activities' },
+      ];
+
+  const tint = isGym ? 'var(--pump-hot)' : 'var(--pump-cyan-deep)';
+
+  return (
+    <motion.button
+      type="button"
+      onClick={onView}
+      className="w-full text-left rounded-2xl overflow-hidden"
+      style={{ background: '#FFFFFF', boxShadow: '0 4px 16px -6px rgba(10,0,32,0.12)' }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.5 }}
+      whileTap={{ scale: 0.99 }}
+    >
+      <div className="flex items-center gap-3 px-4 pt-4">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={{ background: isGym ? 'rgba(255,0,128,0.08)' : 'rgba(0,168,158,0.10)', color: tint }}
+        >
+          {isGym ? <Dumbbell className="w-5 h-5" /> : <Activity className="w-5 h-5" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] tracking-[0.2em] uppercase font-bold" style={{ color: tint }}>
+            {isToday ? 'Just finished' : 'Last session'}
+          </p>
+          <p className="font-semibold truncate" style={{ color: 'var(--pump-text)' }}>
+            {sessionLabel(session, plan)}
+          </p>
+        </div>
+        <ChevronRight className="w-4 h-4 shrink-0" style={{ color: 'var(--pump-text-dim)' }} />
+      </div>
+      <div className="grid grid-cols-3 gap-2 px-4 pb-4 pt-3">
+        {stats.map((s) => (
+          <div key={s.l} className="text-center">
+            <p className="font-display text-2xl tabular-nums" style={{ color: 'var(--pump-text)' }}>
+              {s.v}
+            </p>
+            <p className="text-[9px] tracking-[0.18em] uppercase font-bold mt-0.5" style={{ color: 'var(--pump-text-dim)' }}>
+              {s.l}
+            </p>
+          </div>
+        ))}
+      </div>
+    </motion.button>
   );
 }
 

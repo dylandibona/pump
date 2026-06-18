@@ -45,8 +45,13 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   curl" → "Standing Curl" canonicalize on write.
 - `src/lib/brief.ts` — generates the trainer BRIEF from a session (resolves
   plan session by `planSessionId`).
-- `src/lib/sounds.ts` — Web Audio API playback (PR / set-complete sounds mix
-  over music instead of ducking iOS audio session).
+- `src/lib/sounds.ts` — Web Audio API playback (sounds mix over music instead
+  of ducking iOS audio session). **Explosion (`prAchieved`) is reserved for
+  PRs only** — it used to be mapped to every cue, so it detonated on every set/
+  rest-timer/interval. `setComplete` plays a generated 80s-synth asset
+  (`/set-complete.mp3` via `SAMPLE_SOUNDS`); `timerDone` is a synthesized tone
+  (`playTone` / `TONES`). Sample types decode to an `AudioBuffer`; tone types
+  synthesize — the synth also stands in as a silent-safe fallback.
 
 ### Cloud / sync
 - `src/lib/supabase.ts` — browser client (`@supabase/supabase-js`).
@@ -97,9 +102,14 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
 ### View state + nav
 - `src/app/page.tsx` — view state machine, plan state, tab-bar routing
   (`'workout' | 'history' | 'plan'`), in-file `PlanView` + `SessionDetailView`
-  subcomponents. **Floating glass-pill back button** (sticky, fades in on
-  scroll past 60px) lives here so the back action is always reachable
-  without resorting to the browser back button.
+  + `FeelAndNotesEditor` subcomponents. **Floating glass-pill back button**
+  (sticky, fades in on scroll past 60px) lives here so the back action is
+  always reachable — but is **suppressed on `gym`/`cardio`** views (those have
+  their own sticky cockpit header, and the pill overlapped it + invited an
+  accidental mid-workout exit). `SessionDetailView` embeds `FeelAndNotesEditor`
+  so **feel + session notes stay editable on a finished session** (the only
+  path to set them on one auto-finished via Back, which never sees the summary
+  editor); both write through `patchSession`.
 - `src/app/layout.tsx` — root layout, font loading (Monoton + Pacifico +
   Outfit; **Space Mono retired** — `--font-mono` resolves to Outfit).
 
@@ -110,7 +120,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   Latest PR dark-motif card (Pacifico + tabular weight + cyan horizon)
   followed by next-best PRs list. First-run empty state is a full-bleed
   `pump-scene-beach.png` scene card ("Ready when you are" / Pacifico "Log
-  your first set") — taps through to start a workout.
+  your first set") — taps through to start a workout. Once history exists that
+  slot is recommissioned as `LastSessionCard` — a glanceable "Just finished /
+  Last session" recap of the most recent workout (label + 3 key stats) atop
+  the Recent list.
 - `GymWorkout.tsx` — most complex. Exercises, supersets, bodyweight, inline
   cardio, plan pre-fill. Triggers `PRMomentScreen` when `newPRs` grows.
 - `SessionPreview.tsx` — editable preview between plan-session tap and
@@ -142,9 +155,14 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   "Copy last N for doctor" exports plain text for PCP).
 - `PlanLoader.tsx` — parses trainer JSON (manual fallback to the Supabase
   plan fetch), shows plan details. Mounted inside the Plan tab view.
-- `ReorderExercisesSheet.tsx` — dedicated reorder surface (framer `Reorder`);
-  commits via `useWorkout.reorderExercises`, which auto-unlinks supersets
-  moved out of adjacency.
+- `ReorderExercisesSheet.tsx` — dedicated reorder surface (framer `Reorder`).
+  **Drag starts only from the grip handle** (`useDragControls` +
+  `dragListener={false}` + `touchAction:none`) so the card body scrolls — that's
+  what lets you reach below-the-fold exercises (whole-card drag used to eat the
+  scroll). Working order is seeded **only on open** (depending on `exercises`
+  re-seeded mid-drag and reorders "didn't take"). Commits via
+  `useWorkout.reorderExercises`, which auto-unlinks supersets moved out of
+  adjacency.
 - `WorkoutHistory.tsx` — month-grouped list. Calm white cards, sentence-case
   via `sessionLabel`, demoted Delete affordance.
 - `WorkoutTimerBar.tsx` — the **atmospheric cockpit header** (mockup §02):
@@ -265,8 +283,9 @@ On completion:
   signups (single-user app). Needs `{{ .Token }}` in the Supabase email template
   (see Env vars).
 - **Floating back-button pill** — sticky in the top-left, fades in on scroll
-  past 60px. Always reachable mid-workout so the user never reaches for the
-  browser back button.
+  past 60px. Reachable on drill-down views — but **suppressed on `gym`/`cardio`**
+  (it overlapped the sticky cockpit header and risked an accidental mid-workout
+  exit; those views keep the in-flow nav-bar Back).
 - **Bottom tab bar** — Workout / History / Plan. Hidden on workflow views.
 - **`sessionLabel` is the canonical display name** — prefer plan-session
   name (matched by `planSessionId`), fall back to capitalized type. Applied
@@ -277,12 +296,21 @@ On completion:
   session via Back **auto-finishes** it when anything was logged; empty
   shells are discarded; a cold-mount sweep cleans pre-existing orphans.
   `completeSession` reads fresh from storage so it never silently no-ops.
-- **Mid-workout reorder** — dedicated reorder sheet (not inline drag); each
-  exercise carries its own `sets[]` so logged data travels with the card.
-  Moving a superset member out of adjacency auto-unlinks it
-  (`dissolveBrokenSupersets`).
-- **Session feel** — named 1–5 rating on the summary (Brutal / Tough / OK /
-  Good / Easy); feeds `feel_score` (Supabase) and a `FEEL:` line in the BRIEF.
+- **Mid-workout reorder** — dedicated reorder sheet (not inline drag);
+  **handle-only drag** (grip starts the drag; body scrolls, so below-the-fold
+  exercises are reachable). Each exercise carries its own `sets[]` so logged
+  data travels with the card. Moving a superset member out of adjacency
+  auto-unlinks it (`dissolveBrokenSupersets`).
+- **Set logging is race-safe** — `useWorkout.logSet` resolves
+  fill-planned-slot-vs-append **inside the `mutate` transform** (against fresh
+  `sessionRef` state), not from a stale render snapshot. This closed the
+  double-tap clobber where two rapid logs grabbed the same planned index,
+  dropped a set, and made a completed exercise persist as PARTIAL.
+- **Session feel** — named 1–5 rating (Brutal / Tough / OK / Good / Easy);
+  feeds `feel_score` (Supabase) + a `FEEL:` line in the BRIEF. Editable on the
+  post-workout summary **and** on the session-detail view (via
+  `FeelAndNotesEditor` → `patchSession`), so a session finished without it —
+  e.g. auto-finished via Back — can still get feel + notes after the fact.
 - **Cardio cinematic moment = a cockpit header, not a separate splash.** The
   mockup's §05 cinematic cardio screen ships as `CardioSceneHeader` atop the
   multi-activity logger (mirroring the gym cockpit, §02), not as a transient
@@ -317,8 +345,10 @@ On completion:
   `normalizeExerciseName()` is applied to `addExercise`, `bulkAddExercises`,
   plan import, autocomplete commit, and `finalizePRs`. A one-time backfill
   on `getWorkoutData()` heals legacy malformed names on load.
-- **Sound uses Web Audio API** — AudioContext + BufferSource so PR / set-
-  complete sounds layer over music instead of claiming iOS audio session.
+- **Sound uses Web Audio API** — AudioContext + BufferSource so cues layer
+  over music instead of claiming the iOS audio session. **The explosion is
+  PR-only**; set-complete is its own 80s-synth asset (`/set-complete.mp3`) and
+  timer-done is a synthesized tone — so logging a set no longer detonates.
 - **Overlay Contract enforced at the `Sheet` primitive** — every bottom sheet
   inherits a viewport-clamped height (`90dvh`), pinned header/footer, single
   inner scroll region, and a ≥44px reachable close.

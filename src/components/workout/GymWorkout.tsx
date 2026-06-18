@@ -32,7 +32,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
     newPRs,
     addExercise,
     bulkAddExercises,
-    addSet,
+    logSet,
     updateSet,
     removeSet,
     removeExercise,
@@ -261,7 +261,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
               <ExerciseCard
                 exercise={exercise}
                 planExercise={planSession?.exercises.find(p => p.name.toLowerCase() === exercise.name.toLowerCase())}
-                onAddSet={(set) => addSet(exercise.id, set)}
+                onLogSet={(set) => logSet(exercise.id, set)}
                 onUpdateSet={(idx, updates) => updateSet(exercise.id, idx, updates)}
                 onRemoveSet={(idx) => removeSet(exercise.id, idx)}
                 onRemoveExercise={() => removeExercise(exercise.id)}
@@ -522,7 +522,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
 interface ExerciseCardProps {
   exercise: GymExercise;
   planExercise?: import('@/lib/types').PlanExercise;
-  onAddSet: (set: GymSet) => void;
+  onLogSet: (set: GymSet) => void;
   onUpdateSet: (index: number, updates: Partial<GymSet>) => void;
   onRemoveSet: (index: number) => void;
   onRemoveExercise: () => void;
@@ -537,7 +537,7 @@ interface ExerciseCardProps {
 function ExerciseCard({
   exercise,
   planExercise,
-  onAddSet,
+  onLogSet,
   onUpdateSet,
   onRemoveSet,
   onRemoveExercise,
@@ -568,14 +568,10 @@ function ExerciseCard({
 
     if (reps > 0 && (isBodyweight || weight >= 0)) {
       const loggedSet: GymSet = { weight: isBodyweight ? 0 : weight, reps, isWarmup, isBodyweight };
-
-      // Replace first planned slot if one exists
-      const firstPlannedIdx = exercise.sets.findIndex(s => s.isPlanned);
-      if (firstPlannedIdx >= 0) {
-        onUpdateSet(firstPlannedIdx, { ...loggedSet, isPlanned: false });
-      } else {
-        onAddSet(loggedSet);
-      }
+      // logSet resolves the planned-slot-vs-append decision against fresh
+      // session state inside the hook, so rapid taps can't both grab the same
+      // planned index and drop a set (the PARTIAL bug).
+      onLogSet(loggedSet);
       setNewReps('');
       setIsWarmup(false);
       playSetCompleteFeedback();
