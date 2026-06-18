@@ -93,6 +93,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   code) — without it, no code arrives. Splash + sign-in
   both use `pump-scene-empty.png` (dark dumbbell scene) + `letspump3-transparent.png`
   (brushy "Let's Pump!" wordmark) so the loading→form transition is seamless.
+  The `Splash` plays a **guaranteed ~1.2s beat on every launch** (a `minBeatDone`
+  timer): even when auth resolves instantly for a returning user, the splash is
+  held then crossfades (AnimatePresence) over the already-mounted app/sign-in
+  beneath it. Launch-only — AuthGate mounts once per load, not on internal nav.
 
 ### Cloud sync — Upstash Redis (legacy, Phase-2 removal pending)
 - `src/app/api/data/route.ts` — sync endpoint. Returns 503 until env vars set.

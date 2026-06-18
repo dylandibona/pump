@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import type { Session } from '@supabase/supabase-js';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 // AuthGate wraps the whole app. PUMP is single-user health data: the Supabase
@@ -20,6 +20,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   // until getSession resolves. Deriving the initial value here avoids a
   // synchronous setState in the effect (cascading-render lint).
   const [ready, setReady] = useState(!isSupabaseConfigured);
+  // Guaranteed splash "beat" on every launch — even when auth resolves
+  // instantly for a returning user, hold the branded splash ~1.2s, then fade.
+  // AuthGate mounts once per app load, so this fires on launch, not on
+  // internal navigation (launch-only by construction).
+  const [minBeatDone, setMinBeatDone] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setMinBeatDone(true), 1200);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
@@ -39,9 +48,27 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  if (!ready) return <Splash />;
-  if (!isSupabaseConfigured || session) return <>{children}</>;
-  return <SignIn />;
+  // Reveal the resolved view (app or sign-in) only once auth is known; the
+  // splash overlays everything until BOTH auth has resolved AND the minimum
+  // beat has elapsed, then fades out over the warm content beneath it.
+  const showSplash = !(ready && minBeatDone);
+  return (
+    <>
+      {ready && (!isSupabaseConfigured || session ? <>{children}</> : <SignIn />)}
+      <AnimatePresence>
+        {showSplash && (
+          <motion.div
+            key="splash"
+            className="fixed inset-0 z-[100]"
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.45, ease: 'easeInOut' }}
+          >
+            <Splash />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
 }
 
 // Brief loading state. Uses the same dark scene as SignIn so the transition

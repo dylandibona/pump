@@ -4,6 +4,18 @@
 
 ## Completed
 
+### Jun 17 2026 session — bug fixes + BP export + coach payload + splash
+- [x] **Six june12 bugs** (see `bugs-june12.md`): reorder handle-only drag +
+  scroll, back-button suppressed on gym/cardio, `LastSessionCard` recap, feel/
+  notes editable on finished sessions, explosion sound PR-only (set-complete =
+  `/set-complete.mp3`), PARTIAL-status race fixed via race-safe `logSet`.
+- [x] **Smart BP doctor export** — "new since last shared" cursor +
+  `New · 7d · 30d · All` toggle.
+- [x] **Lossless session `payload` jsonb** for the coach (DD Health migration +
+  `buildRow`).
+- [x] **Launch splash beat** — `AuthGate` holds the branded splash ~1.2s on
+  every launch, then crossfades. Launch-only.
+
 ### Jun 7 2026 session — Cardio cockpit + post-ship fixes
 - [x] **Cardio cinematic cockpit** — `CardioSceneHeader` (mockup §05) atop the
   multi-activity logger.
