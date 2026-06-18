@@ -176,7 +176,11 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   `useWorkout.reorderExercises`, which auto-unlinks supersets moved out of
   adjacency.
 - `WorkoutHistory.tsx` — month-grouped list. Calm white cards, sentence-case
-  via `sessionLabel`, demoted Delete affordance.
+  via `sessionLabel`, demoted Delete affordance. Opens with a **beach-scene
+  header banner** (repurposes `pump-scene-beach.png`, formerly only on the
+  dashboard first-run state) with the filter-aware topline totals overlaid
+  (Workouts · This Month · Lbs Moved, or Miles under the cardio filter) — this
+  replaced the old 2-up surface-warm stat cards.
 - `WorkoutTimerBar.tsx` — the **atmospheric cockpit header** (mockup §02):
   a cropped `pump-scene-gym.png` band carrying the session meta (cyan caps,
   e.g. "Push Day · 2 of 6 done"), the up-next exercise in Pacifico, the live

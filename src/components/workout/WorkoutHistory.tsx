@@ -1,11 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dumbbell, Activity, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getWorkoutData, deleteSession, getPlan } from '@/lib/storage';
+import { getWorkoutData, deleteSession, getPlan, isWorkingSet } from '@/lib/storage';
 import { WorkoutSession } from '@/lib/types';
 import { parseSessionDate, sessionLabel } from '@/lib/utils';
 
@@ -80,12 +81,80 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
     return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   }).length;
 
+  // Topline totals for the header banner (respect the active filter).
+  const totalVolume = useMemo(
+    () =>
+      filteredSessions.reduce(
+        (sum, s) =>
+          sum +
+          (s.exercises?.reduce(
+            (v, ex) => v + ex.sets.filter(isWorkingSet).reduce((a, set) => a + set.weight * set.reps, 0),
+            0,
+          ) ?? 0),
+        0,
+      ),
+    [filteredSessions],
+  );
+  const totalDistance = useMemo(
+    () => filteredSessions.reduce((sum, s) => sum + (s.cardio?.reduce((d, c) => d + (c.distance ?? 0), 0) ?? 0), 0),
+    [filteredSessions],
+  );
+  const fmtVol = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : `${v}`);
+  // Third stat adapts to the filter: cardio → miles, otherwise → lbs moved.
+  const thirdStat =
+    filter === 'cardio'
+      ? { value: totalDistance > 0 ? totalDistance.toFixed(1) : '—', label: 'Miles' }
+      : { value: totalVolume > 0 ? fmtVol(totalVolume) : '—', label: 'Lbs Moved' };
+
   return (
     <div className="min-h-screen pb-24 relative">
       {/* Background Effects */}
       <div className="fixed inset-0 bg-gradient-radial pointer-events-none" />
 
       <div className="relative z-10 space-y-6">
+        {/* Header banner — repurposes the calm beach scene (formerly only on the
+            first-run empty state) as the History hero, with the topline totals
+            overlaid. Full-bleed within the column; filter-aware stats. */}
+        <motion.div
+          className="-mx-4 relative h-[172px] overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Image src="/pump-scene-beach.png" alt="" fill priority className="object-cover" style={{ objectPosition: 'center 35%' }} />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'linear-gradient(180deg, rgba(10,0,32,0.15) 0%, rgba(10,0,32,0.0) 35%, rgba(10,0,32,0.0) 50%, rgba(10,0,32,0.72) 100%)' }}
+          />
+          <div className="absolute inset-x-0 bottom-0 px-5 pb-4">
+            <p
+              className="text-[10px] tracking-[0.35em] uppercase font-bold mb-2"
+              style={{ color: 'rgba(0,255,238,0.95)', textShadow: '0 0 12px rgba(0,255,238,0.55)' }}
+            >
+              Your training
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: filteredSessions.length, label: 'Workouts' },
+                { value: thisMonthCount, label: 'This Month' },
+                { value: thirdStat.value, label: thirdStat.label },
+              ].map((s) => (
+                <div key={s.label}>
+                  <p
+                    className="font-display text-3xl tabular-nums text-white leading-none"
+                    style={{ textShadow: '0 2px 12px rgba(10,0,32,0.6)' }}
+                  >
+                    {s.value}
+                  </p>
+                  <p className="text-[9px] tracking-[0.18em] uppercase font-bold mt-1 text-white/80">
+                    {s.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.div>
+
         {/* Filter Tabs */}
         <motion.div
           className="flex gap-2 justify-center"
@@ -111,31 +180,6 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
               {type.toUpperCase()}
             </Button>
           ))}
-        </motion.div>
-
-        {/* Stats Summary */}
-        <motion.div
-          className="grid grid-cols-2 gap-3"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="surface-warm rounded-2xl p-4 text-center">
-            <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-text)' }}>
-              {filteredSessions.length}
-            </p>
-            <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>
-              Total Workouts
-            </p>
-          </div>
-          <div className="surface-warm--hot rounded-2xl p-4 text-center">
-            <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-hot)' }}>
-              {thisMonthCount}
-            </p>
-            <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>
-              This Month
-            </p>
-          </div>
         </motion.div>
 
         {/* Sessions List */}

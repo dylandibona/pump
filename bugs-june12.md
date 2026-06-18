@@ -34,6 +34,15 @@ ESLint 0 errors, app boots. In-app interactions still want a device pass
   → `useWorkout.ts`, `GymWorkout.tsx`.
 
 ## Known issues (open)
+- **Lingering IN PROGRESS session** (noted Jun 17, unconfirmed) — a session
+  dated Jun 13 ("Session B") shows as IN PROGRESS in Recent/History though the
+  user didn't back out of or start it accidentally. `finalizeAbandonedSessions`
+  only runs on a cold mount (`useEffect([])`), but an installed iOS PWA often
+  *resumes* without remounting, so an unfinished session can survive for days.
+  Likely fix: also run the abandoned-session cleanup on return to the dashboard
+  (guarded so it never touches a genuinely active session). Low priority for
+  now; user can delete the row from History. Needs the row's contents inspected
+  (real logged sets vs plan placeholders / duplicate) to confirm root cause.
 - DD Health DB: `meta.value` stores as text, not jsonb. JSON operators
   (`->` / `->>`) need an explicit `::jsonb` cast until the column type is fixed.
   No functional impact (the trainer reads/writes meta, PUMP does not touch it).

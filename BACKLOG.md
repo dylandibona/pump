@@ -15,6 +15,13 @@
   `buildRow`).
 - [x] **Launch splash beat** — `AuthGate` holds the branded splash ~1.2s on
   every launch, then crossfades. Launch-only.
+- [x] **Repurposed the wasted beach asset** — `pump-scene-beach.png` (formerly
+  first-run only) now backs a History page header banner with the topline
+  totals overlaid (replaced the 2-up stat cards).
+- [ ] **(bug, low pri) Lingering IN PROGRESS session** — an unfinished session
+  survives because `finalizeAbandonedSessions` only runs on cold mount and iOS
+  PWA resume skips the remount. Fix: also sweep on dashboard return (guarded).
+  See `bugs-june12.md`.
 
 ### Jun 7 2026 session — Cardio cockpit + post-ship fixes
 - [x] **Cardio cinematic cockpit** — `CardioSceneHeader` (mockup §05) atop the
