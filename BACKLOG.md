@@ -196,6 +196,12 @@
 - [ ] Superset auto-detection from plan (when `supersetWith` is set, auto-link on pre-fill)
 
 ### Core UX
+- [ ] **Clearer, breakable superset linkage (active workout)** — make the link
+  between two superset'd exercise cards graphically obvious: a bigger visual
+  connector (chain / bracket) joining the pair, with an obvious one-tap break to
+  unlink. Today it's a thin left-border + a small "⚡ SUPERSET" label + a text
+  "LINK AS SUPERSET" / "SUPERSET" connector and a tiny ⚡ unlink button
+  (`GymWorkout.tsx`) — easy to miss and not obviously breakable.
 - [ ] Swipe to delete sets
 - [ ] Auto-start rest timer after logging a set (opt-in)
 - [ ] Recently used exercises at top of search
