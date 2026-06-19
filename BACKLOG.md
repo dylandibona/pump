@@ -185,7 +185,13 @@
 
 ### PUMP OS
 - [ ] Plan progress indicator — "Session 3 of 12" style tracking
-- [ ] Next session preview on dashboard — show what's coming up
+- [ ] **"Up next" card on the home screen** — compute the next session by reading
+  the most recent logged session's label and flipping Upper/Lower per the plan's
+  weekly structure (e.g. last was Upper A → up next is Lower B). Client-side
+  only, no schema change. Surfaces what the trainer infers so the rotation is
+  obvious without asking. (`getNextPlanSession` in `storage.ts` already computes
+  the next plan session by `planSessionId` rotation — mostly a matter of
+  surfacing it on the dashboard. Supersedes the old "next session preview" line.)
 - [ ] BRIEF share sheet — native iOS share instead of clipboard + open tab
 - [ ] Superset auto-detection from plan (when `supersetWith` is set, auto-link on pre-fill)
 

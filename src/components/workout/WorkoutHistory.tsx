@@ -122,18 +122,20 @@ export function WorkoutHistory({ onBack, onViewSession }: WorkoutHistoryProps) {
           transition={{ duration: 0.5 }}
         >
           <Image src="/pump-scene-beach.png" alt="" fill priority className="object-cover" style={{ objectPosition: 'center 35%' }} />
+          {/* Center-weighted scrim — the stats sit vertically centered over the
+              bright horizon band, so darken the middle to keep white text legible. */}
           <div
             className="absolute inset-0"
-            style={{ background: 'linear-gradient(180deg, rgba(10,0,32,0.15) 0%, rgba(10,0,32,0.0) 35%, rgba(10,0,32,0.0) 50%, rgba(10,0,32,0.72) 100%)' }}
+            style={{ background: 'linear-gradient(180deg, rgba(10,0,32,0.30) 0%, rgba(10,0,32,0.55) 50%, rgba(10,0,32,0.45) 100%)' }}
           />
-          <div className="absolute inset-x-0 bottom-0 px-5 pb-4">
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-5 text-center">
             <p
-              className="text-[10px] tracking-[0.35em] uppercase font-bold mb-2"
+              className="text-[10px] tracking-[0.35em] uppercase font-bold mb-3"
               style={{ color: 'rgba(0,255,238,0.95)', textShadow: '0 0 12px rgba(0,255,238,0.55)' }}
             >
               Your training
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-2 w-full">
               {[
                 { value: filteredSessions.length, label: 'Workouts' },
                 { value: thisMonthCount, label: 'This Month' },
