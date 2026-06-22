@@ -379,10 +379,27 @@ On completion:
 
 ## How to deploy
 Push to `main` on GitHub. Vercel auto-deploys. No manual steps for code.
-Env-var changes (Upstash or Supabase keys) only take effect on a **fresh
-deploy** — redeploy after editing them. **Supabase rollout ordering:**
-configure the Auth redirect-URL allowlist *before* setting
-`NEXT_PUBLIC_SUPABASE_*` in Vercel, or the AuthGate locks you out.
+Env-var changes (Supabase keys) only take effect on a **fresh deploy** —
+redeploy after editing them. **Supabase rollout ordering:** configure the Auth
+redirect-URL allowlist *before* setting `NEXT_PUBLIC_SUPABASE_*` in Vercel, or
+the AuthGate locks you out. The web build is a static export — Vercel serves
+`out/`; `ios/` and `capacitor.config.ts` are ignored by the web build.
+
+## Native app (Capacitor — iOS)
+PUMP ships as both the Vercel PWA and a Capacitor native iOS app from the SAME
+static export, so it can talk to the COROS heart-rate strap over Bluetooth
+(impossible in an iOS PWA — no Web Bluetooth). The native app is the web app +
+native plugins; no rewrite.
+- `capacitor.config.ts` — `appId: com.dylandibona.pump`, `appName: PUMP`,
+  `webDir: 'out'`. Capacitor 8 (uses Swift Package Manager for plugins, no
+  CocoaPods).
+- `ios/` — the generated Xcode project (committed; build artifacts + the synced
+  `App/App/public` web assets are gitignored via `ios/.gitignore`).
+- **Dev workflow:** `npm run build` (→ `out/`) → `npx cap sync ios` (copies
+  assets + plugins) → `npx cap open ios` (Xcode) → pick signing team → run on
+  device/simulator. Distribution: paid Apple Developer → TestFlight.
+- Supabase env (`NEXT_PUBLIC_SUPABASE_*`) is inlined at build time from
+  `.env.local`, so the bundled app auth-gates + reads Supabase like the PWA.
 
 ## Keeping docs current (standing directive)
 Docs are part of the change, not an afterthought. End every session with the
