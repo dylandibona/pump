@@ -1,6 +1,7 @@
 import { WorkoutSession, TrainerPlan, ExerciseStatus, ExerciseStatusReason } from './types';
 import { getPRForExercise, isWorkingSet, MIN_PR_REPS } from './storage';
 import { parseSessionDate } from './utils';
+import { formatZoneSeconds } from './hr-zones';
 
 // Human-readable status labels for the BRIEF. Trainer parses these, so
 // stable + short. Keep in sync with the summary-screen picker copy.
@@ -141,6 +142,9 @@ export function generateBrief(
       const inclineStr = c.incline != null ? ` ${c.incline}% incline` : '';
       const hrStr = c.avgHr != null ? ` — HR ${c.avgHr}${c.maxHr != null ? `/${c.maxHr}` : ''} bpm avg/max` : '';
       brief += `  ${c.activity.toUpperCase()} —${distStr ? ` ${distStr}` : ''}${durStr ? ` in ${durStr}` : ''}${pace ? ` (${pace})` : ''}${inclineStr}${hrStr}\n`;
+      if (c.zoneSeconds?.some(s => s > 0)) {
+        brief += `    Time in zone: ${formatZoneSeconds(c.zoneSeconds)}\n`;
+      }
     });
   }
 

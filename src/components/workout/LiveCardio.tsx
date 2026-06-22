@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, Play, Square, Activity, Bike, Waves, Ship, Footprints } from 'lucide-react';
 import { useHeartRate } from '@/hooks/useHeartRate';
+import { zoneForBpm, zoneIndexForBpm } from '@/lib/hr-zones';
 import type { CardioActivity } from '@/lib/types';
 
 // Live cardio session driven by the BLE heart-rate strap. Native-only (renders
@@ -29,7 +30,7 @@ function fmt(sec: number): string {
 export function LiveCardio({
   onLog,
 }: {
-  onLog: (entry: { activity: CardioActivity; durationSec: number; avgHr?: number; maxHr?: number }) => void;
+  onLog: (entry: { activity: CardioActivity; durationSec: number; avgHr?: number; maxHr?: number; zoneSeconds?: number[] }) => void;
 }) {
   const { supported, status, bpm, deviceName, connect, disconnect } = useHeartRate();
   const [activity, setActivity] = useState<CardioActivity>('run');
@@ -37,11 +38,15 @@ export function LiveCardio({
   const [elapsed, setElapsed] = useState(0);
   const [runningAvg, setRunningAvg] = useState<number | null>(null);
 
-  // HR accumulation refs (avoid re-render churn); avg/max computed on stop.
+  // HR accumulation refs (avoid re-render churn); avg/max/zones computed on stop.
   const startMsRef = useRef(0);
   const hrSumRef = useRef(0);
   const hrCountRef = useRef(0);
   const hrMaxRef = useRef(0);
+  // Time-in-zone: seconds per zone, credited to the bpm HELD over each interval.
+  const zoneSecRef = useRef<number[]>([0, 0, 0, 0, 0]);
+  const lastSampleMsRef = useRef(0);
+  const lastBpmRef = useRef<number | null>(null);
 
   const connected = status === 'connected';
 
@@ -57,6 +62,14 @@ export function LiveCardio({
   // Accumulate HR samples while recording.
   useEffect(() => {
     if (!recording || bpm == null) return;
+    const now = Date.now();
+    // Credit the time since the last sample to the zone of the bpm held over it.
+    if (lastBpmRef.current != null) {
+      const dt = (now - lastSampleMsRef.current) / 1000;
+      zoneSecRef.current[zoneIndexForBpm(lastBpmRef.current)] += dt;
+    }
+    lastBpmRef.current = bpm;
+    lastSampleMsRef.current = now;
     hrSumRef.current += bpm;
     hrCountRef.current += 1;
     if (bpm > hrMaxRef.current) hrMaxRef.current = bpm;
@@ -64,10 +77,14 @@ export function LiveCardio({
   }, [bpm, recording]);
 
   const start = useCallback(() => {
-    startMsRef.current = Date.now();
+    const now = Date.now();
+    startMsRef.current = now;
     hrSumRef.current = 0;
     hrCountRef.current = 0;
     hrMaxRef.current = 0;
+    zoneSecRef.current = [0, 0, 0, 0, 0];
+    lastSampleMsRef.current = now;
+    lastBpmRef.current = null;
     setElapsed(0);
     setRunningAvg(null);
     setRecording(true);
@@ -75,10 +92,17 @@ export function LiveCardio({
 
   const stop = useCallback(() => {
     setRecording(false);
-    const durationSec = Math.max(1, Math.floor((Date.now() - startMsRef.current) / 1000));
+    const now = Date.now();
+    // Credit the final interval to the last-held bpm's zone.
+    if (lastBpmRef.current != null) {
+      zoneSecRef.current[zoneIndexForBpm(lastBpmRef.current)] += (now - lastSampleMsRef.current) / 1000;
+    }
+    const durationSec = Math.max(1, Math.floor((now - startMsRef.current) / 1000));
     const avgHr = hrCountRef.current > 0 ? Math.round(hrSumRef.current / hrCountRef.current) : undefined;
     const maxHr = hrMaxRef.current > 0 ? hrMaxRef.current : undefined;
-    onLog({ activity, durationSec, avgHr, maxHr });
+    const zoneSeconds = zoneSecRef.current.map((s) => Math.round(s));
+    const hasZones = zoneSeconds.some((s) => s > 0);
+    onLog({ activity, durationSec, avgHr, maxHr, zoneSeconds: hasZones ? zoneSeconds : undefined });
     setElapsed(0);
   }, [activity, onLog]);
 
@@ -117,9 +141,19 @@ export function LiveCardio({
             <Heart className="w-6 h-6" fill="currentColor" />
           </motion.div>
           <div>
-            <p className="font-display text-3xl tabular-nums leading-none" style={{ color: 'var(--pump-text)' }}>
-              {bpm ?? '—'} <span className="text-sm font-bold" style={{ color: 'var(--pump-text-dim)' }}>BPM</span>
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="font-display text-3xl tabular-nums leading-none" style={{ color: 'var(--pump-text)' }}>
+                {bpm ?? '—'} <span className="text-sm font-bold" style={{ color: 'var(--pump-text-dim)' }}>BPM</span>
+              </p>
+              {bpm != null && (
+                <span
+                  className="text-[10px] tracking-[0.1em] uppercase font-bold px-2 py-0.5 rounded-full text-white"
+                  style={{ background: zoneForBpm(bpm).color }}
+                >
+                  Z{zoneForBpm(bpm).zone} {zoneForBpm(bpm).name}
+                </span>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => void disconnect()}

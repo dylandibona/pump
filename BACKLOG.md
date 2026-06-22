@@ -241,8 +241,11 @@ Pragmatic paths, by effort:
   logger remains the fallback.
   - [x] Manual avg/max HR fields on the cardio add form (Jun 22) — for sessions
     logged without the strap; shows on the entry card + BRIEF + payload.
-  - [ ] HR sample stream (store the per-second curve on the entry) + time-in-zone
-    (needs HR zone thresholds — pending Dylan's max HR / zone definitions).
+  - [x] Time-in-zone (Jun 22) — Dylan's trainer zones in `hr-zones.ts`; LiveCardio
+    accumulates seconds/zone → `CardioEntry.zoneSeconds`, shown as a zone bar +
+    in the BRIEF + payload. Live zone chip during the session.
+  - [ ] Raw HR sample stream (per-second curve) — skipped for now; the zone
+    breakdown + avg/max cover the coaching need. Add if finer analysis is wanted.
   - [ ] **HealthKit read** (still future) — a separate native capability if we
     later want Apple Health import; not needed for live BLE.
 

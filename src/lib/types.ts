@@ -13,6 +13,7 @@ export interface CardioEntry {
   notes?: string;
   avgHr?: number;       // BPM — average heart rate (live HR strap during a session)
   maxHr?: number;       // BPM — peak heart rate
+  zoneSeconds?: number[]; // seconds spent in each HR zone (length 5, Z1..Z5) — live sessions only
 }
 
 export interface GymSet {

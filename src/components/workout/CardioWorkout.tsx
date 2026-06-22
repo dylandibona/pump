@@ -10,6 +10,7 @@ import { useWorkout } from '@/hooks/useWorkout';
 import { CardioActivity, CardioEntry } from '@/lib/types';
 import { CardioSceneHeader } from './CardioSceneHeader';
 import { LiveCardio } from './LiveCardio';
+import { HR_ZONES, formatZoneSeconds } from '@/lib/hr-zones';
 import { LucideIcon } from 'lucide-react';
 
 interface CardioWorkoutProps {
@@ -134,9 +135,9 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
           Connect → Start → live BPM + stopwatch → Stop saves an entry with
           avg/max HR. The manual logger below remains the fallback. */}
       <LiveCardio
-        onLog={({ activity, durationSec, avgHr, maxHr }) => {
+        onLog={({ activity, durationSec, avgHr, maxHr, zoneSeconds }) => {
           const entry = addCardioEntry(activity, undefined, durationSec);
-          if (avgHr != null || maxHr != null) updateCardioEntry(entry.id, { avgHr, maxHr });
+          if (avgHr != null || maxHr != null || zoneSeconds) updateCardioEntry(entry.id, { avgHr, maxHr, zoneSeconds });
         }}
       />
 
@@ -587,6 +588,26 @@ function CardioEntryCard({
           <X className="w-4 h-4" />
         </Button>
       </div>
+
+      {/* Time-in-zone bar (live sessions only) */}
+      {entry.zoneSeconds && entry.zoneSeconds.some((s) => s > 0) && (() => {
+        const total = entry.zoneSeconds!.reduce((a, b) => a + b, 0);
+        return (
+          <div className="mt-3">
+            <div className="flex h-2 rounded-full overflow-hidden" style={{ background: 'var(--pump-bg-input)' }}>
+              {entry.zoneSeconds!.map((sec, i) =>
+                sec > 0 ? (
+                  <div key={i} style={{ width: `${(sec / total) * 100}%`, background: HR_ZONES[i].color }} />
+                ) : null,
+              )}
+            </div>
+            <p className="text-[11px] tabular-nums mt-1.5" style={{ color: 'var(--pump-text-mid)' }}>
+              {formatZoneSeconds(entry.zoneSeconds!)}
+            </p>
+          </div>
+        );
+      })()}
+
       {entry.notes && (
         <p className="text-sm text-muted-foreground mt-3 pl-18 italic">
           {entry.notes}

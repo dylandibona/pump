@@ -417,6 +417,12 @@ native plugins; no rewrite.
   `NSBluetoothAlwaysUsageDescription` in `ios/App/App/Info.plist`. The manual
   cardio logger remains the fallback. HR shows on the entry card + in the BRIEF
   (so it reaches the coach), and rides along in the session `payload`.
+- **HR zones / time-in-zone** — `src/lib/hr-zones.ts` holds Dylan's
+  trainer-defined zones (BPM bounds; single-user, edit there). `LiveCardio`
+  shows the live zone chip and accumulates seconds-per-zone (credited to the
+  bpm held over each interval) → `CardioEntry.zoneSeconds` (length-5 array).
+  Rendered as a colored zone bar on the entry card; summarized in the BRIEF
+  ("Time in zone: Z2 24:10 · …"). Manual entries have no zone breakdown.
 
 ## Keeping docs current (standing directive)
 Docs are part of the change, not an afterthought. End every session with the
