@@ -346,12 +346,12 @@ On completion:
   "Your trainer sees this in their dashboard. No paste needed." The primary
   CTA is "Done" (honest — the Supabase write already happened); secondary
   "Open with trainer" copies the BRIEF for explicit conversation.
-- **Cloud sync is offline-first + additive** — localStorage stays the source
-  of truth. Supabase (Phase 1) is additive: auth + plan fetch + session writes.
-  Upstash sync still runs alongside (Phase 2 retires it). Upstash merge is
-  union-based with no tombstones, so a deleted item can reappear from another
-  device (acceptable until Phase 2). Both layers are inert when their env
-  vars are unset.
+- **Cloud sync is offline-first + Supabase** — localStorage stays the source of
+  truth. Supabase is the cloud layer: auth + plan fetch + session push/pull + PR
+  + BP, inert when env vars are unset. **Upstash is retired** (the static-export
+  cutover dropped `/api/data`; `sync.ts` is an inert shim, `sync-merge.ts` kept
+  only for the EXPORT/IMPORT restore). Sessions are bidirectional (push on
+  finish, pull on load).
 - **localStorage is per-container — now hydrated by a Supabase PULL.** A fresh
   container (native iOS app, installed PWA) starts with empty localStorage. As of
   the native cutover, `session-sync.pullRemoteSessions()` fetches the `sessions`

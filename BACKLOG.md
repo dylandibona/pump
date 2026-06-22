@@ -109,7 +109,8 @@
 - [x] **Reorder exercises + edit supersets mid-workout (4b)** — dedicated reorder sheet (framer `Reorder`); superset members moved apart auto-unlink.
 - [x] **Partial-set audit (4c)** — confirmed the local set-completion path persists through save + reload.
 - [x] **Blood pressure recorder** — dashboard "Log BP" card + entry sheet (SYS/DIA/pulse, time, lisinopril toggle + how-long-ago buckets, notes, live AHA category). Local-first, swept to Supabase `bp_readings`.
-- _Pending Phase 2:_ retire Upstash (gated on second-device verification). See `pump_build_spec_v2.md`.
+- _Phase 2 done (Jun 22):_ Upstash retired via the static-export cutover (the
+  `/api/data` route was dropped). Cutover spec archived to `_archive/`.
 
 ### May 21–22 2026 session
 - [x] **Neon Pump wordmark** — replaced the Monoton/RetrowaveScene hero with the `pump-header.png` banner (full-bleed, flush to top); regenerated favicon + apple-touch + PWA icons from the new mark; brand kit saved as `public/pump-*.png`.

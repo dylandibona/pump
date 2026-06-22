@@ -17,6 +17,4 @@ see `../CLAUDE.md` (architecture + decisions), `../DESIGN.md` (Volume System),
 | `instructions.md` | The original one-paragraph project brief (Apr 6 2026). | Founding prompt; kept for provenance. The app long outgrew it. |
 | `REVIEW.md` | Comprehensive code-review audit (Apr 20 2026, through commit `a5eb913`). | Point-in-time audit. Several findings since fixed (per-set Epley PRs, canonical `isWorkingSet`, `finalizePRs` commit point, `planSessionId` rotation, the mutator-race refactor). Remaining items predate the Supabase cutover — re-audit against current code before acting. |
 | `UI-REVIEW.md` | Miami Heat Wave UI implementation audit (Apr 20 2026). | Point-in-time. The `.glass`→`.pump-card` migration it tracks is still partly open; current punch list lives in `../MOCKUP_AUDIT.md`. |
-
-The Supabase cutover spec (`../pump_build_spec_v2.md`) stays in the root: Phase 1
-is done, Phase 2 (retiring Upstash) is still pending.
+| `pump_build_spec_v2.md` | The Supabase cutover spec (Upstash → Supabase, Phase 1 + 2). | **Executed** (Jun 22 2026): Phase 1 (auth, plan fetch, session writes) and Phase 2 (Upstash retired via the static-export cutover) both shipped. Live state lives in `../CLAUDE.md`. |
