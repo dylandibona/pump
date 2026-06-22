@@ -285,11 +285,25 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
 
             {/* Superset connector / link button between exercises */}
             {nextExercise && (
-              <div className="flex items-center gap-2 px-4 py-1">
+              <div className="flex items-center justify-center gap-2 px-4 py-1">
                 {isLinkedToNext ? (
-                  <div className="flex items-center gap-2 text-primary/60 text-xs">
-                    <div className="h-6 w-px bg-primary/40 mx-2" />
-                    <span className="font-display tracking-wider">SUPERSET</span>
+                  // Prominent, breakable bond between the two superset'd cards:
+                  // a centered pill with a connecting line; the ✕ breaks the link.
+                  <div className="relative flex justify-center w-full py-0.5">
+                    <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[3px] bg-primary/40" aria-hidden="true" />
+                    <button
+                      type="button"
+                      onClick={() => unlinkSuperset(exercise.id)}
+                      aria-label="Break superset"
+                      title="Tap to break this superset"
+                      className="relative z-10 inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 bg-primary/15 border border-primary/50 active:scale-95 transition-transform"
+                    >
+                      <Zap className="w-3.5 h-3.5 text-primary" fill="currentColor" />
+                      <span className="font-display text-[11px] tracking-[0.18em] text-primary">SUPERSET</span>
+                      <span className="flex items-center justify-center w-4 h-4 rounded-full bg-primary/25">
+                        <X className="w-2.5 h-2.5 text-primary" />
+                      </span>
+                    </button>
                   </div>
                 ) : (
                   <button
