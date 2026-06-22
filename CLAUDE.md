@@ -352,13 +352,15 @@ On completion:
   union-based with no tombstones, so a deleted item can reappear from another
   device (acceptable until Phase 2). Both layers are inert when their env
   vars are unset.
-- **localStorage is per-container → a fresh device starts empty.** The installed
-  PWA has a separate storage jar from Safari, and `session-sync` is **push-only**
-  (the dashboard reads history from localStorage; the curated `prs`/`plans` tables
-  DO pull, but sessions don't). So a new device shows no workout history.
-  Stop-gap: the **EXPORT / IMPORT** backup buttons move full-fidelity data between
-  jars (`importMergeData`). Proper fix is the Phase-2 Supabase pull (see BACKLOG
-  → High Priority → Cross-device data sync).
+- **localStorage is per-container — now hydrated by a Supabase PULL.** A fresh
+  container (native iOS app, installed PWA) starts with empty localStorage. As of
+  the native cutover, `session-sync.pullRemoteSessions()` fetches the `sessions`
+  table on load + dashboard return and merges it into local (prefer the lossless
+  `payload`; reconstruct legacy shaped-only rows into gym sessions). Union-only by
+  id + `client_session_id`; pulled ids are marked synced so the push sweep can't
+  re-upload them. So sessions are now **bidirectional** (push on finish, pull on
+  load) — `prs`/`plans` already pulled. The EXPORT / IMPORT buttons remain as a
+  full-fidelity manual backup, but are no longer the only cross-device path.
 - **Script-font nav titles on root views** — Plan, History, New Workout render
   their nav title in Pacifico (title-case). Workflow views keep Outfit 800
   uppercase.

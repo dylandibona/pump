@@ -152,12 +152,12 @@
 ## High Priority
 
 ### Cross-device data sync (the real fix behind the "empty PWA" bug)
-- [ ] _(DEPRIORITIZED Jun 17 — Dylan is single-device, PWA-only going forward;
-  the one-time JSON import covered the migration. Revisit only if multi-device
-  returns.)_ **Pull session history from the cloud on load** so a fresh device
-  auto-populates without a manual import. Today `session-sync` is **push-only**
-  and the dashboard reads history from localStorage. Stop-gap shipped:
-  **Export → Import**.
+- [x] **Pull session history from the cloud on load** (shipped Jun 22, native
+  cutover) — `session-sync.pullRemoteSessions()` fetches the `sessions` table on
+  load + dashboard return and merges into local (prefer `payload`, reconstruct
+  legacy shaped rows). Un-deprioritized because the native app starts with empty
+  localStorage. Union-only by id + client_session_id; pulled ids marked synced.
+  Sessions are now bidirectional. EXPORT/IMPORT remains as a manual backup.
 - [x] **Lossless session `payload` for the coach** (shipped Jun 17) — added a
   nullable `payload jsonb` column on DD Health `sessions` (migration
   `add_sessions_payload_jsonb`) holding the COMPLETE `WorkoutSession`, written on
