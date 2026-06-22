@@ -239,8 +239,10 @@ Pragmatic paths, by effort:
   avg/max) → Stop logs a `CardioEntry` with `avgHr`/`maxHr`. Shows on the entry
   card + BRIEF + rides in the session `payload` → reaches the coach. Manual
   logger remains the fallback.
-  - [ ] Optional follow-ups: HR sample stream / time-in-zone; manual avg/max HR
-    fields on the manual entry form (for sessions logged without the strap).
+  - [x] Manual avg/max HR fields on the cardio add form (Jun 22) — for sessions
+    logged without the strap; shows on the entry card + BRIEF + payload.
+  - [ ] HR sample stream (store the per-second curve on the entry) + time-in-zone
+    (needs HR zone thresholds — pending Dylan's max HR / zone definitions).
   - [ ] **HealthKit read** (still future) — a separate native capability if we
     later want Apple Health import; not needed for live BLE.
 

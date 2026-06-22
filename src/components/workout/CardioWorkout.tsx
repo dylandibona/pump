@@ -48,6 +48,8 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
   const [seconds, setSeconds] = useState('');
   const [incline, setIncline] = useState('');
   const [speed, setSpeed] = useState('');
+  const [avgHr, setAvgHr] = useState('');
+  const [maxHr, setMaxHr] = useState('');
   const [notes, setNotes] = useState('');
 
   const handleAddEntry = () => {
@@ -60,13 +62,20 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
       const distOrUndef = parseFloat(distance) > 0 ? parseFloat(distance) : undefined;
       const inclOrUndef = parseFloat(incline) > 0 ? parseFloat(incline) : undefined;
       const speedOrUndef = parseFloat(speed) > 0 ? parseFloat(speed) : undefined;
-      addCardioEntry(selectedActivity, distOrUndef, totalSecs, notes || undefined, inclOrUndef, speedOrUndef);
+      const entry = addCardioEntry(selectedActivity, distOrUndef, totalSecs, notes || undefined, inclOrUndef, speedOrUndef);
+      // Manual HR (for strap-less sessions; the live session fills these
+      // automatically). Stored after creation so addCardioEntry stays unchanged.
+      const avgHrNum = parseInt(avgHr) > 0 ? parseInt(avgHr) : undefined;
+      const maxHrNum = parseInt(maxHr) > 0 ? parseInt(maxHr) : undefined;
+      if (avgHrNum != null || maxHrNum != null) updateCardioEntry(entry.id, { avgHr: avgHrNum, maxHr: maxHrNum });
       setDistance('');
       setHours('');
       setMinutes('');
       setSeconds('');
       setIncline('');
       setSpeed('');
+      setAvgHr('');
+      setMaxHr('');
       setNotes('');
       setShowAddForm(false);
     }
@@ -308,6 +317,37 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
                   />
                 </div>
               )}
+
+              {/* Heart rate (optional) — manual entry for strap-less sessions;
+                  the live HR session fills these in automatically. */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
+                    AVG HR (OPTIONAL)
+                  </label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={avgHr}
+                    onChange={(e) => setAvgHr(e.target.value)}
+                    placeholder="bpm"
+                    className="touch-target text-2xl tabular-nums text-center bg-background/50"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs tracking-[0.2em] text-muted-foreground uppercase block mb-2">
+                    MAX HR (OPTIONAL)
+                  </label>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    value={maxHr}
+                    onChange={(e) => setMaxHr(e.target.value)}
+                    placeholder="bpm"
+                    className="touch-target text-2xl tabular-nums text-center bg-background/50"
+                  />
+                </div>
+              </div>
 
               {/* Notes */}
               <div>
