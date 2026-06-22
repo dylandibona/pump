@@ -1,21 +1,22 @@
-// Client-side cloud sync. localStorage stays the offline-first source of
-// truth; this layer pushes the local snapshot to /api/data, where the server
-// merges it with the stored copy and returns the union, which we apply back.
-// One round trip therefore syncs in both directions.
-
-import { getWorkoutData, getPlan, applyRemote } from './storage';
-import type { SyncEnvelope } from './sync-merge';
+// Upstash cloud sync — RETIRED. The app moved to a static export (so the same
+// build bundles into the Capacitor native app), which drops the `/api/data`
+// route handler that this layer talked to. localStorage stays the offline-first
+// source of truth and Supabase is the cloud layer (auth, plan, session, PR, BP).
+//
+// This module is kept as a thin, inert shim so `useCloudSync` (and the
+// dashboard's `dataVersion` wiring) compile unchanged: `sync()` is now a no-op.
+// The token getters/setters remain for the (hidden) CloudSyncCard surface.
 
 const TOKEN_KEY = 'pump-sync-token';
 const LAST_SYNCED_KEY = 'pump-sync-last';
 
 export type SyncStatus =
-  | 'unconfigured'   // no token entered yet
+  | 'unconfigured'   // sync retired — always this now
   | 'syncing'
   | 'synced'
-  | 'offline'        // no network
-  | 'unauthorized'   // token rejected by server
-  | 'error';         // server/store not configured or unexpected failure
+  | 'offline'
+  | 'unauthorized'
+  | 'error';
 
 export function getSyncToken(): string {
   if (typeof window === 'undefined') return '';
@@ -34,51 +35,13 @@ export function getLastSynced(): string | null {
   return localStorage.getItem(LAST_SYNCED_KEY);
 }
 
-function setLastSynced(iso: string): void {
-  if (typeof window !== 'undefined') localStorage.setItem(LAST_SYNCED_KEY, iso);
-}
-
-function buildLocalEnvelope(): SyncEnvelope {
-  return {
-    updatedAt: new Date().toISOString(),
-    data: getWorkoutData(),
-    plan: getPlan(),
-  };
-}
-
 export interface SyncResult {
   status: SyncStatus;
-  changed: boolean; // true if remote data merged in actually altered local state
+  changed: boolean;
 }
 
-// Push the local snapshot, receive the server-merged union, apply it back.
+// No-op: the Upstash round trip is gone. Returns 'unconfigured' so the hook
+// settles into an idle state and never bumps dataVersion.
 export async function sync(): Promise<SyncResult> {
-  const token = getSyncToken();
-  if (!token) return { status: 'unconfigured', changed: false };
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return { status: 'offline', changed: false };
-  }
-
-  try {
-    const res = await fetch('/api/data', {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify(buildLocalEnvelope()),
-    });
-
-    if (res.status === 401) return { status: 'unauthorized', changed: false };
-    if (!res.ok) return { status: 'error', changed: false };
-
-    const body = (await res.json()) as { envelope: SyncEnvelope | null };
-    let changed = false;
-    if (body.envelope) {
-      changed = applyRemote(body.envelope.data, body.envelope.plan);
-      setLastSynced(body.envelope.updatedAt);
-    } else {
-      setLastSynced(new Date().toISOString());
-    }
-    return { status: 'synced', changed };
-  } catch {
-    return { status: 'offline', changed: false };
-  }
+  return { status: 'unconfigured', changed: false };
 }

@@ -9,10 +9,12 @@ where a Claude Health Project acts as a remote trainer and this app acts as the
 gym executor. See `../trainer-os/README.md` for the full system spec.
 
 ## Architecture in one line
-Next.js 16 App Router, offline-first client (all data in localStorage),
-local-first with cloud sync — **mid-migration from Upstash Redis to Supabase**
-(DD Health project). Deployed via GitHub → Vercel. See `pump_build_spec_v2.md`
-for the cutover plan.
+Next.js 16 App Router **static export** (`output: 'export'` → `out/`),
+offline-first client (all data in localStorage), cloud layer is **Supabase**
+(DD Health project — auth, plan, session, PR, BP). **Upstash sync retired** (the
+static export can't host the `/api/data` route handler; `sync.ts` is now an inert
+shim). The same static build deploys to Vercel as the PWA **and** bundles into a
+Capacitor native iOS app (for COROS BLE heart-rate — in progress).
 
 ## Design / look & feel
 See **`DESIGN.md`** at the project root for the Volume System (the current
@@ -98,14 +100,16 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   held then crossfades (AnimatePresence) over the already-mounted app/sign-in
   beneath it. Launch-only — AuthGate mounts once per load, not on internal nav.
 
-### Cloud sync — Upstash Redis (legacy, Phase-2 removal pending)
-- `src/app/api/data/route.ts` — sync endpoint. Returns 503 until env vars set.
-- `src/lib/sync-merge.ts` — pure, isomorphic merge (union by id, heavier PRs,
-  LWW on settings/plan).
-- `src/lib/sync.ts` — client layer; one round trip = bidirectional sync.
-- `src/hooks/useCloudSync.ts` — app-wide bootstrap (initial sync, debounced
-  push, throttled focus refresh). Status surface (`CloudSyncCard`) is hidden
-  on the dashboard now; the component is still in the tree for cleanup.
+### Cloud sync — Upstash Redis (RETIRED — static export cutover)
+- `src/app/api/data/route.ts` — **removed**. Route handlers that read the
+  request can't be statically exported, so the Upstash sync endpoint is gone.
+- `src/lib/sync.ts` — now an **inert shim**: `sync()` is a no-op returning
+  `'unconfigured'`; token getters/setters kept so `useCloudSync` compiles.
+- `src/lib/sync-merge.ts` — KEPT (still used by `storage.importMergeData` for
+  the EXPORT/IMPORT cross-device restore).
+- `src/hooks/useCloudSync.ts` — unchanged shape; `dataVersion` now stays 0
+  (sync is a no-op), so the dashboard refresh is driven by `bootRefresh` only.
+  `CloudSyncCard` is hidden; component still in the tree for cleanup.
 
 ### View state + nav
 - `src/app/page.tsx` — view state machine, plan state, tab-bar routing
@@ -220,7 +224,7 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
 - `pump-bp-last-shared` — ISO cursor for the BP doctor-export "new since last
   shared" default (advanced on each copy; local-only, never synced)
 - `pump-sync-token` / `pump-sync-last` — Upstash bearer token + last-sync
-  timestamp (legacy)
+  timestamp (DEAD — Upstash retired; keys read only by the inert sync shim)
 - Supabase auth session — stored by `supabase-js` under its own `sb-*` key
   (one-time code login auto-restores)
 
@@ -246,8 +250,9 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   References the hosted `letspump-email.png` wordmark (an
   email-optimized 600px/82KB PNG — the app's full-res `letspump3-transparent.png`
   is left for `next/image` to optimize).
-- **Upstash (legacy):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
-  (or `UPSTASH_REDIS_REST_*`). Removed in Phase 2.
+- **Upstash (RETIRED):** `SYNC_TOKEN`, `KV_REST_API_URL` / `KV_REST_API_TOKEN`
+  (or `UPSTASH_REDIS_REST_*`) are no longer used — the `/api/data` route was
+  removed for the static-export cutover. Safe to delete from Vercel.
 
 ## PUMP OS data flow
 ```
