@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useWorkout } from '@/hooks/useWorkout';
 import { CardioActivity, CardioEntry } from '@/lib/types';
 import { CardioSceneHeader } from './CardioSceneHeader';
+import { HeartRateConnect } from './HeartRateConnect';
 import { LucideIcon } from 'lucide-react';
 
 interface CardioWorkoutProps {
@@ -119,6 +120,10 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
         totalDurationSec={totalDurationSec}
         totalDistanceMi={totalDistanceMi}
       />
+
+      {/* Live heart-rate (native app only — connects the COROS BLE strap).
+          Phase 3 proof; Phase 4 records avg/max HR onto the session. */}
+      <HeartRateConnect />
 
       {/* Existing Entries */}
       {session.cardio?.map((entry, index) => (

@@ -229,12 +229,15 @@ Pragmatic paths, by effort:
   for HR) — once the activity syncs to Strava, pull duration / distance / avg+max
   HR via the Strava API to pre-fill a cardio entry. Post-hoc, not live; needs
   Strava OAuth + an edge function. _Supersedes "Strava integration for cardio"._
-- [ ] **#3 — Native wrapper (Capacitor) for HealthKit / live BLE** (stretch, but
-  Dylan is interested — Jun 17) — the *only* route to true **live in-app HR**
-  (read the COROS strap over BLE) + Apple Health read. Keeps the existing web
-  app, shells it in Capacitor + a BLE/HealthKit plugin; bulk of the code carries
-  over. Cost is the native build/signing/App-Store move, not a rewrite.
-  _Supersedes "Apple Health integration" + folds into "Apple Watch companion"._
+- [x] **#3 — Native wrapper (Capacitor) for live BLE HR** (Jun 22) — shipped the
+  Capacitor iOS app (static-export cutover) + `@capacitor-community/bluetooth-le`.
+  `useHeartRate` connects the standard HR service (0x180D) and streams live BPM;
+  `HeartRateConnect` (in CardioWorkout) is the connect button + live readout.
+  COROS strap broadcasts standard BLE HR, so no vendor SDK. **Phase 4 pending:**
+  record avg/max HR (+ optional sample stream / time-in-zone) onto the cardio
+  session so it flows to the coach via the session `payload`.
+  - [ ] **HealthKit read** (still future) — a separate native capability if we
+    later want Apple Health import; not needed for live BLE.
 
 ### Analytics & Dashboard
 - [ ] Weekly volume chart (bar graph)

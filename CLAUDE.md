@@ -402,6 +402,18 @@ native plugins; no rewrite.
   device/simulator. Distribution: paid Apple Developer → TestFlight.
 - Supabase env (`NEXT_PUBLIC_SUPABASE_*`) is inlined at build time from
   `.env.local`, so the bundled app auth-gates + reads Supabase like the PWA.
+- **Native init** — `src/components/native/CapacitorInit.tsx` (mounted in
+  `layout.tsx`) runs native-only setup: `StatusBar.setOverlaysWebView(false)` so
+  the header clears the status bar. No-op on web.
+- **Heart rate (BLE)** — `@capacitor-community/bluetooth-le`.
+  `src/hooks/useHeartRate.ts` connects the standard BLE Heart Rate Service
+  (0x180D) / Measurement char (0x2A37) — the COROS strap broadcasts these, so no
+  vendor SDK — and streams live BPM. `src/components/workout/HeartRateConnect.tsx`
+  is the connect button + live BPM pill, mounted in `CardioWorkout`; renders
+  **nothing on web** (`supported = Capacitor.isNativePlatform()`), and the plugin
+  is dynamically imported so it never enters the web bundle. Needs
+  `NSBluetoothAlwaysUsageDescription` in `ios/App/App/Info.plist`. Phase 3
+  (connect + live readout) shipped; Phase 4 records avg/max HR onto the session.
 
 ## Keeping docs current (standing directive)
 Docs are part of the change, not an afterthought. End every session with the

@@ -47,5 +47,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>PUMP connects to your heart-rate monitor to show and record live heart rate during cardio sessions.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>PUMP connects to your heart-rate monitor to show and record live heart rate during cardio sessions.</string>
 </dict>
 </plist>
