@@ -408,12 +408,15 @@ native plugins; no rewrite.
 - **Heart rate (BLE)** — `@capacitor-community/bluetooth-le`.
   `src/hooks/useHeartRate.ts` connects the standard BLE Heart Rate Service
   (0x180D) / Measurement char (0x2A37) — the COROS strap broadcasts these, so no
-  vendor SDK — and streams live BPM. `src/components/workout/HeartRateConnect.tsx`
-  is the connect button + live BPM pill, mounted in `CardioWorkout`; renders
-  **nothing on web** (`supported = Capacitor.isNativePlatform()`), and the plugin
-  is dynamically imported so it never enters the web bundle. Needs
-  `NSBluetoothAlwaysUsageDescription` in `ios/App/App/Info.plist`. Phase 3
-  (connect + live readout) shipped; Phase 4 records avg/max HR onto the session.
+  vendor SDK — and streams live BPM. `src/components/workout/LiveCardio.tsx` is
+  the full live-session surface (mounted in `CardioWorkout`): connect → pick
+  activity → Start (stopwatch + live BPM, accumulating avg/max) → Stop, which
+  logs a `CardioEntry` with `avgHr`/`maxHr` (new fields on `CardioEntry`). Renders
+  **nothing on web** (`supported = Capacitor.isNativePlatform()`); plugin is
+  dynamically imported so it never enters the web bundle. Needs
+  `NSBluetoothAlwaysUsageDescription` in `ios/App/App/Info.plist`. The manual
+  cardio logger remains the fallback. HR shows on the entry card + in the BRIEF
+  (so it reaches the coach), and rides along in the session `payload`.
 
 ## Keeping docs current (standing directive)
 Docs are part of the change, not an afterthought. End every session with the

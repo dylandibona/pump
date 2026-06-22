@@ -41,7 +41,7 @@ export function SessionStart({ onStart, onPreview, plan, suggestedSessionId }: S
   const suggestedSession = plan?.sessions.find(s => s.id === suggestedSessionId) ?? plan?.sessions[0] ?? null;
 
   return (
-    <div className="min-h-[80vh] flex flex-col relative">
+    <div className="min-h-[80vh] flex flex-col relative pb-28">
       <motion.div
         className="fixed inset-0 pointer-events-none transition-opacity duration-500"
         style={{

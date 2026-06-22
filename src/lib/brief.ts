@@ -139,7 +139,8 @@ export function generateBrief(
       const distStr = dist > 0 ? `${dist}mi` : '';
       const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${(dur % 60).toString().padStart(2, '0')}` : '';
       const inclineStr = c.incline != null ? ` ${c.incline}% incline` : '';
-      brief += `  ${c.activity.toUpperCase()} —${distStr ? ` ${distStr}` : ''}${durStr ? ` in ${durStr}` : ''}${pace ? ` (${pace})` : ''}${inclineStr}\n`;
+      const hrStr = c.avgHr != null ? ` — HR ${c.avgHr}${c.maxHr != null ? `/${c.maxHr}` : ''} bpm avg/max` : '';
+      brief += `  ${c.activity.toUpperCase()} —${distStr ? ` ${distStr}` : ''}${durStr ? ` in ${durStr}` : ''}${pace ? ` (${pace})` : ''}${inclineStr}${hrStr}\n`;
     });
   }
 

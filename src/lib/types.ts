@@ -11,6 +11,8 @@ export interface CardioEntry {
   incline?: number;     // % grade (treadmill, walk)
   speed?: number;       // mph (treadmill)
   notes?: string;
+  avgHr?: number;       // BPM — average heart rate (live HR strap during a session)
+  maxHr?: number;       // BPM — peak heart rate
 }
 
 export interface GymSet {

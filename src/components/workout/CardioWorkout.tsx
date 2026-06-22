@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useWorkout } from '@/hooks/useWorkout';
 import { CardioActivity, CardioEntry } from '@/lib/types';
 import { CardioSceneHeader } from './CardioSceneHeader';
-import { HeartRateConnect } from './HeartRateConnect';
+import { LiveCardio } from './LiveCardio';
 import { LucideIcon } from 'lucide-react';
 
 interface CardioWorkoutProps {
@@ -121,9 +121,15 @@ export function CardioWorkout({ sessionId, onComplete }: CardioWorkoutProps) {
         totalDistanceMi={totalDistanceMi}
       />
 
-      {/* Live heart-rate (native app only — connects the COROS BLE strap).
-          Phase 3 proof; Phase 4 records avg/max HR onto the session. */}
-      <HeartRateConnect />
+      {/* Live cardio session driven by the BLE HR strap (native app only).
+          Connect → Start → live BPM + stopwatch → Stop saves an entry with
+          avg/max HR. The manual logger below remains the fallback. */}
+      <LiveCardio
+        onLog={({ activity, durationSec, avgHr, maxHr }) => {
+          const entry = addCardioEntry(activity, undefined, durationSec);
+          if (avgHr != null || maxHr != null) updateCardioEntry(entry.id, { avgHr, maxHr });
+        }}
+      />
 
       {/* Existing Entries */}
       {session.cardio?.map((entry, index) => (
@@ -518,6 +524,14 @@ function CardioEntryCard({
                   <span className="text-muted-foreground">·</span>
                   <span className="tabular-nums text-foreground">
                     {entry.speed} mph
+                  </span>
+                </>
+              )}
+              {entry.avgHr != null && (
+                <>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="tabular-nums" style={{ color: 'var(--pump-hot)' }}>
+                    ♥ {entry.avgHr}{entry.maxHr != null ? `/${entry.maxHr}` : ''} bpm
                   </span>
                 </>
               )}

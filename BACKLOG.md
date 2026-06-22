@@ -233,9 +233,14 @@ Pragmatic paths, by effort:
   Capacitor iOS app (static-export cutover) + `@capacitor-community/bluetooth-le`.
   `useHeartRate` connects the standard HR service (0x180D) and streams live BPM;
   `HeartRateConnect` (in CardioWorkout) is the connect button + live readout.
-  COROS strap broadcasts standard BLE HR, so no vendor SDK. **Phase 4 pending:**
-  record avg/max HR (+ optional sample stream / time-in-zone) onto the cardio
-  session so it flows to the coach via the session `payload`.
+  COROS strap broadcasts standard BLE HR, so no vendor SDK.
+- [x] **Live cardio session w/ HR recording** (Jun 22, Phase 4) — `LiveCardio`
+  (in CardioWorkout): connect → Start (stopwatch + live BPM, accumulating
+  avg/max) → Stop logs a `CardioEntry` with `avgHr`/`maxHr`. Shows on the entry
+  card + BRIEF + rides in the session `payload` → reaches the coach. Manual
+  logger remains the fallback.
+  - [ ] Optional follow-ups: HR sample stream / time-in-zone; manual avg/max HR
+    fields on the manual entry form (for sessions logged without the strap).
   - [ ] **HealthKit read** (still future) — a separate native capability if we
     later want Apple Health import; not needed for live BLE.
 
