@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Monoton, Pacifico, Outfit } from 'next/font/google';
 import './globals.css';
 import { AuthGate } from '@/components/auth/AuthGate';
+import { CapacitorInit } from '@/components/native/CapacitorInit';
 
 // Monoton — brand mark ONLY (retrowave header "PUMP" title). Never below the
 // scene. Single weight.
@@ -71,6 +72,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <CapacitorInit />
         <AuthGate>{children}</AuthGate>
       </body>
     </html>

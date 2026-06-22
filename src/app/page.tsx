@@ -27,7 +27,7 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 import { getSession, getPlan, getNextPlanSession, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions, patchSession } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { fetchActivePlan } from '@/lib/plan-sync';
-import { pushUnsyncedSessions } from '@/lib/session-sync';
+import { pushUnsyncedSessions, pullRemoteSessions } from '@/lib/session-sync';
 import { pushUnsyncedBP } from '@/lib/bp-sync';
 import { parseSessionDate, sessionLabel } from '@/lib/utils';
 import { PlanLoader } from '@/components/workout/PlanLoader';
@@ -120,12 +120,17 @@ export default function Home() {
     if (view === 'plan') syncActivePlan();
   }, [view, syncActivePlan]);
 
-  // Push finished sessions to Supabase. Fires on load + every return to the
-  // dashboard (covers both the summary "Done" and the Back-button auto-finish,
-  // which both land on the dashboard) and on window focus. Cheap when there's
-  // nothing unsynced; inert until signed in.
+  // Push finished sessions to Supabase + pull remote history down. Fires on load
+  // (view starts 'dashboard') and every return to the dashboard. The PULL is
+  // what hydrates a fresh container (installed PWA / native iOS app) whose
+  // localStorage starts empty — it merges Supabase sessions into local; on a
+  // real merge we bump bootRefresh so the dashboard re-reads. History re-reads
+  // on its own each time it's opened. Cheap + idempotent when nothing's new;
+  // inert until signed in.
   useEffect(() => {
-    if (view === 'dashboard') { pushUnsyncedSessions(); pushUnsyncedBP(); }
+    if (view !== 'dashboard') return;
+    pushUnsyncedSessions(); pushUnsyncedBP();
+    pullRemoteSessions().then(r => { if (r.pulled > 0) setBootRefresh(v => v + 1); });
   }, [view]);
 
   useEffect(() => {

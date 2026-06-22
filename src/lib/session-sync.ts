@@ -13,9 +13,9 @@
 // coach's table only receives sessions finished from here forward — no
 // back-flood of history with stale plan/feel attribution.
 import { supabase, isSupabaseConfigured } from './supabase';
-import { getWorkoutData, getPlan, isWorkingSet, sessionDurationMin } from './storage';
+import { getWorkoutData, saveWorkoutData, getPlan, isWorkingSet, sessionDurationMin } from './storage';
 import { generateBrief } from './brief';
-import type { WorkoutSession, TrainerPlan } from './types';
+import type { WorkoutSession, TrainerPlan, GymExercise } from './types';
 
 const SYNCED_KEY = 'pump-synced-sessions';
 
@@ -155,4 +155,118 @@ async function runSweep(): Promise<{ pushed: number }> {
   }
   if (changed) saveSyncedIds(synced);
   return { pushed };
+}
+
+// ── Pull (cross-device hydrate) ──────────────────────────────────────────────
+// A fresh container (the installed PWA, OR the native iOS app) starts with empty
+// localStorage, so history shows nothing even though Supabase has it. This pulls
+// the `sessions` table down and merges it into local. Prefer the lossless
+// `payload` (complete WorkoutSession); for legacy rows without payload (the bulk
+// of history), reconstruct a gym session from the coach-shaped columns so it
+// still appears. Merge is union-only (never overwrites a local session), keyed
+// by id + client_session_id; pulled ids are marked synced so the push sweep
+// can't re-upload them as duplicate rows.
+interface SessionRow {
+  id: string;
+  client_session_id: string | null;
+  session_date: string;
+  exercises: unknown;
+  feel_score: number | null;
+  duration_min: number | null;
+  label: string | null;
+  payload: unknown;
+}
+
+function rowToSession(row: SessionRow, plan: TrainerPlan | null): WorkoutSession | null {
+  // Lossless path: the stored payload IS the complete WorkoutSession.
+  if (row.payload && typeof row.payload === 'object') {
+    const p = row.payload as WorkoutSession;
+    if (p.id && p.date) return p;
+  }
+  // Reconstruct a gym session from shaped columns (legacy rows).
+  const id = row.client_session_id ?? row.id;
+  if (!id || !row.session_date) return null;
+  let exercises: GymExercise[] = [];
+  try {
+    const raw = typeof row.exercises === 'string' ? JSON.parse(row.exercises) : row.exercises;
+    if (Array.isArray(raw)) {
+      // Defensive: guarantee each exercise has a sets[] so detail/history
+      // renderers (which map ex.sets) never crash on a malformed row.
+      exercises = (raw as GymExercise[]).map(ex => ({ ...ex, sets: Array.isArray(ex.sets) ? ex.sets : [] }));
+    }
+  } catch { /* leave empty */ }
+  const startTime = `${row.session_date}T12:00:00.000Z`;
+  const endTime = row.duration_min
+    ? new Date(new Date(startTime).getTime() + row.duration_min * 60000).toISOString()
+    : undefined;
+  // Restore the plan-session label linkage when the loaded plan has a match.
+  const planSessionId = plan && row.label
+    ? plan.sessions.find(s => s.name.toLowerCase() === String(row.label).toLowerCase())?.id
+    : undefined;
+  return {
+    id,
+    ...(row.client_session_id ? { clientSessionId: row.client_session_id } : {}),
+    date: row.session_date,
+    type: 'gym',
+    startTime,
+    ...(endTime ? { endTime } : {}),
+    completed: true,
+    exercises,
+    cardio: [],
+    ...(row.feel_score != null ? { feelScore: row.feel_score } : {}),
+    ...(planSessionId ? { planSessionId } : {}),
+  };
+}
+
+let pullInFlight: Promise<{ pulled: number }> | null = null;
+
+export function pullRemoteSessions(): Promise<{ pulled: number }> {
+  if (pullInFlight) return pullInFlight;
+  pullInFlight = runPull().finally(() => { pullInFlight = null; });
+  return pullInFlight;
+}
+
+async function runPull(): Promise<{ pulled: number }> {
+  if (!isSupabaseConfigured || typeof window === 'undefined') return { pulled: 0 };
+
+  // RLS scopes the read to the authed user.
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session) return { pulled: 0 };
+
+  const { data: rows, error } = await supabase
+    .from('sessions')
+    .select('id, client_session_id, session_date, exercises, feel_score, duration_min, label, payload')
+    .order('session_date', { ascending: false });
+  if (error || !rows) return { pulled: 0 };
+
+  const plan = getPlan();
+  const local = getWorkoutData();
+  const localIds = new Set(local.sessions.map(s => s.id));
+  const localClientIds = new Set(
+    local.sessions.map(s => s.clientSessionId).filter(Boolean) as string[],
+  );
+
+  const incoming: WorkoutSession[] = [];
+  for (const row of rows as SessionRow[]) {
+    const s = rowToSession(row, plan);
+    if (!s) continue;
+    if (localIds.has(s.id)) continue;                                  // already local
+    if (s.clientSessionId && localClientIds.has(s.clientSessionId)) continue;
+    incoming.push(s);
+    localIds.add(s.id);
+    if (s.clientSessionId) localClientIds.add(s.clientSessionId);
+  }
+  if (incoming.length === 0) return { pulled: 0 };
+
+  local.sessions = [...local.sessions, ...incoming];
+  saveWorkoutData(local);
+
+  // Pulled rows came FROM the server — record them as synced so the push sweep
+  // never re-inserts them (legacy rows without a client_session_id would
+  // otherwise create duplicate rows).
+  const synced = getSyncedIds();
+  incoming.forEach(s => synced.add(s.id));
+  saveSyncedIds(synced);
+
+  return { pulled: incoming.length };
 }
