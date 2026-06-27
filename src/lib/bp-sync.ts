@@ -38,7 +38,19 @@ function buildRow(r: BPReading) {
   };
 }
 
-export async function pushUnsyncedBP(): Promise<{ pushed: number }> {
+// Single-flight guard: page.tsx fires pushUnsyncedBP from two concurrent
+// triggers (dashboard effect + window.focus). Without this, both callers
+// read the same readings as pending before either records success, and both
+// try to insert — the double-row bug.
+let bpSweepInFlight: Promise<{ pushed: number }> | null = null;
+
+export function pushUnsyncedBP(): Promise<{ pushed: number }> {
+  if (bpSweepInFlight) return bpSweepInFlight;
+  bpSweepInFlight = runBPSweep().finally(() => { bpSweepInFlight = null; });
+  return bpSweepInFlight;
+}
+
+async function runBPSweep(): Promise<{ pushed: number }> {
   if (!isSupabaseConfigured || typeof window === 'undefined') return { pushed: 0 };
 
   const synced = getSyncedIds();
@@ -49,15 +61,28 @@ export async function pushUnsyncedBP(): Promise<{ pushed: number }> {
   if (!auth.session) return { pushed: 0 };
 
   let pushed = 0;
+  let changed = false;
   for (const reading of pending) {
     const { error } = await supabase.from('bp_readings').insert(buildRow(reading));
     if (error) {
+      // 23505 = unique violation: reading already exists in Supabase (another
+      // device or a prior sweep that didn't record success). Mark synced so we
+      // never attempt a second insert (first write wins, idempotent).
+      if (error.code === '23505') {
+        synced.add(reading.id);
+        changed = true;
+        continue;
+      }
       console.warn('BP push failed (will retry):', reading.id, error.message);
       continue;
     }
     synced.add(reading.id);
     pushed += 1;
+    changed = true;
   }
-  if (pushed > 0) saveSyncedIds(synced);
+  // Save whenever the synced set grew — not just when new rows were pushed.
+  // A 23505 adds an id to synced without incrementing pushed, so the old
+  // `if (pushed > 0)` guard would have silently dropped those ids.
+  if (changed) saveSyncedIds(synced);
   return { pushed };
 }

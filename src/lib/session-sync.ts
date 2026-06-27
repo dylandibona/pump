@@ -233,10 +233,13 @@ async function runPull(): Promise<{ pulled: number }> {
   const { data: auth } = await supabase.auth.getSession();
   if (!auth.session) return { pulled: 0 };
 
+  // Supabase silently truncates at 1000 rows with no error; explicit LIMIT
+  // makes the cap visible and prevents stale history on large datasets.
   const { data: rows, error } = await supabase
     .from('sessions')
     .select('id, client_session_id, session_date, exercises, feel_score, duration_min, label, payload')
-    .order('session_date', { ascending: false });
+    .order('session_date', { ascending: false })
+    .limit(500);
   if (error || !rows) return { pulled: 0 };
 
   const plan = getPlan();

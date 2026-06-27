@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, X, Plus, Copy, FileText, Check, Activity, Bike, Waves, Ship, Footprints, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
+import { Trophy, X, Plus, Copy, FileText, Check, Activity, Bike, Waves, Ship, Footprints, ChevronDown, ChevronUp, ArrowUpDown, Link2, Unlink2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -16,20 +16,33 @@ import { PRMomentScreen } from './PRMomentScreen';
 import { Timer as TimerIcon, Zap } from 'lucide-react';
 import { useWorkout } from '@/hooks/useWorkout';
 import { GymExercise, GymSet, CardioActivity, CardioEntry } from '@/lib/types';
-import { getExerciseHistory, getPRForExercise, computeE1RM, isWorkingSet } from '@/lib/storage';
+import { getExerciseHistory, getPRForExercise, computeE1RM, isWorkingSet, getSettings, saveSettings } from '@/lib/storage';
 import { playSetCompleteFeedback, playPRFeedback, preloadSound } from '@/lib/sounds';
 import { parseSessionDate } from '@/lib/utils';
+
+function displayWeight(lbs: number, unit: 'lbs' | 'kg'): string {
+  if (unit === 'kg') return String(Math.round(lbs * 0.453592 * 10) / 10);
+  return String(Math.round(lbs)); // integer lbs so kg round-trips don't show decimals
+}
+
+function parseInputWeight(val: string, unit: 'lbs' | 'kg'): number {
+  const n = parseFloat(val);
+  if (isNaN(n)) return 0;
+  // kg→lbs: keep one decimal for round-trip fidelity; lbs stays as-entered
+  return unit === 'kg' ? Math.round((n / 0.453592) * 10) / 10 : n;
+}
 
 interface GymWorkoutProps {
   sessionId?: string;
   planSession?: import('@/lib/types').PlanSession | null;
-  onComplete?: () => void;
+  onComplete?: (result?: { prs: string[]; baselines: string[] }) => void;
 }
 
 export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutProps) {
   const {
     session,
     newPRs,
+    newBaselines,
     addExercise,
     bulkAddExercises,
     logSet,
@@ -49,6 +62,15 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
     getSessionStats,
     clearNewPRs,
   } = useWorkout({ sessionId });
+
+  const [weightUnit, setWeightUnit] = useState<'lbs' | 'kg'>(() => getSettings().weightUnit);
+  const toggleWeightUnit = () => {
+    setWeightUnit(u => {
+      const next = u === 'lbs' ? 'kg' : 'lbs';
+      saveSettings({ ...getSettings(), weightUnit: next });
+      return next;
+    });
+  };
 
   const [newExerciseName, setNewExerciseName] = useState('');
   const [showAddExercise, setShowAddExercise] = useState(!planSession);
@@ -162,7 +184,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
 
   const handleComplete = () => {
     completeSession();
-    onComplete?.();
+    onComplete?.({ prs: newPRs, baselines: newBaselines });
   };
 
   if (!session) return null;
@@ -186,7 +208,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
           the up-next exercise (Pacifico), the elapsed clock, and rest
           controls. Sticks to the top of the scroll container so the timer is
           always reachable mid-set. */}
-      <WorkoutTimerBar startTime={session.startTime} metaLabel={metaLabel} exerciseName={activeEx?.name} />
+      <WorkoutTimerBar startTime={session.startTime} metaLabel={metaLabel} exerciseName={activeEx?.name} weightUnit={weightUnit} onToggleWeightUnit={toggleWeightUnit} />
 
       {/* New PR Celebration */}
       <AnimatePresence>
@@ -253,14 +275,10 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              {isInSuperset && (
-                <div className="text-xs font-display tracking-widest text-primary/70 px-2 pb-1 flex items-center gap-1">
-                  <span>⚡ SUPERSET</span>
-                </div>
-              )}
               <ExerciseCard
                 exercise={exercise}
                 planExercise={planSession?.exercises.find(p => p.name.toLowerCase() === exercise.name.toLowerCase())}
+                weightUnit={weightUnit}
                 onLogSet={(set) => logSet(exercise.id, set)}
                 onUpdateSet={(idx, updates) => updateSet(exercise.id, idx, updates)}
                 onRemoveSet={(idx) => removeSet(exercise.id, idx)}
@@ -285,25 +303,47 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
 
             {/* Superset connector / link button between exercises */}
             {nextExercise && (
-              <div className="flex items-center justify-center gap-2 px-4 py-1">
+              <div className="flex items-center justify-center py-0">
                 {isLinkedToNext ? (
-                  // Prominent, breakable bond between the two superset'd cards:
-                  // a centered pill with a connecting line; the ✕ breaks the link.
-                  <div className="relative flex justify-center w-full py-0.5">
-                    <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[3px] bg-primary/40" aria-hidden="true" />
+                  <div className="flex flex-col items-center w-full">
+                    {/* Fade-in line from card above */}
+                    <div style={{ width: 2, height: 14, background: 'linear-gradient(to bottom, transparent, rgba(139,0,255,0.55))' }} aria-hidden="true" />
+
+                    {/* Chain connector pill */}
                     <button
                       type="button"
                       onClick={() => unlinkSuperset(exercise.id)}
-                      aria-label="Break superset"
+                      aria-label="Break superset link"
                       title="Tap to break this superset"
-                      className="relative z-10 inline-flex items-center gap-1.5 rounded-full pl-2.5 pr-1.5 py-1 bg-primary/15 border border-primary/50 active:scale-95 transition-transform"
+                      className="group flex items-center gap-2 px-3 py-1.5 rounded-full active:scale-95 transition-transform"
+                      style={{
+                        background: 'rgba(139,0,255,0.10)',
+                        border: '1px solid rgba(139,0,255,0.45)',
+                        boxShadow: '0 0 14px rgba(139,0,255,0.22), 0 0 28px rgba(139,0,255,0.08)',
+                      }}
                     >
-                      <Zap className="w-3.5 h-3.5 text-primary" fill="currentColor" />
-                      <span className="font-display text-[11px] tracking-[0.18em] text-primary">SUPERSET</span>
-                      <span className="flex items-center justify-center w-4 h-4 rounded-full bg-primary/25">
-                        <X className="w-2.5 h-2.5 text-primary" />
+                      {/* Chain icon — rotated so links read vertically */}
+                      <Link2
+                        className="w-4 h-4 rotate-90 shrink-0"
+                        style={{ color: 'var(--pump-purple-mid)', filter: 'drop-shadow(0 0 4px rgba(139,0,255,0.6))' }}
+                      />
+                      <span
+                        className="font-display text-[11px] tracking-[0.22em]"
+                        style={{ color: 'var(--pump-purple-mid)', textShadow: '0 0 8px rgba(139,0,255,0.5)' }}
+                      >
+                        SUPERSET
+                      </span>
+                      {/* Break affordance — reveals on hover/active */}
+                      <span
+                        className="flex items-center justify-center w-4 h-4 rounded-full opacity-60 group-hover:opacity-100 transition-opacity"
+                        style={{ background: 'rgba(139,0,255,0.22)' }}
+                      >
+                        <Unlink2 className="w-2.5 h-2.5" style={{ color: 'var(--pump-purple-mid)' }} />
                       </span>
                     </button>
+
+                    {/* Fade-out line into next card */}
+                    <div style={{ width: 2, height: 14, background: 'linear-gradient(to bottom, rgba(139,0,255,0.55), transparent)' }} aria-hidden="true" />
                   </div>
                 ) : (
                   <button
@@ -317,10 +357,10 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
                         linkSuperset(exercise.id, nextExercise.id);
                       }
                     }}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors font-display tracking-wider flex items-center gap-1 py-1"
+                    className="flex items-center gap-1.5 py-2 text-xs font-display tracking-wider text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                   >
-                    <Plus className="w-3 h-3" />
-                    LINK AS SUPERSET
+                    <Link2 className="w-3 h-3 rotate-90" />
+                    LINK
                   </button>
                 )}
               </div>
@@ -469,7 +509,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
               <p className="font-display text-4xl tabular-nums" style={{ color: 'var(--pump-hot)' }}>
                 {(stats.totalVolume as number).toLocaleString()}
               </p>
-              <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>lbs</p>
+              <p className="text-[10px] tracking-[0.18em] uppercase font-bold mt-1" style={{ color: 'var(--pump-text-dim)' }}>{weightUnit}</p>
             </div>
           </div>
         </motion.div>
@@ -536,6 +576,7 @@ export function GymWorkout({ sessionId, planSession, onComplete }: GymWorkoutPro
 interface ExerciseCardProps {
   exercise: GymExercise;
   planExercise?: import('@/lib/types').PlanExercise;
+  weightUnit: 'lbs' | 'kg';
   onLogSet: (set: GymSet) => void;
   onUpdateSet: (index: number, updates: Partial<GymSet>) => void;
   onRemoveSet: (index: number) => void;
@@ -551,6 +592,7 @@ interface ExerciseCardProps {
 function ExerciseCard({
   exercise,
   planExercise,
+  weightUnit,
   onLogSet,
   onUpdateSet,
   onRemoveSet,
@@ -563,21 +605,39 @@ function ExerciseCard({
   onUnlink,
 }: ExerciseCardProps) {
   const [newWeight, setNewWeight] = useState(
-    planExercise?.targetWeight ? String(planExercise.targetWeight) : ''
+    planExercise?.targetWeight ? displayWeight(planExercise.targetWeight, weightUnit) : ''
   );
   const [newReps, setNewReps] = useState('');
+
+  // When the unit toggles, convert the current add-set weight field instead of
+  // clearing it — so a value the user just entered doesn't vanish.
+  const prevWeightUnitRef = useRef<'lbs' | 'kg'>(weightUnit);
+  useEffect(() => {
+    const prev = prevWeightUnitRef.current;
+    prevWeightUnitRef.current = weightUnit;
+    if (!newWeight || parseFloat(newWeight) <= 0) return;
+    const lbs = parseInputWeight(newWeight, prev);
+    setNewWeight(displayWeight(lbs, weightUnit));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weightUnit]);
+
+  // Per-set inline edit state: tracks the string value while the user is typing
+  // so decimal points aren't swallowed by the parse→store→display round-trip.
+  const [editingWeight, setEditingWeight] = useState<{ idx: number; value: string } | null>(null);
+
   const [isWarmup, setIsWarmup] = useState(false);
   const [isBodyweight, setIsBodyweight] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [weightType, setWeightType] = useState<'total' | 'per_side'>(exercise.weightType ?? 'total');
 
-  // Get history and PR for this exercise
-  const history = getExerciseHistory(exercise.name, 3);
-  const pr = getPRForExercise(exercise.name);
+  // getWorkoutData() is cached at the module level, but these still return new
+  // arrays each call. Memo so ExerciseCard doesn't re-run them on every render.
+  const history = useMemo(() => getExerciseHistory(exercise.name, 3), [exercise.name]);
+  const pr = useMemo(() => getPRForExercise(exercise.name), [exercise.name]);
 
   const handleAddSet = () => {
-    const weight = isBodyweight ? 0 : parseFloat(newWeight);
+    const weight = isBodyweight ? 0 : parseInputWeight(newWeight, weightUnit);
     const reps = parseInt(newReps);
 
     if (reps > 0 && (isBodyweight || weight >= 0)) {
@@ -611,12 +671,12 @@ function ExerciseCard({
               {planExercise && (
                 <span className="tag tag--target">
                   {planExercise.sets}×{planExercise.targetReps}
-                  {planExercise.isBodyweight ? ' BW' : planExercise.targetWeight ? ` @ ${planExercise.targetWeight}` : ''}
+                  {planExercise.isBodyweight ? ' BW' : planExercise.targetWeight ? ` @ ${displayWeight(planExercise.targetWeight, weightUnit)}` : ''}
                 </span>
               )}
               {pr && (
                 <span className="tag tag--pr">
-                  Best {pr.weight}×{pr.reps}
+                  Best {displayWeight(pr.weight, weightUnit)}×{pr.reps}
                 </span>
               )}
               {isSuperset && (
@@ -673,10 +733,11 @@ function ExerciseCard({
                 variant="ghost"
                 size="sm"
                 onClick={onUnlink}
-                className="text-primary/60 hover:text-primary font-display tracking-wider text-xs"
+                className="text-muted-foreground hover:text-destructive transition-colors"
                 title="Remove from superset"
+                aria-label="Remove from superset"
               >
-                ⚡
+                <Unlink2 className="w-3.5 h-3.5 rotate-90" />
               </Button>
             )}
             <Button
@@ -724,7 +785,9 @@ function ExerciseCard({
                     </span>
                     <span className="tabular-nums text-primary">
                       {entry.sets.filter(s => !s.isWarmup).map((s, j) => (
-                        <span key={j} className="ml-2">{s.weight}×{s.reps}</span>
+                        <span key={j} className="ml-2">
+                          {s.isBodyweight ? 'BW' : displayWeight(s.weight, weightUnit)}×{s.reps}
+                        </span>
                       ))}
                     </span>
                   </div>
@@ -756,13 +819,13 @@ function ExerciseCard({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                     onClick={() => {
-                      if (!set.isBodyweight) setNewWeight(set.weight > 0 ? String(set.weight) : '');
+                      if (!set.isBodyweight) setNewWeight(set.weight > 0 ? displayWeight(set.weight, weightUnit) : '');
                       setIsBodyweight(set.isBodyweight ?? false);
                     }}
                   >
                     <span className="font-display text-lg text-muted-foreground/50">{setNumber}</span>
                     <span className="text-center tabular-nums text-sm text-muted-foreground/50">
-                      {set.isBodyweight ? 'BW' : set.weight > 0 ? `${set.weight}` : '—'}
+                      {set.isBodyweight ? 'BW' : set.weight > 0 ? displayWeight(set.weight, weightUnit) : '—'}
                     </span>
                     <span className="text-center tabular-nums text-sm text-muted-foreground/50">—</span>
                     <Button
@@ -798,9 +861,15 @@ function ExerciseCard({
                     <div>
                       <Input
                         type="number"
-                        value={set.weight}
-                        onChange={(e) => onUpdateSet(index, { weight: parseFloat(e.target.value) || 0 })}
-                        onFocus={(e) => e.target.select()}
+                        value={editingWeight?.idx === index ? editingWeight.value : displayWeight(set.weight, weightUnit)}
+                        onFocus={() => setEditingWeight({ idx: index, value: displayWeight(set.weight, weightUnit) })}
+                        onChange={(e) => setEditingWeight({ idx: index, value: e.target.value })}
+                        onBlur={() => {
+                          if (editingWeight?.idx === index) {
+                            onUpdateSet(index, { weight: parseInputWeight(editingWeight.value, weightUnit) });
+                            setEditingWeight(null);
+                          }
+                        }}
                         className="h-10 text-center tabular-nums bg-background/50"
                       />
                       {weightType === 'per_side' && <span className="text-[10px] text-muted-foreground text-center block">ea.</span>}
@@ -843,11 +912,11 @@ function ExerciseCard({
                 value={newWeight}
                 onChange={(e) => setNewWeight(e.target.value)}
                 onFocus={(e) => e.target.select()}
-                placeholder="lbs"
+                placeholder={weightUnit}
                 className="touch-target text-center tabular-nums"
               />
               <span className="text-xs text-muted-foreground block text-center mt-0.5">
-                {weightType === 'per_side' ? 'lbs ea.' : 'lbs'}
+                {weightType === 'per_side' ? `${weightUnit} ea.` : weightUnit}
               </span>
             </div>
           )}

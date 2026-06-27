@@ -24,7 +24,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { WorkoutSession, WorkoutType, TrainerPlan, PlanSession } from '@/lib/types';
 import { useWorkout } from '@/hooks/useWorkout';
 import { useCloudSync } from '@/hooks/useCloudSync';
-import { getSession, getPlan, getNextPlanSession, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions, patchSession } from '@/lib/storage';
+import { getSession, getPlan, getNextPlanSession, hasLoggedData, finishOrDiscardSession, finalizeAbandonedSessions, patchSession, getSettings } from '@/lib/storage';
 import { generateBrief } from '@/lib/brief';
 import { fetchActivePlan } from '@/lib/plan-sync';
 import { pushUnsyncedSessions, pullRemoteSessions } from '@/lib/session-sync';
@@ -33,6 +33,12 @@ import { parseSessionDate, sessionLabel } from '@/lib/utils';
 import { PlanLoader } from '@/components/workout/PlanLoader';
 
 type View = 'dashboard' | 'start' | 'preview' | 'gym' | 'cardio' | 'summary' | 'history' | 'plan' | 'session-detail';
+
+function fmtWeight(lbs: number): string {
+  const unit = getSettings().weightUnit;
+  if (unit === 'kg') return `${Math.round(lbs * 0.453592 * 10) / 10} kg`;
+  return `${Math.round(lbs)} lbs`;
+}
 
 // Named feel rating — same scale as the post-workout SessionSummary. Surfaced
 // on the session-detail view so feel + notes stay editable AFTER a session is
@@ -70,6 +76,12 @@ export default function Home() {
   // any orphaned in-progress sessions that were just finalized.
   const [bootRefresh, setBootRefresh] = useState(0);
 
+  // PRs/baselines earned during a completed workout. Populated from GymWorkout
+  // via the onComplete callback (the hook instance inside GymWorkout is the one
+  // that actually sees set logs — the page-level hook never does, so newPRs
+  // from that hook is always []).
+  const [completedSessionPRs, setCompletedSessionPRs] = useState<{ prs: string[]; baselines: string[] }>({ prs: [], baselines: [] });
+
   // True once the user has scrolled past the inline nav bar — drives a
   // floating glass-pill back button so the back action is always reachable
   // without resorting to the browser back button.
@@ -80,7 +92,7 @@ export default function Home() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const { session, startSession, newPRs, newBaselines, clearNewPRs } = useWorkout({
+  const { session, startSession } = useWorkout({
     sessionId: activeSessionId || undefined,
   });
 
@@ -167,7 +179,8 @@ export default function Home() {
     setView('start');
   }, []);
 
-  const handleWorkoutComplete = useCallback(() => {
+  const handleWorkoutComplete = useCallback((result?: { prs: string[]; baselines: string[] }) => {
+    if (result) setCompletedSessionPRs(result);
     if (isEditingExisting && viewingSession) {
       if (!activeSessionId) return;
       // Reload the updated session from storage, return to session detail
@@ -183,9 +196,9 @@ export default function Home() {
 
   const handleCloseSummary = useCallback(() => {
     setActiveSessionId(null);
-    clearNewPRs();
+    setCompletedSessionPRs({ prs: [], baselines: [] });
     setView('dashboard');
-  }, [clearNewPRs]);
+  }, []);
 
   const handleViewSession = useCallback((session: WorkoutSession) => {
     setViewingSession(session);
@@ -470,8 +483,8 @@ export default function Home() {
               <SessionSummary
                 session={(activeSessionId ? getSession(activeSessionId) : null) ?? session!}
                 onClose={handleCloseSummary}
-                newPRs={newPRs}
-                newBaselines={newBaselines}
+                newPRs={completedSessionPRs.prs}
+                newBaselines={completedSessionPRs.baselines}
               />
             </motion.div>
           )}
@@ -667,7 +680,7 @@ function SessionDetailView({
                       {set.isWarmup ? 'Warmup' : `Set ${i + 1}`}
                     </span>
                     <span className="tabular-nums font-display" style={{ color: 'var(--pump-text)' }}>
-                      {set.weight} lbs × {set.reps}
+                      {set.isBodyweight ? 'BW' : fmtWeight(set.weight)} × {set.reps}
                     </span>
                   </div>
                 ))}

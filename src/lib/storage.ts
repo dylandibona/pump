@@ -4,6 +4,12 @@ import { mergeEnvelopes, type SyncEnvelope } from './sync-merge';
 
 const STORAGE_KEY = 'dylan-workout-tracker';
 
+// Module-level read cache. getWorkoutData() is called many times per render
+// (once per exercise card, once for history/PRs). Parsing + normalizing the
+// full localStorage blob each time is O(n) per call — this eliminates the
+// redundant work. Cache is invalidated every time saveWorkoutData() writes.
+let _dataCache: WorkoutData | null = null;
+
 // When true, writes skip the 'pump:changed' notification. Set while applying
 // data pulled from the cloud so the merge result doesn't echo back as a push.
 let silentWrite = false;
@@ -117,6 +123,7 @@ function bestPRCandidate(sets: GymSet[]): { weight: number; reps: number } | nul
 // Get all workout data from localStorage
 export function getWorkoutData(): WorkoutData {
   if (typeof window === 'undefined') return defaultData;
+  if (_dataCache) return _dataCache;
 
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -141,7 +148,9 @@ export function getWorkoutData(): WorkoutData {
         mutated = true;
         next = { ...next, exerciseName: normalized };
       }
-      if (!(typeof next.e1rm === 'number' && next.e1rm > 0)) {
+      // Use typeof check only (not > 0) so bodyweight PRs (weight=0,
+      // e1rm=0) don't trigger an infinite re-compute-and-write loop.
+      if (typeof next.e1rm !== 'number' || Number.isNaN(next.e1rm)) {
         mutated = true;
         next = { ...next, e1rm: computeE1RM(next.weight, next.reps) };
       }
@@ -164,6 +173,7 @@ export function getWorkoutData(): WorkoutData {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
     }
 
+    _dataCache = data;
     return data;
   } catch (error) {
     console.error('Error reading workout data:', error);
@@ -175,6 +185,7 @@ export function getWorkoutData(): WorkoutData {
 export function saveWorkoutData(data: WorkoutData): void {
   if (typeof window === 'undefined') return;
 
+  _dataCache = data; // keep cache in sync before the write completes
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     emitChanged();
