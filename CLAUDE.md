@@ -37,6 +37,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   back the dashboard EXPORT / IMPORT buttons — import unions a backup into local
   via `mergeEnvelopes` (safe, full fidelity), the cross-device restore path since
   localStorage is per-container (Safari vs installed PWA).
+  `getWorkoutData()` has a module-level `_dataCache` so the JSON.parse +
+  normalize pass only runs once per write cycle (invalidated by `saveWorkoutData`).
+  Bodyweight PRs (`weight=0, e1rm=0`) are guarded with `typeof !== 'number'`
+  (not `> 0`) to avoid an infinite re-compute-and-write loop on every load.
 - `src/lib/utils.ts` — pure helpers including `parseSessionDate` (avoids the
   UTC-rolling bug on YYYY-MM-DD strings) and **`sessionLabel(s, plan)`** — the
   one canonical display name for a session (prefers plan-session name via
@@ -62,7 +66,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
 - `src/lib/plan-sync.ts` — `fetchActivePlan()` pulls the active plan from the
   Supabase `plans` table (where `is_active`), validates, saves to the
   `dylan-workout-plan` key. Primary plan path; PlanLoader paste is the
-  fallback.
+  fallback. Freshness is checked via the row-level `version` integer (NOT the
+  JSON blob's internal `"version"` field, which the trainer may forget to bump).
+  The last-seen row version is stored separately in `pump-plan-row-version`
+  localStorage key so it survives `validateAndNormalizePlan` without mutation.
 - `src/lib/session-sync.ts` — `pushUnsyncedSessions()` reconciliation sweep.
   Single-flight guard prevents concurrent double-fires. `client_session_id`
   (UUID minted on session start) is the idempotency key — duplicate writes
@@ -72,13 +79,17 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   (native client shape), so the coach gets cardio + intervals + notes
   structurally, not just as prose in `raw_brief` (the shaped columns are lossy).
   Additive + nullable; legacy rows have null payload.
+  `pullRemoteSessions()` has an explicit `.limit(500)` so Supabase's silent
+  1000-row truncation is visible and bounded.
 - `src/lib/prs-sync.ts` — fetches the **curated `prs` Supabase table** (clean
   exercise / weight / reps / unit / kind / achieved_on). Cached locally for
   instant first paint. Dashboard Records read from here; local PersonalRecord
   store is kept only for in-session "NEW BEST" detection (labeled "best",
   not "PR", to avoid the offline latency gap).
 - `src/lib/bp-sync.ts` — `pushUnsyncedBP()` mirror for blood-pressure
-  readings → Supabase `bp_readings`.
+  readings → Supabase `bp_readings`. Has a `bpSweepInFlight` single-flight
+  guard (same pattern as session-sync) to prevent concurrent dashboard-load
+  + window.focus triggers from double-inserting the same reading.
 - `src/components/auth/AuthGate.tsx` — wraps the app in `layout.tsx`.
   **Hard-gates** behind email login when `NEXT_PUBLIC_SUPABASE_*` are set; falls
   through (ungated, localStorage-only) when unset. **Two-phase, CODE-ONLY
@@ -122,6 +133,10 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   so **feel + session notes stay editable on a finished session** (the only
   path to set them on one auto-finished via Back, which never sees the summary
   editor); both write through `patchSession`.
+  **PR flow:** `completedSessionPRs` state holds `{ prs, baselines }` received
+  from `GymWorkout.onComplete`; passed to `SessionSummary`. The page-level
+  `useWorkout` hook only drives `startSession` — its `newPRs` is always `[]`
+  since no set logging happens in that instance.
 - `src/app/layout.tsx` — root layout, font loading (Monoton + Pacifico +
   Outfit; **Space Mono retired** — `--font-mono` resolves to Outfit).
 
@@ -138,6 +153,12 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   the Recent list.
 - `GymWorkout.tsx` — most complex. Exercises, supersets, bodyweight, inline
   cardio, plan pre-fill. Triggers `PRMomentScreen` when `newPRs` grows.
+  Module-level `displayWeight(lbs, unit)` / `parseInputWeight(val, unit)` helpers
+  handle lbs ↔ kg conversion — storage is always lbs, display only converts.
+  `weightUnit` state (`'lbs' | 'kg'`) is persisted to settings; toggled via
+  `WorkoutTimerBar`'s pill. The `onComplete` callback carries
+  `{ prs, baselines }` so `page.tsx` can pass real PR data to `SessionSummary`
+  (the page-level `useWorkout` hook instance never sees set logs).
 - `SessionPreview.tsx` — editable preview between plan-session tap and
   GymWorkout.
 - `SessionSummary.tsx` — post-workout. "Synced to trainer" reassurance band,
@@ -192,7 +213,8 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
   that pulses (`glow-state--urgent`) in its final seconds. Sticky to the top
   of the scroll container. All timer logic is unchanged from the old light
   bar; only the presentation moved onto the scene. (Props: `metaLabel`,
-  `exerciseName`, computed in GymWorkout.)
+  `exerciseName`, computed in GymWorkout.) Also hosts the **lbs / kg pill
+  toggle** (`weightUnit` + `onToggleWeightUnit` props from GymWorkout).
 - `Timer.tsx` — countdown + stopwatch. `RestTimerInline` exported for use
   inside GymWorkout.
 - `IntervalFlow.tsx` — interval timer builder + runner.
@@ -216,6 +238,9 @@ at `_archive/DESIGN_SYSTEM_v1.md`.
 - `dylan-workout-tracker` — all sessions, PRs, templates, settings
 - `dylan-workout-plan` — active TrainerPlan JSON (separate key, replaced on
   plan update)
+- `pump-plan-row-version` — Supabase `plans.version` integer at last fetch;
+  used by `fetchActivePlan()` for freshness comparison (decoupled from the
+  JSON blob's internal `"version"` field)
 - `pump-prs-cache` — curated `prs` snapshot for instant first paint
 - `pump-synced-sessions` / `pump-bp-synced` — ids already written to Supabase
   (sweep dedup)
@@ -364,6 +389,11 @@ On completion:
 - **Script-font nav titles on root views** — Plan, History, New Workout render
   their nav title in Pacifico (title-case). Workflow views keep Outfit 800
   uppercase.
+- **Weight unit toggle (lbs / kg)** — storage is always lbs; `displayWeight` /
+  `parseInputWeight` convert for display only. The active unit is stored in
+  `settings.weightUnit` and toggled via the lbs|kg pill in `WorkoutTimerBar`.
+  The add-set field converts its current value on toggle (not clears); inline
+  set-edit uses local string state committed on blur (decimal points preserved).
 - **PR logic: per-set Epley e1RM** — `e1RM = weight × (1 + min(reps,30)/30)`.
   Local detection only powers the in-session "NEW BEST" badge; the trainer
   curates the canonical PRs in the Supabase `prs` table.

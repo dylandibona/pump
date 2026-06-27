@@ -4,6 +4,23 @@
 
 ## Completed
 
+### Jun 27 2026 session — weight unit toggle + superset polish + ultra-review bugfix pass
+- [x] **lbs / kg toggle** — `weightUnit` state in GymWorkout, pill in
+  `WorkoutTimerBar` cockpit header. Storage stays in lbs; `displayWeight` /
+  `parseInputWeight` convert for display. Add-set field converts on toggle (not
+  clears); inline set-weight edit uses local string state on blur (decimal safe).
+  Persisted to `settings.weightUnit`.
+- [x] **Superset chain-link connector** — gradient-faded vertical lines + Link2
+  chain icon + purple glow SUPERSET label + hover-reveal Unlink2 break affordance.
+- [x] **Ultra-review bugfix pass (10 confirmed issues):**
+  - `bp-sync`: `bpSweepInFlight` single-flight guard; 23505 dedup; `changed` flag
+  - `plan-sync`: `pump-plan-row-version` key replaces fragile `__rowVersion` mutation
+  - `storage`: module-level `_dataCache`; bodyweight PR infinite-write loop fixed
+  - `session-sync`: `.limit(500)` on `pullRemoteSessions`
+  - `GymWorkout → page`: dual-useWorkout fixed — PRs flow via `onComplete` callback
+    into `completedSessionPRs` state; `SessionSummary` now actually receives earned PRs
+  - `SessionDetailView`: weight label respects unit setting (was hardcoded "lbs")
+
 ### Jun 17 2026 session — bug fixes + BP export + coach payload + splash
 - [x] **Six june12 bugs** (see `bugs-june12.md`): reorder handle-only drag +
   scroll, back-button suppressed on gym/cardio, `LastSessionCard` recap, feel/

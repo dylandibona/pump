@@ -28,8 +28,9 @@ for the full system.
 ### Gym Workouts
 - Exercise autocomplete (100+ exercises + custom) with name normalization
 - Set tracking (weight, reps, warmup), bodyweight exercises, quick duplicate
-- **Supersets** — link two exercises; a prominent ⚡ SUPERSET pill with a ✕ to
-  break the bond; reorder via a handle-drag sheet; members moved apart auto-unlink
+- **lbs / kg toggle** — pill in the cockpit header; storage always lbs, display converts
+- **Supersets** — chain-link connector (gradient lines + purple glow) between linked
+  cards; tap to break; reorder via handle-drag sheet; members moved apart auto-unlink
 - Inline cardio + interval timer
 - **PR full-screen reward** (`PRMomentScreen`) — earned, rare, the loudest the
   app gets; local "NEW BEST" badge in-session
