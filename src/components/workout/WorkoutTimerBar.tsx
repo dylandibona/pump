@@ -30,6 +30,10 @@ interface WorkoutTimerBarProps {
   exerciseName?: string;
   /** Optional right-side badge showing interval state when running */
   intervalBadge?: React.ReactNode;
+  /** Active weight unit — drives the pill toggle display */
+  weightUnit?: 'lbs' | 'kg';
+  /** Flip lbs ↔ kg and persist to settings */
+  onToggleWeightUnit?: () => void;
 }
 
 function fmt(sec: number): string {
@@ -41,7 +45,7 @@ function fmt(sec: number): string {
   return `${m}:${String(r).padStart(2, '0')}`;
 }
 
-export function WorkoutTimerBar({ startTime, metaLabel, exerciseName, intervalBadge }: WorkoutTimerBarProps) {
+export function WorkoutTimerBar({ startTime, metaLabel, exerciseName, intervalBadge, weightUnit, onToggleWeightUnit }: WorkoutTimerBarProps) {
   const startMs = useMemo(() => new Date(startTime).getTime(), [startTime]);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [restSeconds, setRestSeconds] = useState<number | null>(null); // total rest duration
@@ -108,14 +112,36 @@ export function WorkoutTimerBar({ startTime, metaLabel, exerciseName, intervalBa
         {/* Meta + current exercise */}
         {(metaLabel || exerciseName) && (
           <div className="mb-2 min-w-0">
-            {metaLabel && (
-              <p
-                className="text-[10px] tracking-[0.28em] uppercase font-bold truncate"
-                style={{ color: 'rgba(0,255,238,0.9)', textShadow: '0 0 10px rgba(0,255,238,0.5)' }}
-              >
-                {metaLabel}
-              </p>
-            )}
+            <div className="flex items-center justify-between gap-2">
+              {metaLabel && (
+                <p
+                  className="text-[10px] tracking-[0.28em] uppercase font-bold truncate"
+                  style={{ color: 'rgba(0,255,238,0.9)', textShadow: '0 0 10px rgba(0,255,238,0.5)' }}
+                >
+                  {metaLabel}
+                </p>
+              )}
+              {weightUnit && onToggleWeightUnit && (
+                <button
+                  onClick={onToggleWeightUnit}
+                  className="shrink-0 flex items-center rounded-md overflow-hidden text-[10px] font-bold tracking-[0.15em] uppercase"
+                  style={{ border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.08)' }}
+                  aria-label="Toggle weight unit"
+                >
+                  {(['lbs', 'kg'] as const).map(u => (
+                    <span
+                      key={u}
+                      className="px-2 py-1 transition-colors"
+                      style={weightUnit === u
+                        ? { background: 'rgba(0,255,238,0.22)', color: 'rgba(0,255,238,1)', textShadow: '0 0 8px rgba(0,255,238,0.6)' }
+                        : { color: 'rgba(255,255,255,0.4)' }}
+                    >
+                      {u}
+                    </span>
+                  ))}
+                </button>
+              )}
+            </div>
             {exerciseName && (
               <p
                 className="text-white truncate"

@@ -4,6 +4,17 @@
 
 ## Completed
 
+### Jun 30 2026 session — TestFlight build 4 + plan label sync
+- [x] **Native republish to TestFlight** — `npm run build` → `npx cap sync ios`
+  → bumped `CURRENT_PROJECT_VERSION` 3 → 4 (both Debug/Release configs in
+  `project.pbxproj`) → archived + distributed (TestFlight Internal Only). Build
+  **1.0 (4)** carries the lbs/kg toggle + DB session pull, which were source-only
+  before this (committed here — `WorkoutTimerBar.tsx` was uncommitted).
+- [x] **Plan internal-version label synced** — active `plans` row (Reboot Block 2)
+  had row `version = 5` but JSON `"version" = "4"`, so the app displayed "v4".
+  Set `json.version = "5"` via `jsonb_set` so the displayed label matches the row
+  version. (Cosmetic; freshness always keyed off the row version, never the blob.)
+
 ### Jun 27 2026 session — weight unit toggle + superset polish + ultra-review bugfix pass
 - [x] **lbs / kg toggle** — `weightUnit` state in GymWorkout, pill in
   `WorkoutTimerBar` cockpit header. Storage stays in lbs; `displayWeight` /
